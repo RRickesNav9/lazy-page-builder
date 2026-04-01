@@ -81,6 +81,35 @@ export function useEquipamentoBenchmark(filters = {}) {
   return { data, loading, error }
 }
 
+// Busca toda a tabela media_equipamentos_porteira sem filtro de cliente (para tabela de referência)
+export function useModeloBenchmarkAll(filters = {}) {
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    async function fetch() {
+      setLoading(true)
+      try {
+        let query = supabase.from('media_equipamentos_porteira').select('*')
+        if (filters.processo)   query = query.eq('processo', filters.processo)
+        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
+        if (filters.safra)      query = query.eq('safra', filters.safra)
+        const { data, error } = await query.order('modelo_equipamento').order('processo')
+        if (error) throw error
+        setData(data)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetch()
+  }, [filters.processo, filters.tipo_safra, filters.safra])
+
+  return { data, loading, error }
+}
+
 // Busca benchmark "Média Porteira" por grupo/processo
 export function useGrupoBenchmark(filters = {}) {
   const [data, setData] = useState([])

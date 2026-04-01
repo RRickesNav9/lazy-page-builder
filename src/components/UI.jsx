@@ -183,7 +183,7 @@ export function DataTable({ rows, columns, highlightCol }) {
 }
 
 // ── Filter Bar ────────────────────────────────────────────────────────────────
-export function FilterBar({ filters, onChange, options, showNivel = false, showMetrica = false }) {
+export function FilterBar({ filters, onChange, options, showNivel = false, showMetrica = false, showModelo = false, showEquipamentoSearch = false }) {
   const set = (key, val) => onChange({ ...filters, [key]: val || undefined })
 
   const inputCls = "bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-200"
@@ -228,6 +228,35 @@ export function FilterBar({ filters, onChange, options, showNivel = false, showM
           </select>
         </div>
       ))}
+
+      {/* Modelo de equipamento */}
+      {showModelo && (
+        <div className="flex flex-col gap-0.5">
+          <label className="text-xs text-slate-500 dark:text-zinc-500">Modelo</label>
+          <select
+            value={filters.modelo_equipamento || ''}
+            onChange={e => set('modelo_equipamento', e.target.value)}
+            className={`${inputCls} min-w-[160px]`}
+          >
+            <option value="">Todos</option>
+            {options?.modelos?.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </div>
+      )}
+
+      {/* Busca por equipamento (código ou nome) */}
+      {showEquipamentoSearch && (
+        <div className="flex flex-col gap-0.5">
+          <label className="text-xs text-slate-500 dark:text-zinc-500">Equipamento</label>
+          <input
+            type="text"
+            placeholder="Buscar código ou nome…"
+            value={filters.equipamento || ''}
+            onChange={e => set('equipamento', e.target.value)}
+            className={`${inputCls} min-w-[180px]`}
+          />
+        </div>
+      )}
 
       {/* Nível de análise (Diário Operacional) */}
       {showNivel && (
