@@ -1,11 +1,3 @@
-import { clsx } from 'clsx'
-import { twMerge } from 'tailwind-merge'
-
-// Shadcn/ui utility — required by src/components/ui/*
-export function cn(...inputs) {
-  return twMerge(clsx(inputs))
-}
-
 // Formata número com casas decimais e unidade
 export const fmt = (val, decimals = 1, unit = '') => {
   const n = parseFloat(val)
@@ -101,9 +93,9 @@ export function calcTimeDistribution(rows) {
   const total = produtivo + parada + manobra + deslocamento
   if (!total) return []
   return [
-    { label: 'Trabalhando',   value: produtivo,    pct: (produtivo / total) * 100,    color: '#22c55e' },
-    { label: 'Parada',        value: parada,        pct: (parada / total) * 100,        color: '#ef4444' },
-    { label: 'Manobra',       value: manobra,       pct: (manobra / total) * 100,       color: '#eab308' },
+    { label: 'Trabalhando',   value: produtivo,    pct: (produtivo / total) * 100,    color: 'var(--pa-green)' },
+    { label: 'Parada',        value: parada,        pct: (parada / total) * 100,        color: 'var(--pa-red)' },
+    { label: 'Manobra',       value: manobra,       pct: (manobra / total) * 100,       color: 'var(--pa-amber)' },
     { label: 'Deslocamento',  value: deslocamento,  pct: (deslocamento / total) * 100,  color: '#6366f1' },
   ].filter(d => d.value > 0)
 }

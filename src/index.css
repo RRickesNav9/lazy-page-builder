@@ -6,32 +6,81 @@
 
 * { box-sizing: border-box; }
 
-/* ── CSS Variables ────────────────────────────────────────────────────────── */
-/* dark is default */
+/* ── Brand Palette ────────────────────────────────────────────────────────── */
+/* Dark (default) — verde-oliva escuro, âmbar terracota                       */
 :root,
 html.dark {
-  --donut-track: #27272a;
-  --donut-center-text: #f4f4f5;
-  --donut-center-sub: #71717a;
-  --scrollbar-track: #18181b;
-  --scrollbar-thumb: #3f3f46;
-  --scrollbar-thumb-hover: #52525b;
+  --pa-bg:          #161d10;
+  --pa-surface:     #1f2a17;
+  --pa-surface-2:   #273319;
+  --pa-border:      #3a4d2a;
+  --pa-green:       #6aaa3a;
+  --pa-green-dim:   #3a5a25;
+  --pa-amber:       #c87941;
+  --pa-amber-dim:   #6b3d1a;
+  --pa-red:         #c04040;
+  --pa-red-dim:     #5a1f1f;
+  --pa-text:        #dde8c8;
+  --pa-muted:       #7a9164;
+  --pa-faint:       #3a4d2a;
+
+  /* Donut / scrollbar */
+  --donut-track:         #273319;
+  --donut-center-text:   #dde8c8;
+  --donut-center-sub:    #7a9164;
+  --scrollbar-track:     #161d10;
+  --scrollbar-thumb:     #3a4d2a;
+  --scrollbar-thumb-hover: #5a7a45;
 }
 
+/* Light mode */
 html.light {
-  --donut-track: #e2e8f0;
-  --donut-center-text: #0f172a;
-  --donut-center-sub: #64748b;
-  --scrollbar-track: #f1f5f9;
-  --scrollbar-thumb: #cbd5e1;
-  --scrollbar-thumb-hover: #94a3b8;
+  --pa-bg:          #f2f4ee;
+  --pa-surface:     #ffffff;
+  --pa-surface-2:   #f5f7f1;
+  --pa-border:      #ccd6be;
+  --pa-green:       #3a6a28;
+  --pa-green-dim:   #e2eed8;
+  --pa-amber:       #a8581e;
+  --pa-amber-dim:   #fdf0e6;
+  --pa-red:         #9b2a2a;
+  --pa-red-dim:     #fde8e8;
+  --pa-text:        #1c2614;
+  --pa-muted:       #5a7a45;
+  --pa-faint:       #dde8cc;
+
+  --donut-track:         #dde8cc;
+  --donut-center-text:   #1c2614;
+  --donut-center-sub:    #5a7a45;
+  --scrollbar-track:     #f2f4ee;
+  --scrollbar-thumb:     #ccd6be;
+  --scrollbar-thumb-hover: #9ab88a;
 }
 
 body {
   margin: 0;
+  background-color: var(--pa-bg);
+  color: var(--pa-text);
 }
 
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
 ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+
+/* ── Page fade-in ─────────────────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.page-fade-in {
+  animation: fadeIn 0.18s ease-out both;
+}
+
+/* ── Fetching overlay (sem apagar conteúdo) ───────────────────────────────── */
+.data-fetching {
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}

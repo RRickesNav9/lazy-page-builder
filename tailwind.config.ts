@@ -57,6 +57,22 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // ── Porteira Adentro brand tokens ──────────────────────────────────
+        pa: {
+          bg:          "var(--pa-bg)",
+          surface:     "var(--pa-surface)",
+          "surface-2": "var(--pa-surface-2)",
+          border:      "var(--pa-border)",
+          green:       "var(--pa-green)",
+          "green-dim": "var(--pa-green-dim)",
+          amber:       "var(--pa-amber)",
+          "amber-dim": "var(--pa-amber-dim)",
+          red:         "var(--pa-red)",
+          "red-dim":   "var(--pa-red-dim)",
+          text:        "var(--pa-text)",
+          muted:       "var(--pa-muted)",
+          faint:       "var(--pa-faint)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

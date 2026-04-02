@@ -1,26 +1,46 @@
 import { useState } from 'react'
-import { METRICAS, NIVEIS_ANALISE, fmtDate } from '../lib/utils'
+import { METRICAS, NIVEIS_ANALISE } from '../lib/utils'
+
+// Semáforo por % absoluto (disponibilidade, eficiência): crítico <70, atenção 70-95, adequado >95
+export function semaphorePct(value) {
+  if (value == null || isNaN(value)) return { cls: 'text-pa-muted', bg: 'bg-pa-surface-2' }
+  if (value >= 95) return { cls: 'text-pa-green', bg: 'bg-pa-green-dim' }
+  if (value >= 70) return { cls: 'text-pa-amber', bg: 'bg-pa-amber-dim' }
+  return { cls: 'text-pa-red', bg: 'bg-pa-red-dim' }
+}
+
+// Semáforo por ratio vs benchmark
+export function semaphoreRatio(value, benchmark, higherIsBetter = true) {
+  if (!benchmark || value == null) return { cls: 'text-pa-text', bg: '' }
+  const ratio = value / benchmark
+  const ok = higherIsBetter ? ratio >= 0.95 : ratio <= 1.05
+  const warn = higherIsBetter ? ratio >= 0.80 : ratio <= 1.20
+  if (ok)   return { cls: 'text-pa-green', bg: 'bg-pa-green-dim' }
+  if (warn) return { cls: 'text-pa-amber', bg: 'bg-pa-amber-dim' }
+  return { cls: 'text-pa-red', bg: 'bg-pa-red-dim' }
+}
 
 // ── KPI Card ─────────────────────────────────────────────────────────────────
-export function KPICard({ label, value, unit, benchmark, benchmarkLabel, color = 'emerald' }) {
-  const colors = {
-    emerald: 'from-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400',
-    amber:   'from-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400',
-    blue:    'from-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400',
-    red:     'from-red-500/10 border-red-500/20 text-red-600 dark:text-red-400',
-    violet:  'from-violet-500/10 border-violet-500/20 text-violet-600 dark:text-violet-400',
-  }
-  const valueColor = colors[color].split(' ').slice(2).join(' ')
+export function KPICard({ label, value, unit, benchmark, benchmarkLabel, pctValue, ratioBenchmark }) {
+  // pctValue: número bruto para semáforo absoluto (ex: 94.5)
+  // ratioBenchmark: { value, benchmark, higherIsBetter } para semáforo relativo
+  const sem = pctValue != null
+    ? semaphorePct(pctValue)
+    : ratioBenchmark != null
+      ? semaphoreRatio(ratioBenchmark.value, ratioBenchmark.benchmark, ratioBenchmark.higherIsBetter)
+      : { cls: 'text-pa-green', bg: '' }
+
   return (
-    <div className={`rounded-xl border bg-white bg-gradient-to-br to-transparent p-4 dark:bg-transparent ${colors[color]}`}>
-      <p className="text-xs font-medium text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1">{label}</p>
-      <p className={`text-2xl font-bold tabular-nums ${valueColor}`}>
-        {value ?? '—'} <span className="text-sm font-normal text-slate-500 dark:text-zinc-400">{unit}</span>
+    <div className="rounded-xl border border-pa-border bg-pa-surface p-4">
+      <p className="text-xs font-medium text-pa-muted uppercase tracking-wider mb-1">{label}</p>
+      <p className={`text-2xl font-bold tabular-nums ${sem.cls}`}>
+        {value ?? '—'}
+        {unit && <span className="text-sm font-normal text-pa-muted ml-1">{unit}</span>}
       </p>
       {benchmark && (
-        <p className="text-xs text-slate-500 dark:text-zinc-500 mt-1">
-          Porteira: <span className="text-slate-700 dark:text-zinc-300">{benchmark}</span>
-          {benchmarkLabel && <span className="ml-1 text-slate-400 dark:text-zinc-600">{benchmarkLabel}</span>}
+        <p className="text-xs text-pa-muted mt-1">
+          Porteira: <span className="text-pa-text">{benchmark}</span>
+          {benchmarkLabel && <span className="ml-1 text-pa-faint">{benchmarkLabel}</span>}
         </p>
       )}
     </div>
@@ -29,7 +49,9 @@ export function KPICard({ label, value, unit, benchmark, benchmarkLabel, color =
 
 // ── Donut Chart (SVG puro) ────────────────────────────────────────────────────
 export function DonutChart({ data, centerLabel, size = 160 }) {
-  if (!data?.length) return <div className="flex items-center justify-center h-40 text-slate-400 dark:text-zinc-600 text-sm">Sem dados</div>
+  if (!data?.length) return (
+    <div className="flex items-center justify-center h-40 text-pa-muted text-sm">Sem dados</div>
+  )
 
   const r = size * 0.36
   const cx = size / 2
@@ -75,10 +97,10 @@ export function DonutChart({ data, centerLabel, size = 160 }) {
       </svg>
       <div className="flex flex-wrap gap-x-3 gap-y-1 justify-center">
         {segments.map((seg, i) => (
-          <div key={i} className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400">
+          <div key={i} className="flex items-center gap-1.5 text-xs text-pa-muted">
             <span className="inline-block w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: seg.color }} />
             {seg.label}
-            <span className="text-slate-700 dark:text-zinc-300 font-medium">{seg.pct.toFixed(1)}%</span>
+            <span className="text-pa-text font-medium">{seg.pct.toFixed(1)}%</span>
           </div>
         ))}
       </div>
@@ -86,31 +108,33 @@ export function DonutChart({ data, centerLabel, size = 160 }) {
   )
 }
 
-// ── Horizontal Bar Chart (SVG puro) ──────────────────────────────────────────
-export function HBarChart({ data, metricLabel, benchmarkKey }) {
-  if (!data?.length) return <div className="text-slate-400 dark:text-zinc-600 text-sm py-4 text-center">Sem dados</div>
+// ── Horizontal Bar Chart ──────────────────────────────────────────────────────
+export function HBarChart({ data }) {
+  if (!data?.length) return (
+    <div className="text-pa-muted text-sm py-4 text-center">Sem dados</div>
+  )
   const max = Math.max(...data.map(d => d.value || 0))
   return (
     <div className="space-y-2">
       {data.map((d, i) => (
-        <div key={i} className="group">
+        <div key={i}>
           <div className="flex justify-between items-center mb-0.5">
-            <span className="text-xs text-slate-500 dark:text-zinc-400 truncate max-w-[55%]" title={d.label}>{d.label}</span>
+            <span className="text-xs text-pa-muted truncate max-w-[55%]" title={d.label}>{d.label}</span>
             <div className="flex items-center gap-2">
               {d.benchmark != null && (
-                <span className="text-xs text-slate-400 dark:text-zinc-600">ref: {d.benchmark.toFixed(1)}</span>
+                <span className="text-xs text-pa-faint">ref: {d.benchmark.toFixed(1)}</span>
               )}
-              <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 tabular-nums">{(d.value || 0).toFixed(2)}</span>
+              <span className="text-xs font-bold text-pa-text tabular-nums">{(d.value || 0).toFixed(2)}</span>
             </div>
           </div>
-          <div className="relative h-5 rounded overflow-hidden bg-slate-200 dark:bg-zinc-800">
+          <div className="relative h-5 rounded overflow-hidden bg-pa-surface-2">
             <div
               className="absolute left-0 top-0 h-full rounded transition-all duration-500"
-              style={{ width: `${max > 0 ? (d.value / max) * 100 : 0}%`, background: d.color || '#22c55e' }}
+              style={{ width: `${max > 0 ? (d.value / max) * 100 : 0}%`, background: d.color || 'var(--pa-green)' }}
             />
             {d.benchmark != null && (
               <div
-                className="absolute top-0 h-full w-0.5 bg-slate-900/30 dark:bg-white/40"
+                className="absolute top-0 h-full w-0.5 bg-pa-muted/40"
                 style={{ left: `${max > 0 ? (d.benchmark / max) * 100 : 0}%` }}
               />
             )}
@@ -140,33 +164,30 @@ export function DataTable({ rows, columns, highlightCol }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-zinc-800">
+    <div className="overflow-x-auto rounded-lg border border-pa-border">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-200 bg-slate-50 dark:border-zinc-800 dark:bg-zinc-900">
+          <tr className="border-b border-pa-border bg-pa-surface-2">
             {columns.map(col => (
               <th
                 key={col.key}
                 onClick={() => toggleSort(col.key)}
                 className={`px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider cursor-pointer select-none transition-colors
-                  ${sort.col === col.key ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-500 dark:hover:text-zinc-300'}
-                  ${col.key === highlightCol ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''}`}
+                  ${sort.col === col.key ? 'text-pa-green' : 'text-pa-muted hover:text-pa-text'}`}
               >
                 {col.label}
-                {sort.col === col.key && (
-                  <span className="ml-1">{sort.dir === 'asc' ? '↑' : '↓'}</span>
-                )}
+                {sort.col === col.key && <span className="ml-1">{sort.dir === 'asc' ? '↑' : '↓'}</span>}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
           {sorted.map((row, i) => (
-            <tr key={i} className="border-b border-slate-100 hover:bg-slate-50 dark:border-zinc-800/50 dark:hover:bg-zinc-800/40 transition-colors">
+            <tr key={i} className="border-b border-pa-border/50 hover:bg-pa-surface-2 transition-colors">
               {columns.map(col => (
                 <td
                   key={col.key}
-                  className={`px-3 py-2 tabular-nums ${col.key === highlightCol ? 'font-bold text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950/20' : 'text-slate-700 dark:text-zinc-300'}`}
+                  className={`px-3 py-2 tabular-nums ${col.key === highlightCol ? 'font-bold text-pa-green' : 'text-pa-text'}`}
                 >
                   {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')}
                 </td>
@@ -174,7 +195,11 @@ export function DataTable({ rows, columns, highlightCol }) {
             </tr>
           ))}
           {!sorted.length && (
-            <tr><td colSpan={columns.length} className="text-center py-8 text-slate-400 dark:text-zinc-600">Nenhum registro encontrado</td></tr>
+            <tr>
+              <td colSpan={columns.length} className="text-center py-8 text-pa-faint">
+                Nenhum registro encontrado
+              </td>
+            </tr>
           )}
         </tbody>
       </table>
@@ -183,16 +208,16 @@ export function DataTable({ rows, columns, highlightCol }) {
 }
 
 // ── Filter Bar ────────────────────────────────────────────────────────────────
-export function FilterBar({ filters, onChange, options, showNivel = false, showMetrica = false, showModelo = false, showEquipamentoSearch = false }) {
+export function FilterBar({ filters, onChange, options, showNivel = false, showMetrica = false }) {
   const set = (key, val) => onChange({ ...filters, [key]: val || undefined })
 
-  const inputCls = "bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-200"
+  const inputCls = "bg-pa-surface border border-pa-border rounded-lg px-3 py-1.5 text-sm text-pa-text focus:outline-none focus:border-pa-green"
 
   return (
     <div className="flex flex-wrap gap-2 items-end">
       {/* Date range */}
       <div className="flex flex-col gap-0.5">
-        <label className="text-xs text-slate-500 dark:text-zinc-500">De</label>
+        <label className="text-xs text-pa-muted">De</label>
         <input
           type="date" value={filters.dataInicio || ''}
           onChange={e => set('dataInicio', e.target.value)}
@@ -200,7 +225,7 @@ export function FilterBar({ filters, onChange, options, showNivel = false, showM
         />
       </div>
       <div className="flex flex-col gap-0.5">
-        <label className="text-xs text-slate-500 dark:text-zinc-500">Até</label>
+        <label className="text-xs text-pa-muted">Até</label>
         <input
           type="date" value={filters.dataFim || ''}
           onChange={e => set('dataFim', e.target.value)}
@@ -217,7 +242,7 @@ export function FilterBar({ filters, onChange, options, showNivel = false, showM
         { key: 'processo',     label: 'Processo',   opts: options.processos },
       ].map(({ key, label, opts }) => (
         <div key={key} className="flex flex-col gap-0.5">
-          <label className="text-xs text-slate-500 dark:text-zinc-500">{label}</label>
+          <label className="text-xs text-pa-muted">{label}</label>
           <select
             value={filters[key] || ''}
             onChange={e => set(key, e.target.value)}
@@ -229,39 +254,9 @@ export function FilterBar({ filters, onChange, options, showNivel = false, showM
         </div>
       ))}
 
-      {/* Modelo de equipamento */}
-      {showModelo && (
-        <div className="flex flex-col gap-0.5">
-          <label className="text-xs text-slate-500 dark:text-zinc-500">Modelo</label>
-          <select
-            value={filters.modelo_equipamento || ''}
-            onChange={e => set('modelo_equipamento', e.target.value)}
-            className={`${inputCls} min-w-[160px]`}
-          >
-            <option value="">Todos</option>
-            {options?.modelos?.map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
-        </div>
-      )}
-
-      {/* Busca por equipamento (código ou nome) */}
-      {showEquipamentoSearch && (
-        <div className="flex flex-col gap-0.5">
-          <label className="text-xs text-slate-500 dark:text-zinc-500">Equipamento</label>
-          <input
-            type="text"
-            placeholder="Buscar código ou nome…"
-            value={filters.equipamento || ''}
-            onChange={e => set('equipamento', e.target.value)}
-            className={`${inputCls} min-w-[180px]`}
-          />
-        </div>
-      )}
-
-      {/* Nível de análise (Diário Operacional) */}
       {showNivel && (
         <div className="flex flex-col gap-0.5">
-          <label className="text-xs text-slate-500 dark:text-zinc-500">Nível de Análise</label>
+          <label className="text-xs text-pa-muted">Nível de Análise</label>
           <select
             value={filters.nivel || 'processo'}
             onChange={e => set('nivel', e.target.value)}
@@ -272,10 +267,9 @@ export function FilterBar({ filters, onChange, options, showNivel = false, showM
         </div>
       )}
 
-      {/* Métrica exibida */}
       {showMetrica && (
         <div className="flex flex-col gap-0.5">
-          <label className="text-xs text-slate-500 dark:text-zinc-500">Métrica</label>
+          <label className="text-xs text-pa-muted">Métrica</label>
           <select
             value={filters.metrica || 'rendimento_operacional_hah'}
             onChange={e => set('metrica', e.target.value)}
@@ -286,10 +280,9 @@ export function FilterBar({ filters, onChange, options, showNivel = false, showM
         </div>
       )}
 
-      {/* Botão limpar */}
       <button
         onClick={() => onChange({})}
-        className="self-end px-3 py-1.5 rounded-lg text-xs text-slate-500 border border-slate-200 hover:border-slate-400 hover:text-slate-700 dark:text-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-500 dark:hover:text-zinc-200 transition-colors"
+        className="self-end px-3 py-1.5 rounded-lg text-xs text-pa-muted border border-pa-border hover:border-pa-green hover:text-pa-text transition-colors"
       >
         Limpar
       </button>
@@ -299,7 +292,7 @@ export function FilterBar({ filters, onChange, options, showNivel = false, showM
 
 // ── Skeleton loader ───────────────────────────────────────────────────────────
 export function Skeleton({ className = '' }) {
-  return <div className={`animate-pulse rounded-lg bg-slate-200 dark:bg-zinc-800 ${className}`} />
+  return <div className={`animate-pulse rounded-lg bg-pa-surface-2 ${className}`} />
 }
 
 export function PageLoader() {
@@ -309,6 +302,15 @@ export function PageLoader() {
         {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24" />)}
       </div>
       <Skeleton className="h-64" />
+    </div>
+  )
+}
+
+// ── Fetching indicator (overlay sutil) ────────────────────────────────────────
+export function FetchingBar() {
+  return (
+    <div className="h-0.5 w-full bg-pa-surface-2 overflow-hidden rounded-full">
+      <div className="h-full bg-pa-green animate-pulse" style={{ width: '60%' }} />
     </div>
   )
 }
