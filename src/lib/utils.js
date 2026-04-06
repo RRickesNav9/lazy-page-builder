@@ -1,3 +1,10 @@
+import { clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs) {
+  return twMerge(clsx(inputs))
+}
+
 // Formata número com casas decimais e unidade
 export const fmt = (val, decimals = 1, unit = '') => {
   const n = parseFloat(val)

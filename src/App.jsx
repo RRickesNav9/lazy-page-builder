@@ -1,16 +1,25 @@
 import { useState } from 'react'
 import { useTheme } from './lib/ThemeContext'
+import { FilterProvider, useFilters } from './lib/FilterContext'
+import GlobalFilterDrawer from './components/GlobalFilterDrawer'
+import OverviewDashboardPage from './pages/OverviewDashboardPage'
 import OverviewPage from './pages/OverviewPage'
 import BenchmarkClientePage from './pages/BenchmarkClientePage'
 import BenchmarkEquipamentosPage from './pages/BenchmarkEquipamentosPage'
-// Páginas futuras — adicionar conforme implementação
-// import DiarioOperacionalPage from './pages/DiarioOperacionalPage'
-// import MediaPorteiraPage from './pages/MediaPorteiraPage'
 
 const NAV = [
   {
-    id: 'overview',
+    id: 'overview_dashboard',
     label: 'Overview',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 7.125C2.25 6.504 2.754 6 3.375 6h6c.621 0 1.125.504 1.125 1.125v3.75c0 .621-.504 1.125-1.125 1.125h-6a1.125 1.125 0 01-1.125-1.125v-3.75zM14.25 8.625c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v8.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 01-1.125-1.125v-8.25zM2.25 16.5c0-.621.504-1.125 1.125-1.125h6c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125h-6a1.125 1.125 0 01-1.125-1.125v-2.25z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'overview',
+    label: 'Grupo Porteira',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
@@ -37,12 +46,6 @@ const NAV = [
   },
 ]
 
-const PAGES = {
-  overview:               OverviewPage,
-  benchmark_cliente:      BenchmarkClientePage,
-  benchmark_equipamentos: BenchmarkEquipamentosPage,
-}
-
 function SunIcon() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -59,10 +62,53 @@ function MoonIcon() {
   )
 }
 
-export default function App() {
-  const [page, setPage] = useState('overview')
+function FilterHeaderButton() {
+  const { openDrawer, activeCount } = useFilters()
+  return (
+    <button
+      onClick={openDrawer}
+      className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg border border-pa-border text-xs text-pa-muted hover:text-pa-text hover:border-pa-green transition-colors"
+    >
+      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+      </svg>
+      Filtros
+      {activeCount > 0 && (
+        <span
+          className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-white flex items-center justify-center"
+          style={{ background: 'var(--pa-green)', fontSize: 10, fontWeight: 700 }}
+        >
+          {activeCount}
+        </span>
+      )}
+    </button>
+  )
+}
+
+function AppInner() {
+  const [page, setPage] = useState('overview_dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { theme, toggleTheme } = useTheme()
+
+  const handleNavigateCliente = (cliente) => {
+    setPage('benchmark_cliente')
+    // The benchmark page will pick up from its own filters
+  }
+
+  const renderPage = () => {
+    switch (page) {
+      case 'overview_dashboard':
+        return <OverviewDashboardPage onNavigateCliente={handleNavigateCliente} />
+      case 'overview':
+        return <OverviewPage />
+      case 'benchmark_cliente':
+        return <BenchmarkClientePage />
+      case 'benchmark_equipamentos':
+        return <BenchmarkEquipamentosPage />
+      default:
+        return null
+    }
+  }
 
   return (
     <div className="min-h-screen flex" style={{ background: 'var(--pa-bg)', color: 'var(--pa-text)', fontFamily: "'DM Mono', 'JetBrains Mono', monospace" }}>
@@ -82,6 +128,7 @@ export default function App() {
             </div>
           )}
           <div className="ml-auto flex items-center gap-1">
+            {sidebarOpen && <FilterHeaderButton />}
             <button onClick={toggleTheme} title={theme === 'dark' ? 'Mudar para claro' : 'Mudar para escuro'} className="text-pa-muted hover:text-pa-text transition-colors">
               {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
             </button>
@@ -121,10 +168,26 @@ export default function App() {
 
       {/* Main content */}
       <main className="flex-1 overflow-auto">
+        {/* Top bar with filter button when sidebar collapsed */}
+        {!sidebarOpen && (
+          <div className="flex justify-end px-4 py-2 border-b border-pa-border">
+            <FilterHeaderButton />
+          </div>
+        )}
         <div key={page} className="max-w-7xl mx-auto p-6 page-fade-in">
-          {PAGES[page] ? (() => { const Page = PAGES[page]; return <Page /> })() : null}
+          {renderPage()}
         </div>
       </main>
+
+      <GlobalFilterDrawer />
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <FilterProvider>
+      <AppInner />
+    </FilterProvider>
   )
 }
