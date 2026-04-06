@@ -2,19 +2,17 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
 // Busca registros operacionais com filtros dinâmicos e paginação
-export function useOperationalData(filters = {}) {
+// enabled=false retorna vazio imediatamente sem query (evita fetch desnecessário)
+export function useOperationalData(filters = {}, enabled = true) {
   const [data, setData] = useState([])
-  const [loading, setLoading] = useState(true)   // true apenas na carga inicial (sem dados ainda)
-  const [fetching, setFetching] = useState(false) // true em re-fetches — não apaga conteúdo
+  const [loading, setLoading] = useState(true)
+  const [fetching, setFetching] = useState(false)
   const [error, setError] = useState(null)
   const hasData = data.length > 0
 
   const fetch = useCallback(async () => {
-    if (hasData) {
-      setFetching(true)
-    } else {
-      setLoading(true)
-    }
+    if (!enabled) { setData([]); setLoading(false); return }
+    if (hasData) { setFetching(true) } else { setLoading(true) }
     setError(null)
     try {
       let query = supabase
@@ -22,20 +20,19 @@ export function useOperationalData(filters = {}) {
         .select('*')
         .order('data', { ascending: false })
 
-      if (filters.cliente)      query = query.eq('cliente', filters.cliente)
-      if (filters.propriedade)  query = query.eq('propriedade', filters.propriedade)
-      if (filters.processo)     query = query.eq('processo', filters.processo)
-      if (filters.tipo_safra)   query = query.eq('tipo_safra', filters.tipo_safra)
-      if (filters.safra)        query = query.eq('safra', filters.safra)
-      if (filters.equipamento)  query = query.ilike('equipamento', `%${filters.equipamento}%`)
-      if (filters.operador)     query = query.ilike('operador', `%${filters.operador}%`)
+      if (filters.cliente)            query = query.eq('cliente', filters.cliente)
+      if (filters.propriedade)        query = query.eq('propriedade', filters.propriedade)
+      if (filters.processo)           query = query.eq('processo', filters.processo)
+      if (filters.tipo_safra)         query = query.eq('tipo_safra', filters.tipo_safra)
+      if (filters.safra)              query = query.eq('safra', filters.safra)
+      if (filters.equipamento)        query = query.ilike('equipamento', `%${filters.equipamento}%`)
+      if (filters.equipamento_cod)    query = query.eq('equipamento_cod', filters.equipamento_cod)
+      if (filters.operador)           query = query.ilike('operador', `%${filters.operador}%`)
       if (filters.modelo_equipamento) query = query.eq('modelo_equipamento', filters.modelo_equipamento)
-      if (filters.dataInicio)   query = query.gte('data', filters.dataInicio)
-      if (filters.dataFim)      query = query.lte('data', filters.dataFim)
+      if (filters.dataInicio)         query = query.gte('data', filters.dataInicio)
+      if (filters.dataFim)            query = query.lte('data', filters.dataFim)
 
-      // Paginação obrigatória — limite silencioso do Supabase é 1000
-      let allRows = []
-      let from = 0
+      let allRows = [], from = 0
       const pageSize = 1000
       while (true) {
         const { data: page, error: err } = await query.range(from, from + pageSize - 1)
@@ -44,7 +41,6 @@ export function useOperationalData(filters = {}) {
         if (page.length < pageSize) break
         from += pageSize
       }
-
       setData(allRows)
     } catch (err) {
       setError(err.message)
@@ -53,7 +49,7 @@ export function useOperationalData(filters = {}) {
       setFetching(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(filters)])
+  }, [JSON.stringify(filters), enabled])
 
   useEffect(() => { fetch() }, [fetch])
 
@@ -71,9 +67,10 @@ export function useEquipamentoBenchmark(filters = {}) {
       setLoading(true)
       try {
         let query = supabase.from('media_equipamentos_porteira').select('*')
-        if (filters.processo)   query = query.eq('processo', filters.processo)
-        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
-        if (filters.safra)      query = query.eq('safra', filters.safra)
+        if (filters.modelo_equipamento) query = query.eq('modelo_equipamento', filters.modelo_equipamento)
+        if (filters.processo)           query = query.eq('processo', filters.processo)
+        if (filters.tipo_safra)         query = query.eq('tipo_safra', filters.tipo_safra)
+        if (filters.safra)              query = query.eq('safra', filters.safra)
         const { data, error } = await query
         if (error) throw error
         setData(data)
@@ -84,7 +81,7 @@ export function useEquipamentoBenchmark(filters = {}) {
       }
     }
     fetch()
-  }, [filters.processo, filters.tipo_safra, filters.safra])
+  }, [filters.modelo_equipamento, filters.processo, filters.tipo_safra, filters.safra])
 
   return { data, loading, error }
 }
@@ -118,37 +115,7 @@ export function useGrupoBenchmark(filters = {}) {
   return { data, loading, error }
 }
 
-// Busca todos os registros de media_grupo_porteira (tabela pequena, sem paginação)
-export function useGrupoData(filters = {}) {
-  const [data, setData] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-
-  useEffect(() => {
-    async function fetch() {
-      setLoading(true)
-      setError(null)
-      try {
-        let query = supabase.from('media_grupo_porteira').select('*')
-        if (filters.processo)   query = query.eq('processo', filters.processo)
-        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
-        if (filters.safra)      query = query.eq('safra', filters.safra)
-        const { data, error } = await query
-        if (error) throw error
-        setData(data)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetch()
-  }, [filters.processo, filters.tipo_safra, filters.safra])
-
-  return { data, loading, error }
-}
-
-// Busca valores únicos para popular filtros dropdown
+// Busca valores únicos para popular filtros dropdown (fix B3: limit explícito)
 export function useFilterOptions() {
   const [options, setOptions] = useState({
     clientes: [], propriedades: [], processos: [],
@@ -160,6 +127,7 @@ export function useFilterOptions() {
       const { data } = await supabase
         .from('dashboard_operational_view')
         .select('cliente, propriedade, processo, safra, tipo_safra, modelo_equipamento')
+        .limit(2000)
       if (!data) return
       setOptions({
         clientes:     [...new Set(data.map(r => r.cliente).filter(Boolean))].sort(),
@@ -174,4 +142,81 @@ export function useFilterOptions() {
   }, [])
 
   return options
+}
+
+// Busca equipamentos disponíveis para um cliente específico (para o seletor de benchmark)
+export function useEquipamentoOptions(cliente) {
+  const [equipamentos, setEquipamentos] = useState([])
+
+  useEffect(() => {
+    if (!cliente) { setEquipamentos([]); return }
+    async function fetch() {
+      const { data } = await supabase
+        .from('dashboard_operational_view')
+        .select('equipamento, equipamento_cod, modelo_equipamento')
+        .eq('cliente', cliente)
+        .limit(1000)
+      if (!data) return
+      const seen = new Set()
+      const opts = []
+      for (const r of data) {
+        const k = r.equipamento_cod || r.equipamento
+        if (k && !seen.has(k)) {
+          seen.add(k)
+          opts.push({ equipamento: r.equipamento, equipamento_cod: r.equipamento_cod, modelo: r.modelo_equipamento })
+        }
+      }
+      setEquipamentos(opts.sort((a, b) => (a.equipamento || '').localeCompare(b.equipamento || '')))
+    }
+    fetch()
+  }, [cliente])
+
+  return equipamentos
+}
+
+// Busca dados de dois conjuntos de filtros em paralelo para comparativo de equipamentos
+export function useEquipamentoComparativo(filterA, filterB) {
+  const [dataA, setDataA] = useState([])
+  const [dataB, setDataB] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function fetchFor(filters) {
+    let query = supabase.from('dashboard_operational_view').select('*')
+    if (filters.equipamento_cod) query = query.eq('equipamento_cod', filters.equipamento_cod)
+    if (filters.cliente)         query = query.eq('cliente', filters.cliente)
+    if (filters.processo)        query = query.eq('processo', filters.processo)
+    if (filters.tipo_safra)      query = query.eq('tipo_safra', filters.tipo_safra)
+    if (filters.safra)           query = query.eq('safra', filters.safra)
+    if (filters.dataInicio)      query = query.gte('data', filters.dataInicio)
+    if (filters.dataFim)         query = query.lte('data', filters.dataFim)
+    let all = [], from = 0
+    while (true) {
+      const { data, error } = await query.range(from, from + 999)
+      if (error) throw error
+      all = all.concat(data)
+      if (data.length < 1000) break
+      from += 1000
+    }
+    return all
+  }
+
+  const hasA = !!(filterA?.equipamento_cod || filterA?.cliente)
+  const hasB = !!(filterB?.equipamento_cod || filterB?.cliente)
+
+  useEffect(() => {
+    if (!hasA && !hasB) { setDataA([]); setDataB([]); return }
+    setLoading(true)
+    setError(null)
+    Promise.all([
+      hasA ? fetchFor(filterA) : Promise.resolve([]),
+      hasB ? fetchFor(filterB) : Promise.resolve([]),
+    ])
+      .then(([a, b]) => { setDataA(a); setDataB(b) })
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(filterA), JSON.stringify(filterB)])
+
+  return { dataA, dataB, loading, error }
 }

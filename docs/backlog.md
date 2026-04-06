@@ -20,10 +20,10 @@ PDF de referência: `relatorio_diario_porteira_adentro.pdf`
   `setLoading(true)` imediato em `useData.js:10` descarta todo o conteúdo e exibe `PageLoader` a cada mudança de filtro. Fix: separar `loading` (carga inicial) de `fetching` (re-fetch); manter dados visíveis com indicador sutil durante re-fetch.~~
 
 - [x] ~~**B2 — `PAGES` em App.jsx monta todas as páginas simultaneamente**
-  `PAGES` é um objeto com JSX estático (linhas 48–52), não componentes lazy. Todas as 4 páginas ficam montadas e executando hooks ao mesmo tempo. Fix: mapear para componentes (`OverviewPage`) e renderizar como `<Component />` no `main`.~~
+  `PAGES` é um objeto com JSX estático, não componentes lazy. Todas as páginas ficam montadas e executando hooks ao mesmo tempo. Fix: mapear para componentes e renderizar como `<Component />` no `main`.~~
 
-- [ ] **B3 — `useFilterOptions` sem limite de paginação**
-  `useData.js:153` busca toda a `dashboard_operational_view` sem range apenas para popular dropdowns. Fix: usar `.select('campo').limit(N)` ou query DISTINCT separada.
+- [x] ~~**B3 — `useFilterOptions` sem limite de paginação**
+  Adicionado `.limit(2000)` explícito na query de opções de filtro.~~
 
 ---
 
@@ -51,22 +51,26 @@ PDF de referência: `relatorio_diario_porteira_adentro.pdf`
 - [x] ~~**E1 — Ocultar páginas não-implementadas do nav**
   Média Porteira, Diário Operacional e Benchmark removidos do array `NAV`. Mantidos comentados em `PAGES` para reativação futura.~~
 
-- [ ] **E2 — Reestruturar Homepage / Overview**
-  Quatro seções conforme spec:
-  1. **Médias do Grupo Porteira Adentro** — tabela simples por safra (safra selecionada), linhas = médias de equipamentos (cod + modelo) dos clientes do grupo
-  2. **Média dos Equipamentos** — filtros: Safra / Processo / Cultura / Timeframe; tabela por modelo com unfold que mostra cod+equip+cliente
-  3. **Benchmark de Equipamentos** — visão termômetro (min / média / max) por métrica, marcador do cliente na régua
-  4. **Benchmark do Grupo Porteira Adentro** — desempenho do cliente vs médias do grupo; inclui % motivos de parada comparativo
+- [x] ~~**E2 — Reestruturar Homepage / Overview**
+  Implementado: KPIs do grupo (`media_grupo_porteira`), grid de combinações processo/cultura, comparativo de clientes (HBarChart + tabela com semáforo). FilterPanel popup com safra/processo/cultura.~~
 
 ---
 
-## Páginas futuras (não iniciar até conclusão da Homepage)
+## Páginas implementadas
 
-- [ ] **P1 — Médias do Grupo Porteira Adentro** (página dedicada)
-- [ ] **P2 — Média dos Equipamentos** (página dedicada, com unfold por modelo)
-- [ ] **P3 — Benchmark de Equipamentos** (página dedicada, termômetro)
-- [ ] **P4 — Benchmark do Grupo Porteira Adentro** (página dedicada, cliente vs grupo)
-- [ ] **P5 — (quinta página a definir)**
+- [x] ~~**P3 — Benchmark Cliente vs Grupo** (`BenchmarkClientePage`)
+  KPIs cliente vs grupo, termômetros de posição (min/avg/max), VBarChart rendimento por equip,
+  donut combustível, tabela por equipamento com colunas fixas + dropdown de métricas extras.~~
+
+- [x] ~~**P4 — Benchmark de Equipamentos** (`BenchmarkEquipamentosPage`)
+  Comparativo A vs B com referência do modelo (`media_equipamentos_porteira`).
+  EquipSelector por cliente/equip/período, tabela comparativa com semáforo vs modelo, HBarChart.~~
+
+## Páginas futuras
+
+- [ ] **P1 — Diário Operacional** — visão por data com drill-down por equipamento/operador
+- [ ] **P2 — Médias por Modelo** — tabela por modelo com unfold cod+equip+cliente
+- [ ] **P5 — (página a definir)**
 
 ---
 

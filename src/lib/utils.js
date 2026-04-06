@@ -122,6 +122,14 @@ export function fmtDate(dateStr) {
   return `${d}/${m}/${y}`
 }
 
+// Retorna a safra agrícola vigente baseada na data atual (espelho de safraFromDate do backend)
+export function defaultSafra() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth() + 1
+  return month >= 6 ? `${year}/${year + 1}` : `${year - 1}/${year}`
+}
+
 // Retorna range de datas padrão: últimos 7 dias
 export function defaultDateRange() {
   const end = new Date()
