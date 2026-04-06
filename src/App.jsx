@@ -3,15 +3,18 @@ import { FilterProvider, useFilters } from './lib/FilterContext'
 import GlobalFilterDrawer from './components/GlobalFilterDrawer'
 import AnaliseGeralPage from './pages/AnaliseGeralPage'
 import BenchmarkClientePage from './pages/BenchmarkClientePage'
+import BenchmarkEquipamentoPage from './pages/BenchmarkEquipamentoPage'
 
 const NAV = [
-  { id: 'analise',    label: 'Análise Geral' },
-  { id: 'benchmark',  label: 'Benchmark Cliente' },
+  { id: 'analise',         label: 'Análise Geral' },
+  { id: 'benchmark',       label: 'Benchmark Cliente' },
+  { id: 'bench-equip',     label: 'Benchmark Equipamento' },
 ]
 
 const PAGES = {
-  analise:   AnaliseGeralPage,
-  benchmark: BenchmarkClientePage,
+  analise:       AnaliseGeralPage,
+  benchmark:     BenchmarkClientePage,
+  'bench-equip': BenchmarkEquipamentoPage,
 }
 
 function FilterButton() {
