@@ -14,26 +14,26 @@ const fmtLha = (v) => fmt(v, 1, ' L/ha')
 const fmtRpm = (v) => fmt(v, 0, ' rpm')
 
 const THERMO_METRICAS = [
-  { key: 'rendimento_operacional_hah',   label: 'Rendimento Operacional',    desc: 'ponderado por área trabalhada',                                       unit: 'ha/h', fmtFn: fmtHah,  higherIsBetter: true  },
-  { key: 'eficiencia_geral_pct',         label: 'Eficiência Geral',          desc: 'tempo produtivo / tempo total motor ligado',                           unit: '%',    fmtFn: fmtPct,  higherIsBetter: true  },
-  { key: 'eficiencia_operacional_pct',   label: 'Eficiência Operacional',    desc: 'produtivo / (total − climático − manutenção − administrativo)',        unit: '%',    fmtFn: fmtPct,  higherIsBetter: true  },
-  { key: 'consumo_medio_efetivo_lha',    label: 'Consumo Efetivo Médio',     desc: 'consumo apenas em estado produtivo',                                   unit: 'L/ha', fmtFn: fmtLha,  higherIsBetter: false },
-  { key: 'disponibilidade_mecanica_pct', label: 'Disponibilidade Mecânica',  desc: 'excluindo tempo de manutenção',                                        unit: '%',    fmtFn: fmtPct,  higherIsBetter: true  },
-  { key: 'velocidade_media_kmh',         label: 'Velocidade Média Operacional', desc: 'apenas em estado produtivo',                                        unit: 'km/h', fmtFn: fmtKmh,  higherIsBetter: true  },
-  { key: 'rpm_medio_trabalhando',        label: 'RPM Médio Trabalhando',     desc: 'rotações por minuto em estado produtivo',                              unit: 'rpm',  fmtFn: fmtRpm,  higherIsBetter: true, neutro: true },
+  { key: 'rendimento_operacional_hah',   label: 'Rendimento Operacional',       desc: 'ponderado por área trabalhada',                                unit: 'ha/h', fmtFn: fmtHah, higherIsBetter: true  },
+  { key: 'eficiencia_geral_pct',         label: 'Eficiência Geral',             desc: 'tempo produtivo / tempo total com motor ligado',               unit: '%',    fmtFn: fmtPct, higherIsBetter: true  },
+  { key: 'eficiencia_operacional_pct',   label: 'Eficiência Operacional',       desc: 'produtivo / (total − climático − manutenção − administrativo)', unit: '%',    fmtFn: fmtPct, higherIsBetter: true  },
+  { key: 'consumo_medio_efetivo_lha',    label: 'Consumo Efetivo Médio',        desc: 'consumo apenas em estado produtivo',                           unit: 'L/ha', fmtFn: fmtLha, higherIsBetter: false },
+  { key: 'disponibilidade_mecanica_pct', label: 'Disponibilidade Mecânica',     desc: 'excluindo paradas de manutenção',                              unit: '%',    fmtFn: fmtPct, higherIsBetter: true  },
+  { key: 'velocidade_media_kmh',         label: 'Velocidade Média Operacional', desc: 'apenas em estado produtivo',                                   unit: 'km/h', fmtFn: fmtKmh, higherIsBetter: true  },
+  { key: 'rpm_medio_trabalhando',        label: 'RPM Médio Trabalhando',        desc: 'rotações por minuto em estado produtivo',                      unit: 'rpm',  fmtFn: fmtRpm, higherIsBetter: true, neutro: true },
 ]
 
 const STOP_GROUPS = [
-  { key: 'MANUTENCAO',      label: 'Manutenção na máquina',        color: '#8b2020', alertBad: true  },
-  { key: 'GERENCIAL',       label: 'Parada gerencial / aguardando', color: '#c8960c', alertBad: false },
-  { key: 'SEM_APONTAMENTO', label: 'Sem apontamento',              color: '#888780', alertBad: true  },
-  { key: 'ADMINISTRATIVO',  label: 'Administrativo',               color: '#4a6741', alertBad: false },
-  { key: 'CLIMATICO',       label: 'Climático',                    color: '#4a6741', alertBad: false },
+  { key: 'MANUTENCAO',      label: 'Manutenção na máquina',        alertBad: true  },
+  { key: 'GERENCIAL',       label: 'Parada gerencial / aguardando', alertBad: false },
+  { key: 'SEM_APONTAMENTO', label: 'Sem apontamento',              alertBad: true  },
+  { key: 'ADMINISTRATIVO',  label: 'Administrativo',               alertBad: false },
+  { key: 'CLIMATICO',       label: 'Climático',                    alertBad: false },
 ]
 
 // ─── FUNÇÕES DE AGREGAÇÃO ─────────────────────────────────────────────────────
 
-// Agrega métricas dos 7 termômetros a partir de linhas brutas de operational_records
+// Agrega as 7 métricas dos termômetros a partir de linhas brutas de operational_records
 function computeAgg(rows) {
   if (!rows.length) return null
   const sum  = (k) => rows.reduce((a, r) => a + (parseFloat(r[k]) || 0), 0)
@@ -61,7 +61,7 @@ function computeAgg(rows) {
   }
 }
 
-// Distribui tempo de parada em 5 categorias como percentual do total de parada
+// Distribui tempo de parada nas 5 categorias como % do total de parada
 function computeStopDist(rows) {
   const sum = (k) => rows.reduce((a, r) => a + (parseFloat(r[k]) || 0), 0)
   const totalParada    = sum('tempo_parada_h')
@@ -81,7 +81,7 @@ function computeStopDist(rows) {
   }
 }
 
-// Gera um agregado por cliente para calcular min/max dos termômetros
+// Retorna um agregado por cliente para calcular min/max dos termômetros
 function computeAllClienteAggs(rows) {
   return Object.values(groupBy(rows, 'cliente'))
     .map(computeAgg)
@@ -90,9 +90,9 @@ function computeAllClienteAggs(rows) {
 
 // ─── COMPONENTES INTERNOS ─────────────────────────────────────────────────────
 
-// Calcula cor e badge para uma métrica do termômetro em relação à média do grupo
+// Determina cor e badge do termômetro com base na posição relativa à média do grupo
 function thermoStatus(value, avg, higherIsBetter, neutro) {
-  if (neutro || !avg || !value) return { barColor: '#9ca3af', badgeText: null, badgeFg: null, badgeBg: null }
+  if (neutro || !avg || value == null) return { barColor: '#9ca3af', badgeText: null, badgeFg: null, badgeBg: null }
   const ratio = value / avg
   if (Math.abs(ratio - 1) <= 0.10) return { barColor: '#c8960c', badgeText: 'Na média', badgeFg: '#7a5c00', badgeBg: '#fdf6e3' }
   const isAbove = higherIsBetter ? ratio > 1.10 : ratio < 0.90
@@ -100,44 +100,51 @@ function thermoStatus(value, avg, higherIsBetter, neutro) {
   return           { barColor: '#8b2020', badgeText: 'Abaixo', badgeFg: '#8b2020', badgeBg: '#fdf0f0' }
 }
 
-// Renderiza uma linha de termômetro com trilha, marcador do cliente e badge de status
+// Renderiza uma linha de termômetro: chevron ▼ do cliente + três pontos (mín/média/máx) + badge
 function ThermoRow({ label, desc, min, max, avg, value, fmtFn, higherIsBetter, neutro }) {
-  if (min == null || max == null || value == null) return null
+  if (value == null) return null
   const range  = max - min
   const clamp  = range > 0 ? (v) => Math.max(0, Math.min(100, ((v - min) / range) * 100)) : () => 50
   const pctVal = clamp(value)
   const pctAvg = avg != null ? clamp(avg) : null
   const { barColor, badgeText, badgeFg, badgeBg } = thermoStatus(value, avg, higherIsBetter, neutro)
+  const f = (v) => fmtFn ? fmtFn(v) : v?.toFixed(2)
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '10px 0', borderBottom: '1px solid #e0dbd4' }}>
+    <div style={{ display: 'flex', gap: 16, padding: '12px 0', borderBottom: '1px solid #e0dbd4', alignItems: 'center' }}>
       <div style={{ width: 180, flexShrink: 0 }}>
-        <div style={{ fontSize: 11, fontWeight: 500, color: '#4a3728' }}>{label}</div>
+        <div style={{ fontSize: 10, fontWeight: 500, color: '#4a3728' }}>{label}</div>
         <div style={{ fontSize: 8, color: '#6b6560', marginTop: 2 }}>{desc}</div>
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ position: 'relative', height: 28 }}>
+        {/* Área superior: label CLIENTE + valor + chevron apontando para baixo */}
+        <div style={{ position: 'relative', height: 36 }}>
           <div style={{ position: 'absolute', left: `${pctVal}%`, transform: 'translateX(-50%)', bottom: 0, textAlign: 'center' }}>
-            <div style={{ fontSize: 7, color: '#6b6560', whiteSpace: 'nowrap' }}>CLIENTE</div>
-            <div style={{ fontSize: 9, fontWeight: 600, color: barColor, whiteSpace: 'nowrap' }}>{fmtFn ? fmtFn(value) : value?.toFixed(2)}</div>
+            <div style={{ fontSize: 7, fontWeight: 700, color: '#6b6560', letterSpacing: '0.04em' }}>CLIENTE</div>
+            <div style={{ fontSize: 9, fontWeight: 600, color: barColor }}>{f(value)}</div>
+            <div style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: `7px solid ${barColor}`, margin: '2px auto 0' }} />
           </div>
         </div>
+        {/* Trilho com pontos coloridos: vermelho=mín, âmbar=média, verde=máx */}
         <div style={{ position: 'relative', height: 6, background: '#e0dbd4', borderRadius: 3 }}>
-          <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${pctVal}%`, background: barColor, borderRadius: 3, opacity: 0.4 }} />
-          {pctAvg != null && (
-            <div style={{ position: 'absolute', top: '50%', left: `${pctAvg}%`, transform: 'translate(-50%, -50%)', width: 2, height: 12, background: '#c8960c', borderRadius: 1 }} />
-          )}
-          <div style={{ position: 'absolute', top: '50%', left: `${pctVal}%`, transform: 'translate(-50%, -50%)', width: 10, height: 10, borderRadius: '50%', background: barColor, border: '2px solid #fff' }} />
+          <Dot left="0%"        bg="#8b2020" />
+          {pctAvg != null && <Dot left={`${pctAvg}%`} bg="#c8960c" />}
+          <Dot left="100%"      bg="#2d4a2d" />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 8, color: '#6b6560' }}>
-          <span>Mín {fmtFn ? fmtFn(min) : min?.toFixed(2)}</span>
-          {pctAvg != null && <span style={{ color: '#c8960c' }}>◆ Média {fmtFn ? fmtFn(avg) : avg?.toFixed(2)}</span>}
-          <span>Máx {fmtFn ? fmtFn(max) : max?.toFixed(2)}</span>
+        {/* Rótulos abaixo: mín / média / máx */}
+        <div style={{ position: 'relative', height: 20, marginTop: 4 }}>
+          <span style={{ position: 'absolute', left: '0%',       transform: 'translateX(-50%)', fontSize: 8, color: '#6b6560',  whiteSpace: 'nowrap' }}>{f(min)}</span>
+          {pctAvg != null && (
+            <span style={{ position: 'absolute', left: `${pctAvg}%`, transform: 'translateX(-50%)', fontSize: 8, color: '#c8960c', whiteSpace: 'nowrap' }}>
+              {f(avg)} <span style={{ fontSize: 7 }}>Média</span>
+            </span>
+          )}
+          <span style={{ position: 'absolute', left: '100%',     transform: 'translateX(-50%)', fontSize: 8, color: '#6b6560',  whiteSpace: 'nowrap' }}>{f(max)}</span>
         </div>
       </div>
       <div style={{ width: 60, flexShrink: 0, textAlign: 'right' }}>
         {badgeText && (
-          <span style={{ fontSize: 10, fontWeight: 600, color: badgeFg, padding: '2px 6px', borderRadius: 3, background: badgeBg, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 9, fontWeight: 600, color: badgeFg, padding: '2px 6px', borderRadius: 3, background: badgeBg, whiteSpace: 'nowrap' }}>
             {badgeText}
           </span>
         )}
@@ -146,21 +153,33 @@ function ThermoRow({ label, desc, min, max, avg, value, fmtFn, higherIsBetter, n
   )
 }
 
-// Renderiza uma linha de comparação de parada: cliente vs média porteira com barras duplas
-function StopCompareRow({ label, clientePct, grupoPct, color, maxPct, alertBad }) {
-  const isHighBad = alertBad && clientePct > grupoPct + 5
+// Ponto circular no trilho (usado em ThermoRow)
+function Dot({ left, bg }) {
+  return (
+    <div style={{ position: 'absolute', top: '50%', left, transform: 'translate(-50%, -50%)', width: 8, height: 8, borderRadius: '50%', background: bg, border: '1.5px solid #fff', zIndex: 1 }} />
+  )
+}
+
+// Linha de comparação de parada: barras duplas com alerta quando delta > 10pp
+function StopCompareRow({ label, clientePct, grupoPct, maxPct, alertBad }) {
+  const delta    = clientePct - grupoPct
+  const isAlert  = alertBad && delta > 10
+  const cColor   = isAlert ? '#8b2020' : '#2d4a2d'
   const cW = maxPct > 0 ? (clientePct / maxPct) * 100 : 0
   const gW = maxPct > 0 ? (grupoPct  / maxPct) * 100 : 0
   return (
     <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderBottom: '1px solid #e0dbd4' }}>
-      <div style={{ width: 150, flexShrink: 0, fontSize: 10, fontWeight: 500, color: '#4a3728', alignSelf: 'center' }}>{label}</div>
+      <div style={{ width: 150, flexShrink: 0, fontSize: 10, fontWeight: 500, color: '#4a3728', alignSelf: 'center' }}>
+        {isAlert && <span style={{ color: '#8b2020', marginRight: 4, fontSize: 9 }}>▲</span>}
+        {label}
+      </div>
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 7, color: '#6b6560', marginBottom: 3 }}>Cliente</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ flex: 1, height: 8, background: '#f0ede8', borderRadius: 4, position: 'relative' }}>
-            <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${cW}%`, background: color, borderRadius: 4 }} />
+          <div style={{ flex: 1, height: 8, background: '#f0ede8', borderRadius: 4, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${cW}%`, background: cColor, borderRadius: 4 }} />
           </div>
-          <span style={{ fontSize: 9, fontWeight: isHighBad ? 700 : 400, color: isHighBad ? '#8b2020' : '#6b6560', width: 36, textAlign: 'right', flexShrink: 0 }}>
+          <span style={{ fontSize: 9, fontWeight: isAlert ? 700 : 400, color: isAlert ? '#8b2020' : '#6b6560', width: 38, textAlign: 'right', flexShrink: 0 }}>
             {clientePct.toFixed(1)}%
           </span>
         </div>
@@ -168,10 +187,10 @@ function StopCompareRow({ label, clientePct, grupoPct, color, maxPct, alertBad }
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 7, color: '#6b6560', marginBottom: 3 }}>Média Porteira</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ flex: 1, height: 8, background: '#f0ede8', borderRadius: 4, position: 'relative' }}>
-            <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${gW}%`, background: '#c8960c', borderRadius: 4 }} />
+          <div style={{ flex: 1, height: 8, background: '#f0ede8', borderRadius: 4, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${gW}%`, background: '#c8960c', borderRadius: 4 }} />
           </div>
-          <span style={{ fontSize: 9, color: '#6b6560', width: 36, textAlign: 'right', flexShrink: 0 }}>
+          <span style={{ fontSize: 9, color: '#6b6560', width: 38, textAlign: 'right', flexShrink: 0 }}>
             {grupoPct.toFixed(1)}%
           </span>
         </div>
@@ -182,22 +201,23 @@ function StopCompareRow({ label, clientePct, grupoPct, color, maxPct, alertBad }
 
 // ─── SEÇÕES ───────────────────────────────────────────────────────────────────
 
+// Card branco com título de seção
 function SectionCard({ title, children }) {
   return (
-    <div style={{ background: '#f7f5f2', border: '1px solid #e0dbd4', borderRadius: 12, padding: 20 }}>
-      <h2 style={{ fontSize: 11, fontWeight: 600, color: '#4a3728', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16, margin: '0 0 16px 0' }}>
+    <div style={{ background: '#ffffff', border: '1px solid #e0dbd4', borderRadius: 6, padding: 20 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#4a3728', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
         {title}
-      </h2>
+      </div>
       {children}
     </div>
   )
 }
 
-// Renderiza os 7 termômetros de posicionamento com min/max/avg calculados em memória
+// Lista de termômetros com rodapé explicativo
 function SectionThermo({ clienteAgg, allClienteAggs, groupAgg }) {
   if (!clienteAgg || allClienteAggs.length < 2) {
     return (
-      <p style={{ textAlign: 'center', padding: '24px 0', color: '#6b6560', fontSize: 13 }}>
+      <p style={{ fontSize: 13, color: '#6b6560', textAlign: 'center', padding: '24px 0', margin: 0 }}>
         Dados insuficientes para comparação (mínimo 2 clientes com dados na safra atual).
       </p>
     )
@@ -222,18 +242,21 @@ function SectionThermo({ clienteAgg, allClienteAggs, groupAgg }) {
           />
         )
       })}
-      <div style={{ borderTop: '1px solid #e0dbd4', marginTop: 12, paddingTop: 8, fontSize: 8, fontStyle: 'italic', color: '#c8960c' }}>
-        ◆ Média Porteira = média ponderada de todos os clientes na mesma operação e cultura · mesmo período de safra
+      <div style={{ marginTop: 14, paddingTop: 12, borderTop: '2px dashed #c8960c', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 9, fontWeight: 600, color: '#c8960c', flexShrink: 0 }}>Média Porteira</span>
+        <span style={{ fontSize: 8, color: '#6b6560' }}>
+          Comparativo restrito a clientes com a mesma operação e cultura no mesmo período
+        </span>
       </div>
     </div>
   )
 }
 
-// Renderiza o comparativo de motivos de parada com barras duplas (cliente vs grupo)
+// Barras duplas de parada: cliente vs média porteira, alerta quando delta > 10pp
 function SectionStop({ clienteDist, grupoDist }) {
   if (!clienteDist || !grupoDist) {
     return (
-      <p style={{ textAlign: 'center', padding: '24px 0', color: '#6b6560', fontSize: 13 }}>
+      <p style={{ fontSize: 13, color: '#6b6560', textAlign: 'center', padding: '24px 0', margin: 0 }}>
         Sem dados de parada disponíveis para o período selecionado.
       </p>
     )
@@ -245,7 +268,7 @@ function SectionStop({ clienteDist, grupoDist }) {
       <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
         {[{ color: '#2d4a2d', label: 'Este cliente' }, { color: '#c8960c', label: 'Média Porteira' }].map(({ color, label }) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#6b6560' }}>
-            <span style={{ display: 'inline-block', width: 10, height: 10, background: color, borderRadius: 2 }} />
+            <span style={{ width: 10, height: 10, background: color, borderRadius: 2, flexShrink: 0, display: 'inline-block' }} />
             {label}
           </div>
         ))}
@@ -256,7 +279,6 @@ function SectionStop({ clienteDist, grupoDist }) {
           label={g.label}
           clientePct={clienteDist[g.key] ?? 0}
           grupoPct={grupoDist[g.key] ?? 0}
-          color={g.color}
           maxPct={maxPct}
           alertBad={g.alertBad}
         />
@@ -265,7 +287,7 @@ function SectionStop({ clienteDist, grupoDist }) {
   )
 }
 
-// Exibe estado vazio quando nenhum cliente único está selecionado nos filtros
+// Estado vazio quando nenhum cliente único está selecionado
 function EmptyState({ openDrawer }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', gap: 16 }}>
@@ -282,16 +304,16 @@ function EmptyState({ openDrawer }) {
   )
 }
 
-// Exibe os filtros ativos desta tela em formato de breadcrumb
+// Breadcrumb com os filtros ativos desta tela
 function PageBreadcrumb({ cliente, operacao, cultura, safra }) {
   const items = [
-    { label: 'Cliente',   value: cliente || '—' },
-    { label: 'Operação',  value: operacao || 'Todas' },
-    { label: 'Cultura',   value: cultura  || 'Todas' },
-    { label: 'Período',   value: safra },
+    { label: 'Cliente',  value: cliente  || '—' },
+    { label: 'Operação', value: operacao || 'Todas' },
+    { label: 'Cultura',  value: cultura  || 'Todas' },
+    { label: 'Período',  value: safra },
   ]
   return (
-    <div style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 16 }}>
+    <div style={{ fontSize: 12, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginBottom: 16 }}>
       {items.map((item, i) => (
         <span key={item.label}>
           {i > 0 && <span style={{ color: '#6b6560', margin: '0 6px' }}>·</span>}
@@ -338,7 +360,7 @@ export default function BenchmarkClientePage() {
         <SectionCard title="POSICIONAMENTO NO GRUPO PORTEIRA — MÉTRICAS COMPARÁVEIS">
           <SectionThermo clienteAgg={clienteAgg} allClienteAggs={allClienteAggs} groupAgg={groupAgg} />
         </SectionCard>
-        <SectionCard title="MOTIVOS DE PARADA — ESTE CLIENTE VS. MÉDIA PORTEIRA (%)">
+        <SectionCard title="MOTIVOS DE PARADA — CLIENTE VS. MÉDIA PORTEIRA (%)">
           <SectionStop clienteDist={stopCliente} grupoDist={stopGrupo} />
         </SectionCard>
       </div>
