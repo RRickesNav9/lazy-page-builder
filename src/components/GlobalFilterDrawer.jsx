@@ -20,11 +20,11 @@ const CULTURAS = ['Arroz', 'Soja', 'Milho']
 
 const EQUIPAMENTOS_MOCK = [
   { cod: '31', modelo: 'JD S660' },
-  { cod: '45', modelo: 'JD S770' },
-  { cod: '12', modelo: 'Case 8250' },
-  { cod: '07', modelo: 'NH CR9.90' },
-  { cod: '22', modelo: 'JD S680' },
-  { cod: '38', modelo: 'Case 7250' },
+  { cod: '33', modelo: 'JD S760' },
+  { cod: '34', modelo: 'JD S760' },
+  { cod: '35', modelo: 'JD S760' },
+  { cod: '36', modelo: 'JD S760' },
+  { cod: '37', modelo: 'JD S760' },
 ]
 
 const PERIODO_CHIPS = [
@@ -57,24 +57,26 @@ export default function GlobalFilterDrawer() {
     <>
       {/* Overlay */}
       <div
-        className={`fixed inset-0 bg-black/30 z-40 transition-opacity duration-300 ${drawerOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 z-40 transition-opacity duration-300 ${drawerOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        style={{ background: 'rgba(0,0,0,0.2)' }}
         onClick={closeDrawer}
       />
 
       {/* Drawer */}
       <div
-        className={`fixed right-0 top-0 h-full z-50 flex flex-col shadow-2xl transform transition-transform duration-300 ease-in-out ${drawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
-        style={{ width: 360, background: 'var(--pa-surface)', borderLeft: '2px solid var(--pa-green)' }}
+        className={`fixed right-0 top-0 h-full z-50 flex flex-col transform transition-transform duration-300 ease-in-out ${drawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        style={{ width: 360, background: '#ffffff', borderLeft: '3px solid #2d4a2d' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-pa-border">
-          <h2 className="text-sm font-bold text-pa-text uppercase tracking-wider">Filtros</h2>
-          <div className="flex items-center gap-3">
-            <button onClick={() => { clearFilters(); setLocal(DEFAULT_FILTERS) }} className="text-xs text-pa-muted hover:text-pa-text transition-colors">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #e0dbd4' }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>Filtros</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button onClick={() => { clearFilters(); setLocal(DEFAULT_FILTERS) }}
+              style={{ fontSize: 12, color: '#6b6560', background: 'none', border: 'none', cursor: 'pointer' }}>
               Limpar tudo
             </button>
-            <button onClick={closeDrawer} className="text-pa-muted hover:text-pa-text transition-colors">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <button onClick={closeDrawer} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b6560' }}>
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -82,165 +84,123 @@ export default function GlobalFilterDrawer() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
-
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
           {/* Período */}
           <Section title="Período">
-            <div className="flex flex-wrap gap-2">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {PERIODO_CHIPS.map(c => (
                 <button
                   key={c.id}
                   onClick={() => set('periodo', c.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-                    local.periodo === c.id
-                      ? 'border-pa-green text-pa-green bg-pa-green-dim'
-                      : 'border-pa-border text-pa-muted hover:text-pa-text hover:border-pa-green'
-                  }`}
+                  style={{
+                    padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500,
+                    cursor: 'pointer', border: '1px solid',
+                    ...(local.periodo === c.id
+                      ? { background: '#2d4a2d', color: '#fff', borderColor: '#2d4a2d' }
+                      : { background: '#fff', color: '#1a1a1a', borderColor: '#e0dbd4' }),
+                  }}
                 >
                   {c.label}
                 </button>
               ))}
             </div>
-            {local.periodo === 'custom' && (
-              <input
-                type="date"
-                value={local.dataCustom || ''}
-                onChange={e => set('dataCustom', e.target.value)}
-                className="mt-2 w-full bg-pa-surface-2 border border-pa-border rounded-lg px-3 py-2 text-sm text-pa-text focus:outline-none focus:border-pa-green"
-              />
-            )}
-            {!PERIODO_CHIPS.find(c => c.id === local.periodo) && local.periodo !== 'custom' && (
-              <button onClick={() => set('periodo', 'custom')} className="mt-2 text-xs text-pa-muted hover:text-pa-green transition-colors">
-                Data customizada
-              </button>
-            )}
           </Section>
 
           {/* Cliente */}
           <Section title="Cliente">
-            <CheckItem
-              label="Todos os clientes"
-              checked={local.todosClientes}
-              onChange={() => set('todosClientes', !local.todosClientes)}
-            />
+            <CheckItem label="Todos os clientes" checked={local.todosClientes}
+              onChange={() => set('todosClientes', !local.todosClientes)} />
             {!local.todosClientes && CLIENTES_MOCK.map(c => (
-              <CheckItem
-                key={c}
-                label={c}
-                checked={local.clientes.includes(c)}
-                onChange={() => toggleArrayItem('clientes', c)}
-              />
+              <CheckItem key={c} label={c} checked={local.clientes.includes(c)}
+                onChange={() => toggleArrayItem('clientes', c)} />
             ))}
           </Section>
 
-          {/* Propriedade — only when single client */}
+          {/* Propriedade */}
           {singleCliente && PROPRIEDADES_MOCK[singleCliente] && (
             <Section title="Propriedade">
-              <CheckItem
-                label="Todas"
-                checked={local.todasPropriedades}
-                onChange={() => set('todasPropriedades', !local.todasPropriedades)}
-              />
+              <CheckItem label="Todas" checked={local.todasPropriedades}
+                onChange={() => set('todasPropriedades', !local.todasPropriedades)} />
               {!local.todasPropriedades && PROPRIEDADES_MOCK[singleCliente].map(p => (
-                <CheckItem
-                  key={p}
-                  label={p}
-                  checked={local.propriedades.includes(p)}
-                  onChange={() => toggleArrayItem('propriedades', p)}
-                />
+                <CheckItem key={p} label={p} checked={local.propriedades.includes(p)}
+                  onChange={() => toggleArrayItem('propriedades', p)} />
               ))}
             </Section>
           )}
 
           {/* Operação */}
           <Section title="Operação">
-            <CheckItem
-              label="Todas"
-              checked={local.todasOperacoes}
-              onChange={() => set('todasOperacoes', !local.todasOperacoes)}
-            />
+            <CheckItem label="Todas" checked={local.todasOperacoes}
+              onChange={() => set('todasOperacoes', !local.todasOperacoes)} />
             {!local.todasOperacoes && OPERACOES.map(o => (
-              <CheckItem
-                key={o}
-                label={o}
-                checked={local.operacoes.includes(o)}
-                onChange={() => toggleArrayItem('operacoes', o)}
-              />
+              <CheckItem key={o} label={o} checked={local.operacoes.includes(o)}
+                onChange={() => toggleArrayItem('operacoes', o)} />
             ))}
           </Section>
 
           {/* Cultura */}
           <Section title="Cultura">
-            <CheckItem
-              label="Todas"
-              checked={local.todasCulturas}
-              onChange={() => set('todasCulturas', !local.todasCulturas)}
-            />
+            <CheckItem label="Todas" checked={local.todasCulturas}
+              onChange={() => set('todasCulturas', !local.todasCulturas)} />
             {!local.todasCulturas && CULTURAS.map(c => (
-              <CheckItem
-                key={c}
-                label={c}
-                checked={local.culturas.includes(c)}
-                onChange={() => toggleArrayItem('culturas', c)}
-              />
+              <CheckItem key={c} label={c} checked={local.culturas.includes(c)}
+                onChange={() => toggleArrayItem('culturas', c)} />
             ))}
           </Section>
 
           {/* Equipamentos */}
           <Section title="Equipamentos">
-            <div className="flex items-center gap-2 mb-2">
-              <button
-                onClick={() => { set('todosEquipamentos', true); set('equipamentos', []) }}
-                className="text-xs text-pa-muted hover:text-pa-green transition-colors"
-              >
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <button onClick={() => { set('todosEquipamentos', true); set('equipamentos', []) }}
+                style={{ fontSize: 11, color: '#6b6560', background: 'none', border: 'none', cursor: 'pointer' }}>
                 Selecionar todos
               </button>
-              <span className="text-pa-faint">·</span>
-              <button
-                onClick={() => { set('todosEquipamentos', false); set('equipamentos', []) }}
-                className="text-xs text-pa-muted hover:text-pa-green transition-colors"
-              >
+              <span style={{ color: '#e0dbd4' }}>·</span>
+              <button onClick={() => { set('todosEquipamentos', false); set('equipamentos', []) }}
+                style={{ fontSize: 11, color: '#6b6560', background: 'none', border: 'none', cursor: 'pointer' }}>
                 Limpar
               </button>
             </div>
-            <CheckItem
-              label="Todos"
-              checked={local.todosEquipamentos}
-              onChange={() => set('todosEquipamentos', !local.todosEquipamentos)}
-            />
+            <CheckItem label="Todos" checked={local.todosEquipamentos}
+              onChange={() => set('todosEquipamentos', !local.todosEquipamentos)} />
             {!local.todosEquipamentos && EQUIPAMENTOS_MOCK.map(e => (
-              <CheckItem
-                key={e.cod}
-                label={`${e.cod} · ${e.modelo}`}
+              <CheckItem key={e.cod} label={`${e.cod} · ${e.modelo}`}
                 checked={local.equipamentos.includes(e.cod)}
-                onChange={() => toggleArrayItem('equipamentos', e.cod)}
-              />
+                onChange={() => toggleArrayItem('equipamentos', e.cod)} />
             ))}
           </Section>
 
-          {/* Benchmark Porteira */}
+          {/* Benchmark */}
           <Section title="Benchmark Porteira">
-            <div className="flex items-center gap-3">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <button
                 onClick={() => set('showBenchmark', !local.showBenchmark)}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${local.showBenchmark ? 'bg-pa-green' : 'bg-pa-surface-2 border border-pa-border'}`}
+                style={{
+                  position: 'relative', width: 36, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer',
+                  background: local.showBenchmark ? '#2d4a2d' : '#e0dbd4', transition: 'background 0.2s',
+                }}
               >
-                <span className={`inline-block w-3.5 h-3.5 transform rounded-full bg-white shadow transition-transform ${local.showBenchmark ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                <span style={{
+                  position: 'absolute', top: 2, width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                  transition: 'left 0.2s', left: local.showBenchmark ? 18 : 2,
+                }} />
               </button>
-              <span className="text-sm text-pa-text">Exibir média Porteira</span>
+              <span style={{ fontSize: 13, color: '#1a1a1a' }}>Exibir média Porteira</span>
             </div>
-            <p className="text-xs text-pa-muted mt-1.5">
-              Compara os resultados do cliente com a média consolidada de todas as propriedades
+            <p style={{ fontSize: 11, color: '#6b6560', marginTop: 6 }}>
+              Exibe a linha de meta nos gráficos de rendimento
             </p>
           </Section>
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-pa-border">
+        <div style={{ padding: '16px 20px', borderTop: '1px solid #e0dbd4' }}>
           <button
             onClick={() => applyFilters(local)}
-            className="w-full py-2.5 text-sm font-semibold rounded-lg transition-colors"
-            style={{ background: 'var(--pa-green)', color: '#fff' }}
+            style={{
+              width: '100%', padding: '10px 0', background: '#2d4a2d', color: '#fff',
+              border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            }}
           >
             Aplicar filtros
           </button>
@@ -252,9 +212,12 @@ export default function GlobalFilterDrawer() {
 
 function Section({ title, children }) {
   return (
-    <div>
-      <p className="text-xs font-semibold text-pa-muted uppercase tracking-wider mb-2">{title}</p>
-      <div className="space-y-1.5">
+    <div style={{ marginBottom: 20 }}>
+      <p style={{
+        fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+        color: '#4a3728', marginBottom: 8, marginTop: 0,
+      }}>{title}</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {children}
       </div>
     </div>
@@ -263,20 +226,20 @@ function Section({ title, children }) {
 
 function CheckItem({ label, checked, onChange }) {
   return (
-    <label className="flex items-center gap-2.5 cursor-pointer group">
-      <span
-        className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-          checked ? 'bg-pa-green border-pa-green' : 'border-pa-border bg-pa-surface-2 group-hover:border-pa-green'
-        }`}
-        onClick={onChange}
-      >
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={onChange}>
+      <span style={{
+        width: 16, height: 16, borderRadius: 3, border: '1px solid',
+        borderColor: checked ? '#2d4a2d' : '#e0dbd4',
+        background: checked ? '#2d4a2d' : '#fff',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      }}>
         {checked && (
-          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="#fff" strokeWidth={3}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         )}
       </span>
-      <span className="text-sm text-pa-text" onClick={onChange}>{label}</span>
+      <span style={{ fontSize: 13, color: '#1a1a1a' }}>{label}</span>
     </label>
   )
 }
