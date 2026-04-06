@@ -1,305 +1,347 @@
-import { useState, useMemo } from 'react'
-import { useGrupoBenchmark, useOperationalData, useFilterOptions } from '../hooks/useData'
-import {
-  KPICard, DonutChart, VBarChart, ThermometerBar,
-  FilterPanel, FilterButton, PageLoader, FetchingBar, semaphorePct
-} from '../components/UI'
-import {
-  aggregateRows, groupBy, defaultSafra,
-  fmtHah, fmtPct, fmtLh, fmtKmh, fmt, METRICAS
-} from '../lib/utils'
+// BenchmarkClientePage.jsx
+// Compara métricas de um cliente específico contra a média do grupo Porteira
+// na mesma operação e cultura. Usa o filtro global — cliente único obrigatório.
 
-const FIXED_COLS = [
-  { key: 'rendimento_operacional_hah', label: 'Rend. Op. (ha/h)', fmtFn: fmtHah, highlight: true },
-  { key: 'eficiencia_geral_pct',       label: 'Efic. Geral (%)',  fmtFn: fmtPct, pct: true },
-  { key: 'disponibilidade_mecanica_pct', label: 'Disp. Mec. (%)', fmtFn: fmtPct, pct: true },
-  { key: 'velocidade_media_kmh',        label: 'Vel. (km/h)',     fmtFn: fmtKmh },
-  { key: 'consumo_medio_lh',            label: 'Consumo (l/h)',   fmtFn: fmtLh },
-]
+import { useMemo } from 'react'
+import { useFilters } from '../lib/FilterContext'
+import { useOperationalData } from '../hooks/useData'
+import { FetchingBar, PageLoader } from '../components/UI'
+import { groupBy, defaultSafra, fmt, fmtPct, fmtHah, fmtKmh } from '../lib/utils'
+
+// ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
+
+const fmtLha = (v) => fmt(v, 1, ' L/ha')
+const fmtRpm = (v) => fmt(v, 0, ' rpm')
 
 const THERMO_METRICAS = [
-  { key: 'rendimento_operacional_hah', label: 'Rendimento Operacional', fmtFn: fmtHah, grupoKey: 'rendimento_operacional_hah_grupo' },
-  { key: 'eficiencia_geral_pct',       label: 'Eficiência Geral',       fmtFn: fmtPct, grupoKey: 'eficiencia_geral_pct_grupo' },
-  { key: 'disponibilidade_mecanica_pct', label: 'Disp. Mecânica',       fmtFn: fmtPct, grupoKey: 'disponibilidade_mecanica_pct_grupo' },
-  { key: 'velocidade_media_kmh',       label: 'Velocidade Média',       fmtFn: fmtKmh, grupoKey: 'velocidade_media_kmh_grupo' },
-  { key: 'consumo_medio_lh',           label: 'Consumo Médio (l/h)',    fmtFn: fmtLh,  grupoKey: 'consumo_medio_lh_grupo', higherIsBetter: false },
+  { key: 'rendimento_operacional_hah',   label: 'Rendimento Operacional',    desc: 'ponderado por área trabalhada',                                       unit: 'ha/h', fmtFn: fmtHah,  higherIsBetter: true  },
+  { key: 'eficiencia_geral_pct',         label: 'Eficiência Geral',          desc: 'tempo produtivo / tempo total motor ligado',                           unit: '%',    fmtFn: fmtPct,  higherIsBetter: true  },
+  { key: 'eficiencia_operacional_pct',   label: 'Eficiência Operacional',    desc: 'produtivo / (total − climático − manutenção − administrativo)',        unit: '%',    fmtFn: fmtPct,  higherIsBetter: true  },
+  { key: 'consumo_medio_efetivo_lha',    label: 'Consumo Efetivo Médio',     desc: 'consumo apenas em estado produtivo',                                   unit: 'L/ha', fmtFn: fmtLha,  higherIsBetter: false },
+  { key: 'disponibilidade_mecanica_pct', label: 'Disponibilidade Mecânica',  desc: 'excluindo tempo de manutenção',                                        unit: '%',    fmtFn: fmtPct,  higherIsBetter: true  },
+  { key: 'velocidade_media_kmh',         label: 'Velocidade Média Operacional', desc: 'apenas em estado produtivo',                                        unit: 'km/h', fmtFn: fmtKmh,  higherIsBetter: true  },
+  { key: 'rpm_medio_trabalhando',        label: 'RPM Médio Trabalhando',     desc: 'rotações por minuto em estado produtivo',                              unit: 'rpm',  fmtFn: fmtRpm,  higherIsBetter: true, neutro: true },
 ]
 
-const EXTRA_OPTS = METRICAS.filter(m => !FIXED_COLS.find(f => f.key === m.value))
+const STOP_GROUPS = [
+  { key: 'MANUTENCAO',      label: 'Manutenção na máquina',        color: '#8b2020', alertBad: true  },
+  { key: 'GERENCIAL',       label: 'Parada gerencial / aguardando', color: '#c8960c', alertBad: false },
+  { key: 'SEM_APONTAMENTO', label: 'Sem apontamento',              color: '#888780', alertBad: true  },
+  { key: 'ADMINISTRATIVO',  label: 'Administrativo',               color: '#4a6741', alertBad: false },
+  { key: 'CLIMATICO',       label: 'Climático',                    color: '#4a6741', alertBad: false },
+]
 
-export default function BenchmarkClientePage() {
-  const [panelOpen, setPanelOpen] = useState(false)
-  const [filters, setFilters] = useState({ safra: defaultSafra(), processo: 'Colheita', tipo_safra: 'Arroz' })
-  const [extraCols, setExtraCols] = useState([])
-  const [extraDropOpen, setExtraDropOpen] = useState(false)
-  const options = useFilterOptions()
+// ─── FUNÇÕES DE AGREGAÇÃO ─────────────────────────────────────────────────────
 
-  // Todos os clientes com os filtros de contexto (sem filtro de cliente) — base para termômetro
-  const contextFilters = useMemo(() => ({
-    safra: filters.safra,
-    processo: filters.processo,
-    tipo_safra: filters.tipo_safra,
-  }), [filters.safra, filters.processo, filters.tipo_safra])
+// Agrega métricas dos 7 termômetros a partir de linhas brutas de operational_records
+function computeAgg(rows) {
+  if (!rows.length) return null
+  const sum  = (k) => rows.reduce((a, r) => a + (parseFloat(r[k]) || 0), 0)
+  const wavg = (vk, wk) => {
+    const w = sum(wk)
+    if (!w) return 0
+    return rows.reduce((a, r) => a + (parseFloat(r[vk]) || 0) * (parseFloat(r[wk]) || 0), 0) / w
+  }
+  const area    = sum('area_ha')
+  const prod    = sum('tempo_produtivo_h')
+  const total   = sum('tempo_total_h')
+  const manut   = sum('tempo_manutencao_h')
+  const clim    = sum('tempo_parada_climatica_h')
+  const adm     = sum('tempo_parada_administrativa_h')
+  const efopDen = Math.max(total - manut - clim - adm, 0)
+  const efetivo = sum('consumo_efetivo_l')
+  return {
+    rendimento_operacional_hah:   prod > 0 ? area / prod : 0,
+    eficiencia_geral_pct:         wavg('eficiencia_geral_pct', 'tempo_total_h'),
+    eficiencia_operacional_pct:   efopDen > 0 ? (prod / efopDen) * 100 : 0,
+    consumo_medio_efetivo_lha:    area > 0 ? efetivo / area : 0,
+    disponibilidade_mecanica_pct: wavg('disponibilidade_mecanica_pct', 'tempo_total_h'),
+    velocidade_media_kmh:         wavg('velocidade_media_kmh', 'tempo_produtivo_h'),
+    rpm_medio_trabalhando:        wavg('rpm_medio_trabalhando', 'tempo_produtivo_h'),
+  }
+}
 
-  const canFetch = !!(filters.processo)
-  const { data: allData, loading, fetching } = useOperationalData(contextFilters, canFetch)
+// Distribui tempo de parada em 5 categorias como percentual do total de parada
+function computeStopDist(rows) {
+  const sum = (k) => rows.reduce((a, r) => a + (parseFloat(r[k]) || 0), 0)
+  const totalParada    = sum('tempo_parada_h')
+  if (!totalParada) return null
+  const manutencao     = sum('tempo_manutencao_h')
+  const climatica      = sum('tempo_parada_climatica_h')
+  const administrativa = sum('tempo_parada_administrativa_h')
+  const semApontamento = sum('tempo_parada_sem_apontamento_h')
+  const gerencial      = Math.max(totalParada - manutencao - climatica - administrativa - semApontamento, 0)
+  const pct = (v) => (v / totalParada) * 100
+  return {
+    MANUTENCAO:      pct(manutencao),
+    GERENCIAL:       pct(gerencial),
+    SEM_APONTAMENTO: pct(semApontamento),
+    ADMINISTRATIVO:  pct(administrativa),
+    CLIMATICO:       pct(climatica),
+  }
+}
 
-  const { data: grupoAll } = useGrupoBenchmark(contextFilters)
-  const grupo = grupoAll[0] || null
+// Gera um agregado por cliente para calcular min/max dos termômetros
+function computeAllClienteAggs(rows) {
+  return Object.values(groupBy(rows, 'cliente'))
+    .map(computeAgg)
+    .filter(a => a && a.rendimento_operacional_hah > 0)
+}
 
-  // Dados do cliente selecionado filtrados em memória
-  const clienteData = useMemo(() => {
-    if (!filters.cliente) return []
-    return allData.filter(r => {
-      if (r.cliente !== filters.cliente) return false
-      if (filters.modelo_equipamento && r.modelo_equipamento !== filters.modelo_equipamento) return false
-      return true
-    })
-  }, [allData, filters.cliente, filters.modelo_equipamento])
+// ─── COMPONENTES INTERNOS ─────────────────────────────────────────────────────
 
-  const clienteAgg = useMemo(() => aggregateRows(clienteData), [clienteData])
+// Calcula cor e badge para uma métrica do termômetro em relação à média do grupo
+function thermoStatus(value, avg, higherIsBetter, neutro) {
+  if (neutro || !avg || !value) return { barColor: '#9ca3af', badgeText: null, badgeFg: null, badgeBg: null }
+  const ratio = value / avg
+  if (Math.abs(ratio - 1) <= 0.10) return { barColor: '#c8960c', badgeText: 'Na média', badgeFg: '#7a5c00', badgeBg: '#fdf6e3' }
+  const isAbove = higherIsBetter ? ratio > 1.10 : ratio < 0.90
+  if (isAbove) return { barColor: '#2d4a2d', badgeText: 'Acima',  badgeFg: '#1e4d1e', badgeBg: '#edf5ed' }
+  return           { barColor: '#8b2020', badgeText: 'Abaixo', badgeFg: '#8b2020', badgeBg: '#fdf0f0' }
+}
 
-  // Agregados de todos os clientes para calcular min/max dos termômetros
-  const allClienteAggs = useMemo(() => {
-    return Object.values(groupBy(allData, 'cliente'))
-      .map(rows => aggregateRows(rows))
-      .filter(a => a && a.area_ha > 0)
-  }, [allData])
-
-  // Rendimento por equipamento do cliente selecionado vs grupo
-  const byEquipamento = useMemo(() => {
-    return Object.entries(groupBy(clienteData, 'equipamento'))
-      .map(([equip, rows]) => ({
-        label: equip.split(' ').slice(0, 2).join(' '), // abrevia para caber no gráfico
-        fullLabel: equip,
-        cliente: aggregateRows(rows)?.rendimento_operacional_hah ?? 0,
-        grupo: grupo?.rendimento_operacional_hah_grupo ?? null,
-      }))
-      .filter(e => e.cliente > 0)
-      .sort((a, b) => b.cliente - a.cliente)
-      .slice(0, 12)
-  }, [clienteData, grupo])
-
-  // Distribuição de combustível por estado
-  const fuelDist = useMemo(() => {
-    const sum = key => clienteData.reduce((a, r) => a + (parseFloat(r[key]) || 0), 0)
-    return [
-      { label: 'Trabalhando',  value: sum('consumo_trabalhando_l'),  color: 'var(--pa-green)' },
-      { label: 'Deslocamento', value: sum('consumo_deslocamento_l'), color: '#6366f1' },
-      { label: 'Manobra',      value: sum('consumo_manobra_l'),      color: 'var(--pa-amber)' },
-      { label: 'Parada',       value: sum('consumo_parada_l'),       color: 'var(--pa-red)' },
-    ].filter(d => d.value > 0)
-  }, [clienteData])
-
-  // Linhas da tabela: um por equipamento com todos os campos
-  const tableRows = useMemo(() => {
-    return Object.entries(groupBy(clienteData, 'equipamento'))
-      .map(([equip, rows]) => ({ equipamento: equip, ...aggregateRows(rows) }))
-      .filter(r => r.area_ha > 0)
-      .sort((a, b) => b.area_ha - a.area_ha)
-  }, [clienteData])
-
-  const allExtraCols = [...FIXED_COLS, ...extraCols.map(k => METRICAS.find(m => m.value === k)).filter(Boolean).map(m => ({
-    key: m.value, label: m.label, fmtFn: m.fmt, removable: true
-  }))]
-
-  if (loading) return <PageLoader />
+// Renderiza uma linha de termômetro com trilha, marcador do cliente e badge de status
+function ThermoRow({ label, desc, min, max, avg, value, fmtFn, higherIsBetter, neutro }) {
+  if (min == null || max == null || value == null) return null
+  const range  = max - min
+  const clamp  = range > 0 ? (v) => Math.max(0, Math.min(100, ((v - min) / range) * 100)) : () => 50
+  const pctVal = clamp(value)
+  const pctAvg = avg != null ? clamp(avg) : null
+  const { barColor, badgeText, badgeFg, badgeBg } = thermoStatus(value, avg, higherIsBetter, neutro)
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-pa-text">Benchmark — Cliente vs Grupo</h1>
-          <p className="text-sm text-pa-muted mt-0.5">
-            {filters.cliente || 'Selecione um cliente'} · {filters.processo || 'Todos os processos'}
-            {filters.tipo_safra && ` · ${filters.tipo_safra}`} · {filters.safra}
-          </p>
-        </div>
-        <FilterButton onClick={() => setPanelOpen(true)} filters={filters} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '10px 0', borderBottom: '1px solid #e0dbd4' }}>
+      <div style={{ width: 180, flexShrink: 0 }}>
+        <div style={{ fontSize: 11, fontWeight: 500, color: '#4a3728' }}>{label}</div>
+        <div style={{ fontSize: 8, color: '#6b6560', marginTop: 2 }}>{desc}</div>
       </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ position: 'relative', height: 28 }}>
+          <div style={{ position: 'absolute', left: `${pctVal}%`, transform: 'translateX(-50%)', bottom: 0, textAlign: 'center' }}>
+            <div style={{ fontSize: 7, color: '#6b6560', whiteSpace: 'nowrap' }}>CLIENTE</div>
+            <div style={{ fontSize: 9, fontWeight: 600, color: barColor, whiteSpace: 'nowrap' }}>{fmtFn ? fmtFn(value) : value?.toFixed(2)}</div>
+          </div>
+        </div>
+        <div style={{ position: 'relative', height: 6, background: '#e0dbd4', borderRadius: 3 }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${pctVal}%`, background: barColor, borderRadius: 3, opacity: 0.4 }} />
+          {pctAvg != null && (
+            <div style={{ position: 'absolute', top: '50%', left: `${pctAvg}%`, transform: 'translate(-50%, -50%)', width: 2, height: 12, background: '#c8960c', borderRadius: 1 }} />
+          )}
+          <div style={{ position: 'absolute', top: '50%', left: `${pctVal}%`, transform: 'translate(-50%, -50%)', width: 10, height: 10, borderRadius: '50%', background: barColor, border: '2px solid #fff' }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 8, color: '#6b6560' }}>
+          <span>Mín {fmtFn ? fmtFn(min) : min?.toFixed(2)}</span>
+          {pctAvg != null && <span style={{ color: '#c8960c' }}>◆ Média {fmtFn ? fmtFn(avg) : avg?.toFixed(2)}</span>}
+          <span>Máx {fmtFn ? fmtFn(max) : max?.toFixed(2)}</span>
+        </div>
+      </div>
+      <div style={{ width: 60, flexShrink: 0, textAlign: 'right' }}>
+        {badgeText && (
+          <span style={{ fontSize: 10, fontWeight: 600, color: badgeFg, padding: '2px 6px', borderRadius: 3, background: badgeBg, whiteSpace: 'nowrap' }}>
+            {badgeText}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
 
-      <FilterPanel
-        open={panelOpen}
-        onClose={() => setPanelOpen(false)}
-        filters={filters}
-        onChange={setFilters}
-        options={options}
-        hideFields={['dates']}
-        showBenchmarkToggle={false}
-      />
+// Renderiza uma linha de comparação de parada: cliente vs média porteira com barras duplas
+function StopCompareRow({ label, clientePct, grupoPct, color, maxPct, alertBad }) {
+  const isHighBad = alertBad && clientePct > grupoPct + 5
+  const cW = maxPct > 0 ? (clientePct / maxPct) * 100 : 0
+  const gW = maxPct > 0 ? (grupoPct  / maxPct) * 100 : 0
+  return (
+    <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderBottom: '1px solid #e0dbd4' }}>
+      <div style={{ width: 150, flexShrink: 0, fontSize: 10, fontWeight: 500, color: '#4a3728', alignSelf: 'center' }}>{label}</div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 7, color: '#6b6560', marginBottom: 3 }}>Cliente</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ flex: 1, height: 8, background: '#f0ede8', borderRadius: 4, position: 'relative' }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${cW}%`, background: color, borderRadius: 4 }} />
+          </div>
+          <span style={{ fontSize: 9, fontWeight: isHighBad ? 700 : 400, color: isHighBad ? '#8b2020' : '#6b6560', width: 36, textAlign: 'right', flexShrink: 0 }}>
+            {clientePct.toFixed(1)}%
+          </span>
+        </div>
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 7, color: '#6b6560', marginBottom: 3 }}>Média Porteira</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ flex: 1, height: 8, background: '#f0ede8', borderRadius: 4, position: 'relative' }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${gW}%`, background: '#c8960c', borderRadius: 4 }} />
+          </div>
+          <span style={{ fontSize: 9, color: '#6b6560', width: 36, textAlign: 'right', flexShrink: 0 }}>
+            {grupoPct.toFixed(1)}%
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
 
+// ─── SEÇÕES ───────────────────────────────────────────────────────────────────
+
+function SectionCard({ title, children }) {
+  return (
+    <div style={{ background: '#f7f5f2', border: '1px solid #e0dbd4', borderRadius: 12, padding: 20 }}>
+      <h2 style={{ fontSize: 11, fontWeight: 600, color: '#4a3728', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16, margin: '0 0 16px 0' }}>
+        {title}
+      </h2>
+      {children}
+    </div>
+  )
+}
+
+// Renderiza os 7 termômetros de posicionamento com min/max/avg calculados em memória
+function SectionThermo({ clienteAgg, allClienteAggs, groupAgg }) {
+  if (!clienteAgg || allClienteAggs.length < 2) {
+    return (
+      <p style={{ textAlign: 'center', padding: '24px 0', color: '#6b6560', fontSize: 13 }}>
+        Dados insuficientes para comparação (mínimo 2 clientes com dados na safra atual).
+      </p>
+    )
+  }
+  return (
+    <div>
+      {THERMO_METRICAS.map(m => {
+        const vals = allClienteAggs.map(a => a[m.key]).filter(v => v != null && !isNaN(v) && v >= 0)
+        if (!vals.length) return null
+        return (
+          <ThermoRow
+            key={m.key}
+            label={m.label}
+            desc={m.desc}
+            min={Math.min(...vals)}
+            max={Math.max(...vals)}
+            avg={groupAgg?.[m.key] ?? null}
+            value={clienteAgg[m.key]}
+            fmtFn={m.fmtFn}
+            higherIsBetter={m.higherIsBetter}
+            neutro={m.neutro}
+          />
+        )
+      })}
+      <div style={{ borderTop: '1px solid #e0dbd4', marginTop: 12, paddingTop: 8, fontSize: 8, fontStyle: 'italic', color: '#c8960c' }}>
+        ◆ Média Porteira = média ponderada de todos os clientes na mesma operação e cultura · mesmo período de safra
+      </div>
+    </div>
+  )
+}
+
+// Renderiza o comparativo de motivos de parada com barras duplas (cliente vs grupo)
+function SectionStop({ clienteDist, grupoDist }) {
+  if (!clienteDist || !grupoDist) {
+    return (
+      <p style={{ textAlign: 'center', padding: '24px 0', color: '#6b6560', fontSize: 13 }}>
+        Sem dados de parada disponíveis para o período selecionado.
+      </p>
+    )
+  }
+  const allPcts = STOP_GROUPS.flatMap(g => [clienteDist[g.key] ?? 0, grupoDist[g.key] ?? 0])
+  const maxPct  = Math.max(...allPcts, 1)
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+        {[{ color: '#2d4a2d', label: 'Este cliente' }, { color: '#c8960c', label: 'Média Porteira' }].map(({ color, label }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#6b6560' }}>
+            <span style={{ display: 'inline-block', width: 10, height: 10, background: color, borderRadius: 2 }} />
+            {label}
+          </div>
+        ))}
+      </div>
+      {STOP_GROUPS.map(g => (
+        <StopCompareRow
+          key={g.key}
+          label={g.label}
+          clientePct={clienteDist[g.key] ?? 0}
+          grupoPct={grupoDist[g.key] ?? 0}
+          color={g.color}
+          maxPct={maxPct}
+          alertBad={g.alertBad}
+        />
+      ))}
+    </div>
+  )
+}
+
+// Exibe estado vazio quando nenhum cliente único está selecionado nos filtros
+function EmptyState({ openDrawer }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', gap: 16 }}>
+      <p style={{ color: '#6b6560', fontSize: 13, textAlign: 'center', maxWidth: 340, margin: 0 }}>
+        Selecione um cliente nos filtros para visualizar o benchmark.
+      </p>
+      <button
+        onClick={openDrawer}
+        style={{ padding: '8px 20px', background: '#2d4a2d', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+      >
+        Abrir filtros
+      </button>
+    </div>
+  )
+}
+
+// Exibe os filtros ativos desta tela em formato de breadcrumb
+function PageBreadcrumb({ cliente, operacao, cultura, safra }) {
+  const items = [
+    { label: 'Cliente',   value: cliente || '—' },
+    { label: 'Operação',  value: operacao || 'Todas' },
+    { label: 'Cultura',   value: cultura  || 'Todas' },
+    { label: 'Período',   value: safra },
+  ]
+  return (
+    <div style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 16 }}>
+      {items.map((item, i) => (
+        <span key={item.label}>
+          {i > 0 && <span style={{ color: '#6b6560', margin: '0 6px' }}>·</span>}
+          <span style={{ color: '#6b6560' }}>{item.label}: </span>
+          <span style={{ color: '#4a3728', fontWeight: 500 }}>{item.value}</span>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+// ─── PÁGINA ───────────────────────────────────────────────────────────────────
+
+export default function BenchmarkClientePage() {
+  const { filters, openDrawer } = useFilters()
+
+  // cliente único é obrigatório — benchmark compara um contra o grupo
+  const cliente  = (!filters.todosClientes  && filters.clientes.length  === 1) ? filters.clientes[0]  : null
+  const operacao = (!filters.todasOperacoes && filters.operacoes.length  > 0)  ? filters.operacoes[0]  : null
+  const cultura  = (!filters.todasCulturas  && filters.culturas.length   > 0)  ? filters.culturas[0]   : null
+  const safra    = defaultSafra()
+
+  const hookFilters = useMemo(
+    () => ({ processo: operacao, tipo_safra: cultura, safra }),
+    [operacao, cultura, safra]
+  )
+  const { data: allData, loading, fetching } = useOperationalData(hookFilters, !!cliente)
+
+  const clienteData    = useMemo(() => allData.filter(r => r.cliente === cliente), [allData, cliente])
+  const allClienteAggs = useMemo(() => computeAllClienteAggs(allData), [allData])
+  const clienteAgg     = useMemo(() => computeAgg(clienteData), [clienteData])
+  const groupAgg       = useMemo(() => computeAgg(allData), [allData])
+  const stopCliente    = useMemo(() => computeStopDist(clienteData), [clienteData])
+  const stopGrupo      = useMemo(() => computeStopDist(allData), [allData])
+
+  if (!cliente) return <EmptyState openDrawer={openDrawer} />
+  if (loading)  return <PageLoader />
+
+  return (
+    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '20px 24px' }}>
+      <PageBreadcrumb cliente={cliente} operacao={operacao} cultura={cultura} safra={safra} />
       {fetching && <FetchingBar />}
-
-      {!canFetch && (
-        <div className="rounded-xl border border-pa-border bg-pa-surface p-10 text-center text-pa-muted text-sm">
-          Selecione um processo nos filtros para carregar os dados
-        </div>
-      )}
-
-      {canFetch && (
-        <div className={fetching ? 'data-fetching space-y-6' : 'space-y-6'}>
-          {/* KPI cards do cliente vs grupo */}
-          <div>
-            <p className="text-xs font-semibold text-pa-muted uppercase tracking-wider mb-3">
-              {filters.cliente ? `${filters.cliente} vs Média Porteira` : 'Médias do grupo (selecione um cliente para comparar)'}
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              <KPICard
-                label="Rend. Operacional"
-                value={fmtHah(clienteAgg?.rendimento_operacional_hah)}
-                benchmark={grupo ? fmtHah(grupo.rendimento_operacional_hah_grupo) : null}
-                ratioBenchmark={clienteAgg && grupo ? { value: clienteAgg.rendimento_operacional_hah, benchmark: grupo.rendimento_operacional_hah_grupo, higherIsBetter: true } : null}
-              />
-              <KPICard
-                label="Eficiência Geral"
-                value={fmtPct(clienteAgg?.eficiencia_geral_pct)}
-                benchmark={grupo ? fmtPct(grupo.eficiencia_geral_pct_grupo) : null}
-                pctValue={clienteAgg?.eficiencia_geral_pct}
-              />
-              <KPICard
-                label="Disp. Mecânica"
-                value={fmtPct(clienteAgg?.disponibilidade_mecanica_pct)}
-                benchmark={grupo ? fmtPct(grupo.disponibilidade_mecanica_pct_grupo) : null}
-                pctValue={clienteAgg?.disponibilidade_mecanica_pct}
-              />
-              <KPICard
-                label="Velocidade Média"
-                value={fmtKmh(clienteAgg?.velocidade_media_kmh)}
-                benchmark={grupo ? fmtKmh(grupo.velocidade_media_kmh_grupo) : null}
-              />
-              <KPICard
-                label="Consumo (l/h)"
-                value={fmtLh(clienteAgg?.consumo_medio_lh)}
-                benchmark={grupo ? fmtLh(grupo.consumo_medio_lh_grupo) : null}
-              />
-            </div>
-          </div>
-
-          {/* Termômetros + Combustível */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-pa-surface border border-pa-border rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-pa-text mb-1">Posição no Grupo</h3>
-              <p className="text-xs text-pa-muted mb-4">Min · <span className="text-pa-amber">▲ Porteira</span> · Max entre clientes</p>
-              {filters.cliente && clienteAgg ? (
-                THERMO_METRICAS.map(m => {
-                  const vals = allClienteAggs.map(a => a[m.key]).filter(v => v != null && !isNaN(v))
-                  return (
-                    <ThermometerBar
-                      key={m.key}
-                      label={m.label}
-                      min={Math.min(...vals)}
-                      max={Math.max(...vals)}
-                      avg={grupo?.[m.grupoKey]}
-                      value={clienteAgg[m.key]}
-                      fmtFn={m.fmtFn}
-                      higherIsBetter={m.higherIsBetter !== false}
-                    />
-                  )
-                })
-              ) : (
-                <p className="text-pa-faint text-sm text-center py-8">Selecione um cliente</p>
-              )}
-            </div>
-
-            <div className="bg-pa-surface border border-pa-border rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-pa-text mb-4">Distribuição de Combustível</h3>
-              {fuelDist.length > 0 ? (
-                <DonutChart
-                  data={fuelDist}
-                  centerLabel={{ value: fmt(fuelDist.reduce((a, d) => a + d.value, 0), 0), label: 'litros' }}
-                />
-              ) : (
-                <p className="text-pa-faint text-sm text-center py-8">
-                  {filters.cliente ? 'Sem dados de combustível' : 'Selecione um cliente'}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Rendimento por equipamento */}
-          {byEquipamento.length > 0 && (
-            <div className="bg-pa-surface border border-pa-border rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-pa-text mb-4">
-                Rendimento Operacional por Equipamento (ha/h)
-                {grupo && <span className="ml-2 text-xs text-pa-amber font-normal">■ ref. porteira: {fmtHah(grupo.rendimento_operacional_hah_grupo)}</span>}
-              </h3>
-              <VBarChart data={byEquipamento} height={200} />
-            </div>
-          )}
-
-          {/* Tabela comparativa por equipamento */}
-          {tableRows.length > 0 && (
-            <div className="bg-pa-surface border border-pa-border rounded-xl p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-pa-text">Detalhamento por Equipamento</h3>
-                <div className="relative">
-                  <button
-                    onClick={() => setExtraDropOpen(o => !o)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-pa-muted border border-pa-border rounded-lg hover:border-pa-green hover:text-pa-text transition-colors"
-                  >
-                    + Métrica
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {extraDropOpen && (
-                    <div className="absolute right-0 top-full mt-1 w-56 bg-pa-surface border border-pa-border rounded-lg shadow-xl z-10 py-1">
-                      {EXTRA_OPTS.filter(m => !extraCols.includes(m.value)).map(m => (
-                        <button
-                          key={m.value}
-                          onClick={() => { setExtraCols(prev => [...prev, m.value]); setExtraDropOpen(false) }}
-                          className="w-full text-left px-3 py-2 text-xs text-pa-text hover:bg-pa-surface-2 transition-colors"
-                        >
-                          {m.label}
-                        </button>
-                      ))}
-                      {EXTRA_OPTS.filter(m => !extraCols.includes(m.value)).length === 0 && (
-                        <p className="px-3 py-2 text-xs text-pa-faint">Todas as métricas adicionadas</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-pa-border">
-                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-pa-muted uppercase tracking-wider sticky left-0 bg-pa-surface">Equipamento</th>
-                      {allExtraCols.map(col => (
-                        <th key={col.key} className="px-3 py-2.5 text-left text-xs font-semibold text-pa-muted uppercase tracking-wider whitespace-nowrap">
-                          <span className="flex items-center gap-1">
-                            {col.label}
-                            {col.removable && (
-                              <button onClick={() => setExtraCols(prev => prev.filter(k => k !== col.key))} className="text-pa-faint hover:text-pa-red ml-1">×</button>
-                            )}
-                          </span>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tableRows.map((row, i) => (
-                      <tr key={i} className="border-b border-pa-border/50 hover:bg-pa-surface-2 transition-colors">
-                        <td className="px-3 py-2.5 text-pa-text font-medium sticky left-0 bg-pa-surface text-xs">{row.equipamento}</td>
-                        {allExtraCols.map(col => {
-                          const val = row[col.key]
-                          const sem = col.pct ? semaphorePct(val) : null
-                          return (
-                            <td key={col.key} className={`px-3 py-2.5 tabular-nums whitespace-nowrap ${col.highlight ? 'text-pa-green font-bold' : sem ? sem.cls : 'text-pa-text'}`}>
-                              {col.fmtFn ? col.fmtFn(val) : (val?.toFixed(2) ?? '—')}
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <SectionCard title="POSICIONAMENTO NO GRUPO PORTEIRA — MÉTRICAS COMPARÁVEIS">
+          <SectionThermo clienteAgg={clienteAgg} allClienteAggs={allClienteAggs} groupAgg={groupAgg} />
+        </SectionCard>
+        <SectionCard title="MOTIVOS DE PARADA — ESTE CLIENTE VS. MÉDIA PORTEIRA (%)">
+          <SectionStop clienteDist={stopCliente} grupoDist={stopGrupo} />
+        </SectionCard>
+      </div>
     </div>
   )
 }

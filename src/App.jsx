@@ -1,6 +1,18 @@
+import { useState } from 'react'
 import { FilterProvider, useFilters } from './lib/FilterContext'
 import GlobalFilterDrawer from './components/GlobalFilterDrawer'
 import AnaliseGeralPage from './pages/AnaliseGeralPage'
+import BenchmarkClientePage from './pages/BenchmarkClientePage'
+
+const NAV = [
+  { id: 'analise',    label: 'Análise Geral' },
+  { id: 'benchmark',  label: 'Benchmark Cliente' },
+]
+
+const PAGES = {
+  analise:   AnaliseGeralPage,
+  benchmark: BenchmarkClientePage,
+}
 
 function FilterButton() {
   const { openDrawer, activeCount } = useFilters()
@@ -35,16 +47,16 @@ function FilterButton() {
 
 function Breadcrumb() {
   const { filters } = useFilters()
-  const cliente = filters.todosClientes ? 'Todos' : (filters.clientes.length > 0 ? filters.clientes.join(', ') : 'Todos')
-  const operacao = filters.todasOperacoes ? 'Todas' : (filters.operacoes.length > 0 ? filters.operacoes.join(', ') : 'Todas')
-  const cultura = filters.todasCulturas ? 'Todas' : (filters.culturas.length > 0 ? filters.culturas.join(', ') : 'Todas')
+  const cliente    = filters.todosClientes    ? 'Todos' : (filters.clientes.length    > 0 ? filters.clientes.join(', ')    : 'Todos')
+  const operacao   = filters.todasOperacoes   ? 'Todas' : (filters.operacoes.length   > 0 ? filters.operacoes.join(', ')   : 'Todas')
+  const cultura    = filters.todasCulturas    ? 'Todas' : (filters.culturas.length    > 0 ? filters.culturas.join(', ')    : 'Todas')
   const propriedade = filters.todasPropriedades ? 'Todas' : (filters.propriedades.length > 0 ? filters.propriedades.join(', ') : 'Todas')
 
   const items = [
-    { label: 'Cliente', value: cliente },
+    { label: 'Cliente',     value: cliente },
     { label: 'Propriedade', value: propriedade },
-    { label: 'Operação', value: operacao },
-    { label: 'Cultura', value: cultura },
+    { label: 'Operação',    value: operacao },
+    { label: 'Cultura',     value: cultura },
   ]
 
   return (
@@ -64,9 +76,11 @@ function Breadcrumb() {
 }
 
 function AppInner() {
+  const [activePage, setActivePage] = useState('analise')
+  const PageComponent = PAGES[activePage]
+
   return (
     <div style={{ minHeight: '100vh', background: '#ffffff', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
-      {/* Header */}
       <header style={{
         background: '#2d4a2d', padding: '12px 24px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -78,11 +92,27 @@ function AppInner() {
         <FilterButton />
       </header>
 
-      {/* Breadcrumb */}
       <Breadcrumb />
 
-      {/* Content */}
-      <AnaliseGeralPage />
+      <nav style={{ borderBottom: '1px solid #e0dbd4', padding: '0 24px', background: '#ffffff', display: 'flex' }}>
+        {NAV.map(item => (
+          <button
+            key={item.id}
+            onClick={() => setActivePage(item.id)}
+            style={{
+              padding: '10px 16px', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer',
+              fontWeight: activePage === item.id ? 600 : 400,
+              color: activePage === item.id ? '#2d4a2d' : '#6b6560',
+              borderBottom: `2px solid ${activePage === item.id ? '#2d4a2d' : 'transparent'}`,
+              transition: 'color 0.15s',
+            }}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
+      <PageComponent />
 
       <GlobalFilterDrawer />
     </div>
