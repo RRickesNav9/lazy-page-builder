@@ -4,16 +4,9 @@
 
 import { useState, useRef } from 'react'
 import { useFilters } from '../lib/FilterContext'
+import { useClienteBenchmark, useGrupoBenchmark } from '../hooks/useData'
 
-// ─── DADOS E CONFIGURAÇÃO ─────────────────────────────────────────────────────
-
-const CLIENTES = [
-  'Arrozeira Pelotas',
-  'TioJocaAlimentos PEL',
-  'Labrustar',
-  'Coragon',
-  'Agropecuária Pontal',
-]
+// ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
 
 const METRICAS_CONFIG = [
   {
@@ -73,74 +66,6 @@ const METRICAS_CONFIG = [
     isPct: false,
   },
 ]
-
-const MOCK_DATA = {
-  'Arrozeira Pelotas': {
-    processo: 'Colheita',
-    tipo_safra: 'Arroz',
-    metricas: [
-      { clienteVal: 2.03, grupoVal: 1.65 },
-      { clienteVal: 57.3, grupoVal: 49.0 },
-      { clienteVal: 63.1, grupoVal: 68.0 },
-      { clienteVal: 34.9, grupoVal: 30.7 },
-      { clienteVal: 5.41, grupoVal: 4.80 },
-      { clienteVal: 96.2, grupoVal: 89.0 },
-      { clienteVal: 2.31, grupoVal: 2.20 },
-    ],
-  },
-  'TioJocaAlimentos PEL': {
-    processo: 'Colheita',
-    tipo_safra: 'Soja',
-    metricas: [
-      { clienteVal: 1.52, grupoVal: 1.65 },
-      { clienteVal: 51.2, grupoVal: 49.0 },
-      { clienteVal: 72.5, grupoVal: 68.0 },
-      { clienteVal: 29.1, grupoVal: 30.7 },
-      { clienteVal: 4.32, grupoVal: 4.80 },
-      { clienteVal: 91.5, grupoVal: 89.0 },
-      { clienteVal: 2.05, grupoVal: 2.20 },
-    ],
-  },
-  'Labrustar': {
-    processo: 'Plantio',
-    tipo_safra: '',
-    metricas: [
-      { clienteVal: 1.81, grupoVal: 1.65 },
-      { clienteVal: 49.5, grupoVal: 49.0 },
-      { clienteVal: 65.0, grupoVal: 68.0 },
-      { clienteVal: 31.8, grupoVal: 30.7 },
-      { clienteVal: 4.95, grupoVal: 4.80 },
-      { clienteVal: 88.2, grupoVal: 89.0 },
-      { clienteVal: 2.18, grupoVal: 2.20 },
-    ],
-  },
-  'Coragon': {
-    processo: 'Aplicação',
-    tipo_safra: '',
-    metricas: [
-      { clienteVal: 1.43, grupoVal: 1.65 },
-      { clienteVal: 44.8, grupoVal: 49.0 },
-      { clienteVal: 58.3, grupoVal: 68.0 },
-      { clienteVal: 27.6, grupoVal: 30.7 },
-      { clienteVal: 4.20, grupoVal: 4.80 },
-      { clienteVal: 93.7, grupoVal: 89.0 },
-      { clienteVal: 1.95, grupoVal: 2.20 },
-    ],
-  },
-  'Agropecuária Pontal': {
-    processo: 'Colheita',
-    tipo_safra: 'Milho',
-    metricas: [
-      { clienteVal: 1.76, grupoVal: 1.65 },
-      { clienteVal: 46.0, grupoVal: 49.0 },
-      { clienteVal: 74.2, grupoVal: 68.0 },
-      { clienteVal: 33.5, grupoVal: 30.7 },
-      { clienteVal: 5.10, grupoVal: 4.80 },
-      { clienteVal: 85.1, grupoVal: 89.0 },
-      { clienteVal: 2.40, grupoVal: 2.20 },
-    ],
-  },
-}
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -509,19 +434,46 @@ function BenchmarkFABs({ onExport, onToggle, showFABs }) {
 // ─── PÁGINA ───────────────────────────────────────────────────────────────────
 
 export default function BenchmarkClientePage() {
-  const { filters, setShowFABs, showFABs } = useFilters()
+  const { filters, queryFilters, currentSafra, setShowFABs, showFABs } = useFilters()
   const contentRef = useRef(null)
 
-  // Lookup case-insensitive: evita quebrar quando o Supabase retorna capitalização diferente da chave mock
-  const clienteFiltro = filters.cliente || CLIENTES[0]
-  const clienteKey = Object.keys(MOCK_DATA).find(
-    k => k.toLowerCase() === clienteFiltro.toLowerCase()
-  ) ?? CLIENTES[0]
-  const dados = MOCK_DATA[clienteKey]
+  const cliente   = filters.cliente    || ''
+  const processo  = filters.processo   || ''
+  const tipoSafra = filters.tipo_safra || ''
 
-  // Processo e cultura vêm do filtro global quando preenchidos; fallback para o mock
-  const processo  = filters.processo   || dados.processo
-  const tipoSafra = filters.tipo_safra || dados.tipo_safra
+  // Filtros para os hooks — sempre inclui safra corrente para parear cliente vs grupo
+  const benchFilters = {
+    ...(cliente   && { cliente }),
+    ...(processo  && { processo }),
+    ...(tipoSafra && { tipo_safra: tipoSafra }),
+    safra: currentSafra,
+    ...(queryFilters.dataInicio && { dataInicio: queryFilters.dataInicio }),
+    ...(queryFilters.dataFim    && { dataFim:    queryFilters.dataFim    }),
+  }
+
+  const grupoFilters = {
+    ...(processo  && { processo }),
+    ...(tipoSafra && { tipo_safra: tipoSafra }),
+    safra: currentSafra,
+  }
+
+  const { metricas: clienteMetricas, loading: loadingCliente, error: errorCliente } =
+    useClienteBenchmark(benchFilters)
+
+  const { data: grupoData, loading: loadingGrupo } =
+    useGrupoBenchmark(grupoFilters)
+
+  // Pega a linha do grupo correspondente (processo + tipo_safra + safra)
+  const grupoRow = grupoData[0] ?? null
+
+  // Monta o array de pares { clienteVal, grupoVal } na ordem de METRICAS_CONFIG
+  const metricas = METRICAS_CONFIG.map(cfg => ({
+    clienteVal: clienteMetricas?.[cfg.key] ?? 0,
+    grupoVal:   grupoRow ? (grupoRow[`${cfg.key}_grupo`] ?? 0) : 0,
+  }))
+
+  const loading = loadingCliente || loadingGrupo
+  const semDados = !loading && !clienteMetricas
 
   const [showConfirmExport, setShowConfirmExport] = useState(false)
 
@@ -538,8 +490,8 @@ export default function BenchmarkClientePage() {
     <>
       {showConfirmExport && (
         <ConfirmExportModal
-          cliente={clienteFiltro}
-          processo={processo}
+          cliente={cliente || '—'}
+          processo={processo || '—'}
           tipoSafra={tipoSafra}
           onConfirm={handleExportConfirm}
           onCancel={() => setShowConfirmExport(false)}
@@ -554,21 +506,37 @@ export default function BenchmarkClientePage() {
 
       <div ref={contentRef} style={{ maxWidth: 1280, margin: '0 auto', padding: '20px 24px' }}>
         <DynamicHeader
-          cliente={clienteFiltro}
+          cliente={cliente}
           processo={processo}
           tipoSafra={tipoSafra}
         />
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <SectionCard
-            title="MÉTRICAS COMPARÁVEIS — CLIENTE VS. GRUPO PORTEIRA"
-            subtitle="Mesmo tipo de operação e cultura"
-            footnote="Grupo Porteira: média ponderada de todos os clientes com a mesma operação e cultura no período. Quando não há dados de outros clientes, são usadas referências históricas da safra anterior."
-          >
-            <Legenda />
-            <MetricasTable metricas={dados.metricas} />
-          </SectionCard>
-        </div>
+        {loading && (
+          <div style={{ padding: '40px 0', textAlign: 'center', color: '#6b6560', fontSize: 13 }}>
+            Carregando dados...
+          </div>
+        )}
+
+        {!loading && (errorCliente || semDados) && (
+          <div style={{ padding: '40px 0', textAlign: 'center', color: '#8b2020', fontSize: 13 }}>
+            {errorCliente
+              ? `Erro ao carregar dados: ${errorCliente}`
+              : 'Nenhum dado encontrado para os filtros selecionados. Selecione um cliente e operação no filtro.'}
+          </div>
+        )}
+
+        {!loading && clienteMetricas && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <SectionCard
+              title="MÉTRICAS COMPARÁVEIS — CLIENTE VS. GRUPO PORTEIRA"
+              subtitle="Mesmo tipo de operação e cultura"
+              footnote="Grupo Porteira: média ponderada de todos os clientes com a mesma operação e cultura na safra. Quando não há dados de outros clientes, os valores do grupo aparecem como zero."
+            >
+              <Legenda />
+              <MetricasTable metricas={metricas} />
+            </SectionCard>
+          </div>
+        )}
       </div>
     </>
   )

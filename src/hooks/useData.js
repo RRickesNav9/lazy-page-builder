@@ -203,6 +203,84 @@ export function useStopData(queryFilters = {}) {
   return { data, loading }
 }
 
+// Agrega métricas de um cliente via média ponderada a partir de dashboard_operational_view.
+// Mesma lógica de peso por métrica usada em compute-performance-stats.
+export function useClienteBenchmark(filters = {}) {
+  const [metricas, setMetricas] = useState(null)
+  const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(null)
+
+  useEffect(() => {
+    async function fetch() {
+      setLoading(true)
+      setError(null)
+      try {
+        let query = supabase
+          .from('dashboard_operational_view')
+          .select([
+            'rendimento_operacional_hah', 'eficiencia_geral_pct',
+            'eficiencia_operacional_pct', 'consumo_medio_efetivo_lha',
+            'consumo_medio_lh', 'disponibilidade_mecanica_pct', 'velocidade_media_kmh',
+            'tempo_produtivo_h', 'tempo_total_h', 'area_ha',
+          ].join(','))
+          .neq('cliente', 'Média Porteira')
+
+        if (filters.cliente)    query = query.eq('cliente',    filters.cliente)
+        if (filters.processo)   query = query.eq('processo',   filters.processo)
+        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
+        if (filters.safra)      query = query.eq('safra',      filters.safra)
+        if (filters.dataInicio) query = query.gte('data',      filters.dataInicio)
+        if (filters.dataFim)    query = query.lte('data',      filters.dataFim)
+
+        let all = [], from = 0
+        while (true) {
+          const { data: page, error: err } = await query.range(from, from + 999)
+          if (err) throw err
+          all = all.concat(page)
+          if (page.length < 1000) break
+          from += 1000
+        }
+
+        if (all.length === 0) { setMetricas(null); return }
+
+        // Média ponderada por denominador correto por métrica
+        const PESO = {
+          rendimento_operacional_hah:   'tempo_produtivo_h',
+          eficiencia_geral_pct:         'tempo_total_h',
+          eficiencia_operacional_pct:   'tempo_total_h', // denom_h sintético não existe na view
+          consumo_medio_efetivo_lha:    'area_ha',
+          consumo_medio_lh:             'tempo_total_h',
+          disponibilidade_mecanica_pct: 'tempo_total_h',
+          velocidade_media_kmh:         'tempo_produtivo_h',
+        }
+
+        const result = {}
+        for (const [metrica, peso] of Object.entries(PESO)) {
+          let sumProd = 0, sumPeso = 0
+          for (const row of all) {
+            const v = row[metrica]
+            const w = row[peso]
+            if (v != null && w != null && w > 0) {
+              sumProd += v * w
+              sumPeso += w
+            }
+          }
+          result[metrica] = sumPeso > 0 ? sumProd / sumPeso : 0
+        }
+        setMetricas(result)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetch()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(filters)])
+
+  return { metricas, loading, error }
+}
+
 // Busca equipamentos disponíveis para um cliente específico (para o seletor de benchmark)
 export function useEquipamentoOptions(cliente) {
   const [equipamentos, setEquipamentos] = useState([])
