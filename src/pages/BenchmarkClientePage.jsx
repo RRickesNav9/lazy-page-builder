@@ -512,8 +512,16 @@ export default function BenchmarkClientePage() {
   const { filters, setShowFABs, showFABs } = useFilters()
   const contentRef = useRef(null)
 
-  const clienteSelecionado = filters.cliente || CLIENTES[0]
-  const dados = MOCK_DATA[clienteSelecionado] ?? MOCK_DATA[CLIENTES[0]]
+  // Lookup case-insensitive: evita quebrar quando o Supabase retorna capitalização diferente da chave mock
+  const clienteFiltro = filters.cliente || CLIENTES[0]
+  const clienteKey = Object.keys(MOCK_DATA).find(
+    k => k.toLowerCase() === clienteFiltro.toLowerCase()
+  ) ?? CLIENTES[0]
+  const dados = MOCK_DATA[clienteKey]
+
+  // Processo e cultura vêm do filtro global quando preenchidos; fallback para o mock
+  const processo  = filters.processo   || dados.processo
+  const tipoSafra = filters.tipo_safra || dados.tipo_safra
 
   const [showConfirmExport, setShowConfirmExport] = useState(false)
 
@@ -530,9 +538,9 @@ export default function BenchmarkClientePage() {
     <>
       {showConfirmExport && (
         <ConfirmExportModal
-          cliente={clienteSelecionado}
-          processo={dados.processo}
-          tipoSafra={dados.tipo_safra}
+          cliente={clienteFiltro}
+          processo={processo}
+          tipoSafra={tipoSafra}
           onConfirm={handleExportConfirm}
           onCancel={() => setShowConfirmExport(false)}
         />
@@ -546,9 +554,9 @@ export default function BenchmarkClientePage() {
 
       <div ref={contentRef} style={{ maxWidth: 1280, margin: '0 auto', padding: '20px 24px' }}>
         <DynamicHeader
-          cliente={clienteSelecionado}
-          processo={dados.processo}
-          tipoSafra={dados.tipo_safra}
+          cliente={clienteFiltro}
+          processo={processo}
+          tipoSafra={tipoSafra}
         />
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
