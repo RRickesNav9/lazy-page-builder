@@ -433,7 +433,7 @@ export default function BenchmarkEquipamentoPage() {
   const [modeloB,      setModeloB]      = useState('John Deere S660')
 
   const maqAtiva  = MAQUINAS.find(m => m.cod === (activeTab === 'historico' ? maquinaTab2 : maquinaTab1))
-  const operacao  = filters.todasOperacoes ? 'Colheita' : (filters.operacoes[0] || 'Colheita')
+  const operacao  = filters.processo || 'Colheita'
   const equipNome = activeTab === 'modelo-modelo' ? '—' : (maqAtiva?.label ?? '—')
   const modeloNomeBC = activeTab === 'modelo-modelo' ? `${modeloA} vs. ${modeloB}` : (maqAtiva?.modelo ?? '—')
 

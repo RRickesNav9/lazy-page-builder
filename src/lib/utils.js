@@ -34,22 +34,25 @@ export function aggregateRows(rows) {
   if (!rows.length) return null
   const sum = (key) => rows.reduce((a, r) => a + (parseFloat(r[key]) || 0), 0)
 
-  const area_ha           = sum('area_ha')
-  const tempo_produtivo_h = sum('tempo_produtivo_h')
-  const tempo_parada_h    = sum('tempo_parada_h')
-  const tempo_manutencao_h= sum('tempo_manutencao_h')
-  const tempo_manobra_h   = sum('tempo_manobra_h')
+  const area_ha            = sum('area_ha')
+  const tempo_produtivo_h  = sum('tempo_produtivo_h')
+  const tempo_parada_h     = sum('tempo_parada_h')
+  const tempo_manutencao_h = sum('tempo_manutencao_h')
+  const tempo_manobra_h    = sum('tempo_manobra_h')
   const tempo_deslocamento_h = sum('tempo_deslocamento_h')
-  const tempo_total_h     = sum('tempo_total_h')
-  const consumo_total_l   = sum('consumo_total_l')
-  const consumo_efetivo_l = sum('consumo_efetivo_l')
+  const tempo_total_h      = sum('tempo_total_h')
+  const consumo_total_l    = sum('consumo_total_l')
+  const consumo_efetivo_l  = sum('consumo_efetivo_l')
 
-  // Médias ponderadas por tempo total
   const weightedAvg = (valKey, weightKey) => {
     const totalWeight = rows.reduce((a, r) => a + (parseFloat(r[weightKey]) || 0), 0)
     if (!totalWeight) return 0
     return rows.reduce((a, r) => a + (parseFloat(r[valKey]) || 0) * (parseFloat(r[weightKey]) || 0), 0) / totalWeight
   }
+
+  // quando stop exclusions foram aplicadas, os tempos já foram ajustados —
+  // recalcular eficiência e disponibilidade diretamente das fórmulas base
+  const hasExclusions = rows.some(r => r._hasStopExclusions)
 
   return {
     area_ha,
@@ -63,13 +66,56 @@ export function aggregateRows(rows) {
     consumo_efetivo_l,
     rendimento_operacional_hah: tempo_produtivo_h > 0 ? area_ha / tempo_produtivo_h : 0,
     rendimento_real_hah: tempo_total_h > 0 ? area_ha / tempo_total_h : 0,
-    eficiencia_geral_pct: weightedAvg('eficiencia_geral_pct', 'tempo_total_h'),
-    disponibilidade_mecanica_pct: weightedAvg('disponibilidade_mecanica_pct', 'tempo_total_h'),
+    eficiencia_geral_pct: hasExclusions
+      ? (tempo_total_h > 0 ? (tempo_produtivo_h / tempo_total_h) * 100 : 0)
+      : weightedAvg('eficiencia_geral_pct', 'tempo_total_h'),
+    disponibilidade_mecanica_pct: hasExclusions
+      ? (tempo_total_h > 0 ? ((tempo_total_h - tempo_manutencao_h) / tempo_total_h) * 100 : 0)
+      : weightedAvg('disponibilidade_mecanica_pct', 'tempo_total_h'),
     consumo_medio_efetivo_lh: tempo_produtivo_h > 0 ? consumo_efetivo_l / tempo_produtivo_h : 0,
     consumo_medio_lh: tempo_total_h > 0 ? consumo_total_l / tempo_total_h : 0,
     velocidade_media_kmh: weightedAvg('velocidade_media_kmh', 'tempo_produtivo_h'),
     sem_apontamento_pct: weightedAvg('sem_apontamento_pct', 'tempo_parada_h'),
   }
+}
+
+// Aplica exclusões de motivos de parada: subtrai os tempos dos campos correspondentes
+// Retorna cópias das linhas com _hasStopExclusions=true quando alguma exclusão foi aplicada
+export function applyStopExclusions(rows, stopRows, excludedMotivos = []) {
+  if (!excludedMotivos.length || !stopRows.length) return rows
+
+  // mapa report_id → exclusões por categoria
+  const exclusionMap = new Map()
+  for (const s of stopRows) {
+    if (!excludedMotivos.includes(s.motivo_de_parada)) continue
+    const h = parseFloat(s.tempo_parado_h) || 0
+    if (!h) continue
+    if (!exclusionMap.has(s.report_id)) {
+      exclusionMap.set(s.report_id, { total: 0, manutencao: 0, climatica: 0, administrativa: 0, sem_apontamento: 0 })
+    }
+    const e = exclusionMap.get(s.report_id)
+    e.total += h
+    const tipo = (s.tipo_parada || '').toUpperCase()
+    if (tipo === 'MANUTENCAO')       e.manutencao    += h
+    else if (tipo === 'CLIMATICO')   e.climatica     += h
+    else if (tipo === 'ADMINISTRATIVO') e.administrativa += h
+    else if (tipo === 'SEM_APONTAMENTO') e.sem_apontamento += h
+  }
+
+  if (!exclusionMap.size) return rows
+
+  return rows.map(row => {
+    const exc = exclusionMap.get(row.id)
+    if (!exc) return row
+    const r = { ...row, _hasStopExclusions: true }
+    r.tempo_parada_h               = Math.max(0, (parseFloat(row.tempo_parada_h) || 0) - exc.total)
+    r.tempo_manutencao_h           = Math.max(0, (parseFloat(row.tempo_manutencao_h) || 0) - exc.manutencao)
+    r.tempo_parada_climatica_h     = Math.max(0, (parseFloat(row.tempo_parada_climatica_h) || 0) - exc.climatica)
+    r.tempo_parada_administrativa_h = Math.max(0, (parseFloat(row.tempo_parada_administrativa_h) || 0) - exc.administrativa)
+    r.tempo_parada_sem_apontamento_h = Math.max(0, (parseFloat(row.tempo_parada_sem_apontamento_h) || 0) - exc.sem_apontamento)
+    r.tempo_total_h                = Math.max(0, (parseFloat(row.tempo_total_h) || 0) - exc.total)
+    return r
+  })
 }
 
 // Calcula distribuição de motivos de parada a partir de stop_records (join externo)

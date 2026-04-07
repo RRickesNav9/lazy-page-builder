@@ -18,6 +18,7 @@ export function useOperationalData(filters = {}, enabled = true) {
       let query = supabase
         .from('dashboard_operational_view')
         .select('*')
+        .neq('cliente', 'Média Porteira')
         .order('data', { ascending: false })
 
       if (filters.cliente)            query = query.eq('cliente', filters.cliente)
@@ -115,7 +116,7 @@ export function useGrupoBenchmark(filters = {}) {
   return { data, loading, error }
 }
 
-// Busca valores únicos para popular filtros dropdown (fix B3: limit explícito)
+// Busca valores únicos para popular filtros dropdown — usa view dedicada para evitar limite de 1000 linhas
 export function useFilterOptions() {
   const [options, setOptions] = useState({
     clientes: [], propriedades: [], processos: [],
@@ -125,9 +126,8 @@ export function useFilterOptions() {
   useEffect(() => {
     async function fetch() {
       const { data } = await supabase
-        .from('dashboard_operational_view')
-        .select('cliente, propriedade, processo, safra, tipo_safra, modelo_equipamento')
-        .limit(2000)
+        .from('dashboard_filter_options')
+        .select('*')
       if (!data) return
       setOptions({
         clientes:     [...new Set(data.map(r => r.cliente).filter(Boolean))].sort(),
@@ -142,6 +142,65 @@ export function useFilterOptions() {
   }, [])
 
   return options
+}
+
+// Busca motivos de parada distintos para o seletor de exclusão no filtro
+export function useStopMotivos() {
+  const [motivos, setMotivos] = useState([])
+
+  useEffect(() => {
+    async function fetch() {
+      const { data } = await supabase
+        .from('dashboard_stop_motivos')
+        .select('motivo_de_parada, tipo_parada')
+        .order('tipo_parada')
+      if (!data) return
+      setMotivos(data)
+    }
+    fetch()
+  }, [])
+
+  return motivos
+}
+
+// Busca registros de stop_records filtrados pela janela de datas e dimensões ativas
+// Retorna vazio se não houver filtros de data definidos
+export function useStopData(queryFilters = {}) {
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!queryFilters.dataInicio && !queryFilters.dataFim) { setData([]); return }
+    setLoading(true)
+    async function fetch() {
+      try {
+        let query = supabase
+          .from('dashboard_stop_view')
+          .select('report_id, motivo_de_parada, tipo_parada, tempo_parado_h')
+        if (queryFilters.dataInicio) query = query.gte('data', queryFilters.dataInicio)
+        if (queryFilters.dataFim)    query = query.lte('data', queryFilters.dataFim)
+        if (queryFilters.cliente)    query = query.eq('cliente', queryFilters.cliente)
+        if (queryFilters.processo)   query = query.eq('processo', queryFilters.processo)
+        if (queryFilters.tipo_safra) query = query.eq('tipo_safra', queryFilters.tipo_safra)
+        let all = [], from = 0
+        const pageSize = 1000
+        while (true) {
+          const { data: page, error } = await query.range(from, from + pageSize - 1)
+          if (error) throw error
+          all = all.concat(page)
+          if (page.length < pageSize) break
+          from += pageSize
+        }
+        setData(all)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetch()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(queryFilters)])
+
+  return { data, loading }
 }
 
 // Busca equipamentos disponíveis para um cliente específico (para o seletor de benchmark)
