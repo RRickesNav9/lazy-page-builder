@@ -173,6 +173,8 @@ function ShowMoreBtn({ current, total, onMore }) {
 /* ── Motivos de Parada ────────────────────────────────────────────────────── */
 
 function MotivosParadaPanel({ stopRows }) {
+  const [visible, setVisible] = useState(5)
+
   const motivoRows = useMemo(() => {
     if (!stopRows.length) return []
     const map = new Map()
@@ -188,6 +190,13 @@ function MotivosParadaPanel({ stopRows }) {
       .sort((a, b) => b.h - a.h)
   }, [stopRows])
 
+  // reset ao mudar dados
+  useEffect(() => { setVisible(5) }, [stopRows])
+
+  const shown     = motivoRows.slice(0, visible)
+  const remaining = motivoRows.length - visible
+  const canReduce = visible > 5
+
   return (
     <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, padding: '14px 16px' }}>
       <div style={{ fontSize: 12, fontWeight: 600, color: '#4a3728', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
@@ -196,25 +205,45 @@ function MotivosParadaPanel({ stopRows }) {
       {motivoRows.length === 0 ? (
         <div style={{ fontSize: 12, color: '#6b6560', padding: '12px 0' }}>Sem dados de parada.</div>
       ) : (
-        motivoRows.map(p => (
-          <div key={p.motivo} style={{ display: 'flex', alignItems: 'center', marginBottom: 7, gap: 8 }}>
-            {/* barra proporcional — 80px = 100% */}
-            <div style={{ width: 80, flexShrink: 0 }}>
-              <div style={{ height: 8, borderRadius: 3, background: '#f0ede8', position: 'relative' }}>
-                <div style={{ height: '100%', width: `${Math.min(p.pct, 100)}%`, background: '#8b2020', borderRadius: 3 }} />
+        <>
+          {shown.map(p => (
+            <div key={p.motivo} style={{ display: 'flex', alignItems: 'center', marginBottom: 7, gap: 8 }}>
+              <div style={{ width: 80, flexShrink: 0 }}>
+                <div style={{ height: 8, borderRadius: 3, background: '#f0ede8' }}>
+                  <div style={{ height: '100%', width: `${Math.min(p.pct, 100)}%`, background: '#8b2020', borderRadius: 3 }} />
+                </div>
               </div>
+              <span style={{ flex: 1, fontSize: 12, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {p.motivo}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#8b2020', flexShrink: 0 }}>
+                {p.pct.toFixed(1)}%
+              </span>
+              <span style={{ fontSize: 11, color: '#6b6560', flexShrink: 0, minWidth: 36, textAlign: 'right' }}>
+                {fmtH(p.h)}
+              </span>
             </div>
-            <span style={{ flex: 1, fontSize: 12, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {p.motivo}
-            </span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#8b2020', flexShrink: 0 }}>
-              {p.pct.toFixed(1)}%
-            </span>
-            <span style={{ fontSize: 11, color: '#6b6560', flexShrink: 0, minWidth: 36, textAlign: 'right' }}>
-              {fmtH(p.h)}
-            </span>
+          ))}
+          {/* Controles de paginação */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+            {remaining > 0 && (
+              <button onClick={() => setVisible(v => v + 5)} style={{
+                flex: 1, padding: '5px 0', border: '1px dashed #d4cfc9', borderRadius: 4,
+                background: 'transparent', color: '#6b6560', fontSize: 12, cursor: 'pointer',
+              }}>
+                + {Math.min(5, remaining)} de {remaining} restantes
+              </button>
+            )}
+            {canReduce && (
+              <button onClick={() => setVisible(v => Math.max(5, v - 5))} style={{
+                padding: '5px 10px', border: '1px dashed #d4cfc9', borderRadius: 4,
+                background: 'transparent', color: '#6b6560', fontSize: 12, cursor: 'pointer',
+              }}>
+                −
+              </button>
+            )}
           </div>
-        ))
+        </>
       )}
     </div>
   )
@@ -627,14 +656,14 @@ export default function AnaliseGeralPage() {
               <div style={{ fontSize: 12, fontWeight: 600, color: '#4a3728', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
                 Disponibilidade Mecânica (%)
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
                 {byDisp.slice(0, vis3).map(e => {
                   const st = dispStatus(e.disponibilidade_mecanica_pct)
                   const sc = STATUS_COLORS[st]
                   return (
-                    <div key={e.equip} style={{ background: sc.bg, borderRadius: 6, padding: '8px 10px', textAlign: 'center' }}>
+                    <div key={e.equip} style={{ background: sc.bg, borderRadius: 6, padding: '8px 6px', textAlign: 'center', minWidth: 0 }}>
                       <div style={{ fontSize: 10, color: '#6b6560', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.label}</div>
-                      <div style={{ fontSize: 18, fontWeight: 600, color: sc.text }}>{fmtPct(e.disponibilidade_mecanica_pct)}</div>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: sc.text }}>{fmtPct(e.disponibilidade_mecanica_pct)}</div>
                     </div>
                   )
                 })}

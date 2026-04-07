@@ -148,10 +148,10 @@ export function calcTimeDistribution(rows) {
   const total = produtivo + parada + manobra + deslocamento
   if (!total) return []
   return [
-    { label: 'Trabalhando',   value: produtivo,    pct: (produtivo / total) * 100,    color: 'var(--pa-green)' },
-    { label: 'Parada',        value: parada,        pct: (parada / total) * 100,        color: 'var(--pa-red)' },
-    { label: 'Manobra',       value: manobra,       pct: (manobra / total) * 100,       color: 'var(--pa-amber)' },
-    { label: 'Deslocamento',  value: deslocamento,  pct: (deslocamento / total) * 100,  color: '#6366f1' },
+    { label: 'Trabalhando',   value: produtivo,    pct: (produtivo / total) * 100,    color: '#2d4a2d' },
+    { label: 'Parada',        value: parada,        pct: (parada / total) * 100,        color: '#8b2020' },
+    { label: 'Manobra',       value: manobra,       pct: (manobra / total) * 100,       color: '#c8960c' },
+    { label: 'Deslocamento',  value: deslocamento,  pct: (deslocamento / total) * 100,  color: '#4a6741' },
   ].filter(d => d.value > 0)
 }
 
