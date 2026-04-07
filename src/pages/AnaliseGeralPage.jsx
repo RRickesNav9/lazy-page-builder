@@ -170,6 +170,56 @@ function ShowMoreBtn({ current, total, onMore }) {
   )
 }
 
+/* ── Motivos de Parada ────────────────────────────────────────────────────── */
+
+function MotivosParadaPanel({ stopRows }) {
+  const motivoRows = useMemo(() => {
+    if (!stopRows.length) return []
+    const map = new Map()
+    for (const s of stopRows) {
+      const motivo = s.motivo_de_parada || 'Sem apontamento'
+      const h = parseFloat(s.tempo_parado_h) || 0
+      map.set(motivo, (map.get(motivo) ?? 0) + h)
+    }
+    const totalH = [...map.values()].reduce((a, v) => a + v, 0)
+    if (!totalH) return []
+    return [...map.entries()]
+      .map(([motivo, h]) => ({ motivo, h, pct: (h / totalH) * 100 }))
+      .sort((a, b) => b.h - a.h)
+  }, [stopRows])
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, padding: '14px 16px' }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: '#4a3728', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
+        Motivos de Parada
+      </div>
+      {motivoRows.length === 0 ? (
+        <div style={{ fontSize: 12, color: '#6b6560', padding: '12px 0' }}>Sem dados de parada.</div>
+      ) : (
+        motivoRows.map(p => (
+          <div key={p.motivo} style={{ display: 'flex', alignItems: 'center', marginBottom: 7, gap: 8 }}>
+            {/* barra proporcional — 80px = 100% */}
+            <div style={{ width: 80, flexShrink: 0 }}>
+              <div style={{ height: 8, borderRadius: 3, background: '#f0ede8', position: 'relative' }}>
+                <div style={{ height: '100%', width: `${Math.min(p.pct, 100)}%`, background: '#8b2020', borderRadius: 3 }} />
+              </div>
+            </div>
+            <span style={{ flex: 1, fontSize: 12, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {p.motivo}
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#8b2020', flexShrink: 0 }}>
+              {p.pct.toFixed(1)}%
+            </span>
+            <span style={{ fontSize: 11, color: '#6b6560', flexShrink: 0, minWidth: 36, textAlign: 'right' }}>
+              {fmtH(p.h)}
+            </span>
+          </div>
+        ))
+      )}
+    </div>
+  )
+}
+
 /* ── Tabela de Dimensões ─────────────────────────────────────────────────── */
 
 function GroupRow({ node, path, expanded, onToggle, cols }) {
@@ -567,26 +617,29 @@ export default function AnaliseGeralPage() {
           <ShowMoreBtn current={vis2} total={n} onMore={() => setVis2(v => v + 5)} />
 
           {/* Par 3: Tempo Efetivo + Disponibilidade */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12, marginBottom: 6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12, marginBottom: 6, alignItems: 'start' }}>
             <MiniPanel title="Tempo Efetivo (h)">
               {byTempo.slice(0, vis3).map(e => (
                 <HBar key={e.equip} label={e.label} value={e.tempo_produtivo_h} maxVal={maxTempo} barColor="#2d4a2d" displayValue={fmtH(e.tempo_produtivo_h)} />
               ))}
             </MiniPanel>
-            <MiniPanel title="Disponibilidade Mecânica (%)">
+            <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, padding: '14px 16px' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#4a3728', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
+                Disponibilidade Mecânica (%)
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 {byDisp.slice(0, vis3).map(e => {
                   const st = dispStatus(e.disponibilidade_mecanica_pct)
                   const sc = STATUS_COLORS[st]
                   return (
-                    <div key={e.equip} style={{ background: sc.bg, borderRadius: 6, padding: '10px 12px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 11, color: '#6b6560', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.label}</div>
-                      <div style={{ fontSize: 20, fontWeight: 600, color: sc.text }}>{fmtPct(e.disponibilidade_mecanica_pct)}</div>
+                    <div key={e.equip} style={{ background: sc.bg, borderRadius: 6, padding: '8px 10px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 10, color: '#6b6560', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.label}</div>
+                      <div style={{ fontSize: 18, fontWeight: 600, color: sc.text }}>{fmtPct(e.disponibilidade_mecanica_pct)}</div>
                     </div>
                   )
                 })}
               </div>
-            </MiniPanel>
+            </div>
           </div>
           <ShowMoreBtn current={vis3} total={n} onMore={() => setVis3(v => v + 5)} />
 
@@ -596,26 +649,25 @@ export default function AnaliseGeralPage() {
 
       {/* ── BLOCO 4: Distribuição de Tempo + Motivos de Parada ─────────── */}
       <SectionTitle>Eficiência e Disponibilidade Mecânica</SectionTitle>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28, alignItems: 'start' }}>
 
         <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, padding: '14px 16px' }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#4a3728', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
             Distribuição do Tempo
           </div>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
-            {[
-              { label: 'Trabalhando',  color: '#2d4a2d' },
-              { label: 'Deslocamento', color: '#c8960c' },
-              { label: 'Manobra',      color: '#7a5c00' },
-              { label: 'Parada',       color: '#8b2020' },
-            ].map(l => (
-              <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <div style={{ width: 10, height: 10, background: l.color, borderRadius: 2 }} />
-                <span style={{ fontSize: 11, color: '#6b6560' }}>{l.label}</span>
+          {/* Legenda com totais de horas por estado */}
+          <div style={{ display: 'flex', gap: 14, marginBottom: 8, flexWrap: 'wrap' }}>
+            {timeDist.map(d => (
+              <div key={d.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div style={{ width: 10, height: 10, background: d.color, borderRadius: 2, flexShrink: 0 }} />
+                <span style={{ fontSize: 11, color: '#6b6560' }}>{d.label}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#1a1a1a' }}>{fmtH(d.value)}</span>
               </div>
             ))}
           </div>
+          {/* Barra global */}
           <StackedBar segments={timeDist.map(d => ({ pct: d.pct, color: d.color }))} height={28} />
+          {/* Por operador */}
           <div style={{ marginTop: 12 }}>
             {operadorRows.map(op => (
               <div key={op.nome} style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
@@ -635,23 +687,7 @@ export default function AnaliseGeralPage() {
           </div>
         </div>
 
-        <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, padding: '14px 16px' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#4a3728', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
-            Motivos de Parada (%)
-          </div>
-          {stopDist.length === 0 ? (
-            <div style={{ fontSize: 12, color: '#6b6560', padding: '12px 0' }}>Sem dados de parada.</div>
-          ) : (
-            stopDist.map(p => (
-              <div key={p.label} style={{ display: 'flex', alignItems: 'center', marginBottom: 8, gap: 8 }}>
-                <div style={{ width: `${Math.min(p.pct, 100)}%`, maxWidth: 120, minWidth: 4, height: 8, background: p.color, borderRadius: 2 }} />
-                <span style={{ fontSize: 12, color: '#1a1a1a', flex: 1 }}>{p.label}</span>
-                <span style={{ fontSize: 12, fontWeight: 500, color: '#1a1a1a', flexShrink: 0 }}>{p.pct.toFixed(1)}%</span>
-                <span style={{ fontSize: 11, color: '#6b6560', flexShrink: 0 }}>{p.value.toFixed(1)}h</span>
-              </div>
-            ))
-          )}
-        </div>
+        <MotivosParadaPanel stopRows={stopRows} />
       </div>
 
       {/* Rodapé */}
