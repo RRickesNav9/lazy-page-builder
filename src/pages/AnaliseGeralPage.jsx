@@ -525,10 +525,11 @@ export default function AnaliseGeralPage() {
   const mainBenchmark = showBenchmark ? (benchmarks?.[0] ?? null) : null
   const benchRend     = mainBenchmark?.rendimento_operacional_hah_grupo ?? null
 
-  // Paginação independente por par de gráficos
-  const [vis1, setVis1] = useState(6) // par 1: área + rendimento
-  const [vis2, setVis2] = useState(6) // par 2: velocidade + consumo
-  const [vis3, setVis3] = useState(6) // par 3: tempo efetivo + disponibilidade
+  // Paginação independente por bloco
+  const [vis1,  setVis1]  = useState(6) // par 1: área + rendimento
+  const [vis2,  setVis2]  = useState(6) // par 2: velocidade + consumo
+  const [vis3,  setVis3]  = useState(6) // par 3: tempo efetivo + disponibilidade
+  const [visOp, setVisOp] = useState(6) // operadores
 
   const equipRows = useMemo(() => {
     return Object.entries(groupBy(data.filter(r => (parseFloat(r.area_ha) || 0) > 0), 'equipamento'))
@@ -540,7 +541,7 @@ export default function AnaliseGeralPage() {
   }, [data])
 
   // reset paginação quando os dados mudam
-  useEffect(() => { setVis1(6); setVis2(6); setVis3(6) }, [data])
+  useEffect(() => { setVis1(6); setVis2(6); setVis3(6); setVisOp(6) }, [data])
 
   // cada painel ordena pelo seu próprio critério (melhor → pior)
   const byArea  = useMemo(() => [...equipRows].sort((a, b) => b.area_ha - a.area_ha), [equipRows])
@@ -571,7 +572,6 @@ export default function AnaliseGeralPage() {
     return [...map.values()]
       .filter(o => (o.trabalhando + o.deslocamento + o.manobra + o.parada) > 0)
       .sort((a, b) => b.trabalhando - a.trabalhando)
-      .slice(0, 8)
       .map(o => {
         const total = o.trabalhando + o.deslocamento + o.manobra + o.parada
         return {
@@ -707,7 +707,7 @@ export default function AnaliseGeralPage() {
           <StackedBar segments={timeDist.map(d => ({ pct: d.pct, color: d.color }))} height={28} />
           {/* Por operador */}
           <div style={{ marginTop: 12 }}>
-            {operadorRows.map(op => (
+            {operadorRows.slice(0, visOp).map(op => (
               <div key={op.nome} style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
                 <div style={{ width: 100, fontSize: 12, color: '#1a1a1a', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {op.nome}
@@ -723,6 +723,11 @@ export default function AnaliseGeralPage() {
               </div>
             ))}
           </div>
+          <ShowMoreBtn
+            current={visOp} total={operadorRows.length}
+            onMore={() => setVisOp(v => v + 6)}
+            onLess={() => setVisOp(v => Math.max(6, v - 6))}
+          />
         </div>
 
         <MotivosParadaPanel stopRows={stopRows} />
