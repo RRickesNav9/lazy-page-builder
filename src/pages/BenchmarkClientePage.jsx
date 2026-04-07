@@ -2,7 +2,7 @@
 // Compara métricas de um cliente específico contra a média do grupo Porteira.
 // Seleção de cliente via filtro global. Cabeçalho dinâmico + export PDF.
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useFilters } from '../lib/FilterContext'
 
 // ─── DADOS E CONFIGURAÇÃO ─────────────────────────────────────────────────────
