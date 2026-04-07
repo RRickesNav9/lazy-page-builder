@@ -73,9 +73,11 @@ export function aggregateRows(rows) {
       ? (tempo_total_h > 0 ? ((tempo_total_h - tempo_manutencao_h) / tempo_total_h) * 100 : 0)
       : weightedAvg('disponibilidade_mecanica_pct', 'tempo_total_h'),
     consumo_medio_efetivo_lh: tempo_produtivo_h > 0 ? consumo_efetivo_l / tempo_produtivo_h : 0,
+    consumo_medio_efetivo_lha: area_ha > 0 ? consumo_efetivo_l / area_ha : 0,
     consumo_medio_lh: tempo_total_h > 0 ? consumo_total_l / tempo_total_h : 0,
     velocidade_media_kmh: weightedAvg('velocidade_media_kmh', 'tempo_produtivo_h'),
     sem_apontamento_pct: weightedAvg('sem_apontamento_pct', 'tempo_parada_h'),
+    eficiencia_operacional_pct: weightedAvg('eficiencia_operacional_pct', 'tempo_total_h'),
   }
 }
 
