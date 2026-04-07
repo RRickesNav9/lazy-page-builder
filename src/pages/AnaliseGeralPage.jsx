@@ -153,27 +153,36 @@ function StackedBar({ segments, height = 28, showLabels = true }) {
   )
 }
 
-function ShowMoreBtn({ current, total, onMore }) {
+function ShowMoreBtn({ current, total, onMore, onLess }) {
   const remaining = total - current
-  if (remaining <= 0) return null
+  const canLess   = current > 6
+  if (remaining <= 0 && !canLess) return null
   return (
-    <button
-      onClick={onMore}
-      style={{
-        marginTop: 8, width: '100%', padding: '6px 0',
-        border: '1px dashed #d4cfc9', borderRadius: 4,
-        background: 'transparent', color: '#6b6560', fontSize: 12, cursor: 'pointer',
-      }}
-    >
-      + Mostrar {Math.min(5, remaining)} de {remaining} restantes
-    </button>
+    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+      {remaining > 0 && (
+        <button onClick={onMore} style={{
+          flex: 1, padding: '6px 0', border: '1px dashed #d4cfc9', borderRadius: 4,
+          background: 'transparent', color: '#6b6560', fontSize: 12, cursor: 'pointer',
+        }}>
+          + {Math.min(6, remaining)} de {remaining} restantes
+        </button>
+      )}
+      {canLess && (
+        <button onClick={onLess} style={{
+          padding: '6px 12px', border: '1px dashed #d4cfc9', borderRadius: 4,
+          background: 'transparent', color: '#6b6560', fontSize: 12, cursor: 'pointer',
+        }}>
+          −
+        </button>
+      )}
+    </div>
   )
 }
 
 /* ── Motivos de Parada ────────────────────────────────────────────────────── */
 
 function MotivosParadaPanel({ stopRows }) {
-  const [visible, setVisible] = useState(5)
+  const [visible, setVisible] = useState(6)
 
   const motivoRows = useMemo(() => {
     if (!stopRows.length) return []
@@ -191,11 +200,11 @@ function MotivosParadaPanel({ stopRows }) {
   }, [stopRows])
 
   // reset ao mudar dados
-  useEffect(() => { setVisible(5) }, [stopRows])
+  useEffect(() => { setVisible(6) }, [stopRows])
 
   const shown     = motivoRows.slice(0, visible)
   const remaining = motivoRows.length - visible
-  const canReduce = visible > 5
+  const canReduce = visible > 6
 
   return (
     <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, padding: '14px 16px' }}>
@@ -227,7 +236,7 @@ function MotivosParadaPanel({ stopRows }) {
           {/* Controles de paginação */}
           <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
             {remaining > 0 && (
-              <button onClick={() => setVisible(v => v + 5)} style={{
+              <button onClick={() => setVisible(v => v + 6)} style={{
                 flex: 1, padding: '5px 0', border: '1px dashed #d4cfc9', borderRadius: 4,
                 background: 'transparent', color: '#6b6560', fontSize: 12, cursor: 'pointer',
               }}>
@@ -235,7 +244,7 @@ function MotivosParadaPanel({ stopRows }) {
               </button>
             )}
             {canReduce && (
-              <button onClick={() => setVisible(v => Math.max(5, v - 5))} style={{
+              <button onClick={() => setVisible(v => Math.max(6, v - 6))} style={{
                 padding: '5px 10px', border: '1px dashed #d4cfc9', borderRadius: 4,
                 background: 'transparent', color: '#6b6560', fontSize: 12, cursor: 'pointer',
               }}>
@@ -517,9 +526,9 @@ export default function AnaliseGeralPage() {
   const benchRend     = mainBenchmark?.rendimento_operacional_hah_grupo ?? null
 
   // Paginação independente por par de gráficos
-  const [vis1, setVis1] = useState(5) // par 1: área + rendimento
-  const [vis2, setVis2] = useState(5) // par 2: velocidade + consumo
-  const [vis3, setVis3] = useState(5) // par 3: tempo efetivo + disponibilidade
+  const [vis1, setVis1] = useState(6) // par 1: área + rendimento
+  const [vis2, setVis2] = useState(6) // par 2: velocidade + consumo
+  const [vis3, setVis3] = useState(6) // par 3: tempo efetivo + disponibilidade
 
   const equipRows = useMemo(() => {
     return Object.entries(groupBy(data.filter(r => (parseFloat(r.area_ha) || 0) > 0), 'equipamento'))
@@ -531,7 +540,7 @@ export default function AnaliseGeralPage() {
   }, [data])
 
   // reset paginação quando os dados mudam
-  useEffect(() => { setVis1(5); setVis2(5); setVis3(5) }, [data])
+  useEffect(() => { setVis1(6); setVis2(6); setVis3(6) }, [data])
 
   // cada painel ordena pelo seu próprio critério (melhor → pior)
   const byArea  = useMemo(() => [...equipRows].sort((a, b) => b.area_ha - a.area_ha), [equipRows])
@@ -628,7 +637,7 @@ export default function AnaliseGeralPage() {
               })}
             </MiniPanel>
           </div>
-          <ShowMoreBtn current={vis1} total={n} onMore={() => setVis1(v => v + 5)} />
+          <ShowMoreBtn current={vis1} total={n} onMore={() => setVis1(v => v + 6)} onLess={() => setVis1(v => Math.max(6, v - 6))} />
 
           {/* Par 2: Velocidade + Consumo */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12, marginBottom: 6 }}>
@@ -643,7 +652,7 @@ export default function AnaliseGeralPage() {
               ))}
             </MiniPanel>
           </div>
-          <ShowMoreBtn current={vis2} total={n} onMore={() => setVis2(v => v + 5)} />
+          <ShowMoreBtn current={vis2} total={n} onMore={() => setVis2(v => v + 6)} onLess={() => setVis2(v => Math.max(6, v - 6))} />
 
           {/* Par 3: Tempo Efetivo + Disponibilidade */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12, marginBottom: 6, alignItems: 'start' }}>
@@ -670,7 +679,7 @@ export default function AnaliseGeralPage() {
               </div>
             </div>
           </div>
-          <ShowMoreBtn current={vis3} total={n} onMore={() => setVis3(v => v + 5)} />
+          <ShowMoreBtn current={vis3} total={n} onMore={() => setVis3(v => v + 6)} onLess={() => setVis3(v => Math.max(6, v - 6))} />
 
           <div style={{ marginBottom: 28 }} />
         </>
