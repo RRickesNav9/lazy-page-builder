@@ -2,7 +2,7 @@
 // Compara métricas de um cliente específico contra a média do grupo Porteira.
 // Seleção de cliente via filtro global. Cabeçalho dinâmico + export PDF.
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useFilters } from '../lib/FilterContext'
 
 // ─── DADOS E CONFIGURAÇÃO ─────────────────────────────────────────────────────
@@ -447,38 +447,83 @@ function ConfirmExportModal({ cliente, processo, tipoSafra, onConfirm, onCancel 
   )
 }
 
+// ─── FABs FLUTUANTES DA PÁGINA ────────────────────────────────────────────────
+
+// Empilha Export PDF (acima do filtro) e Toggle (acima do export).
+// Quando oculto, exibe apenas uma setinha para re-expandir.
+// Posicionamento: filtro=bottom:24, export=bottom:84, toggle=bottom:144
+function BenchmarkFABs({ onExport, onToggle, showFABs }) {
+  const fabBase = {
+    position: 'fixed', right: 24, zIndex: 1000,
+    width: 48, height: 48, borderRadius: '50%',
+    border: 'none', cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+  }
+
+  if (!showFABs) {
+    // Somente a seta para expandir, posicionada onde ficaria o filtro
+    return (
+      <button
+        onClick={onToggle}
+        title="Mostrar botões"
+        className="no-print"
+        style={{ ...fabBase, bottom: 24, background: '#4a6741', color: '#fff' }}
+      >
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+        </svg>
+      </button>
+    )
+  }
+
+  return (
+    <>
+      {/* Toggle — topo da pilha */}
+      <button
+        onClick={onToggle}
+        title="Ocultar botões"
+        className="no-print"
+        style={{ ...fabBase, bottom: 144, background: '#4a6741', color: '#fff' }}
+      >
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* Export PDF */}
+      <button
+        onClick={onExport}
+        title="Exportar PDF"
+        className="no-print"
+        style={{ ...fabBase, bottom: 84, background: '#2d7a2d', color: '#fff' }}
+      >
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a1 1 0 001 1h16a1 1 0 001-1v-3" />
+        </svg>
+      </button>
+    </>
+  )
+}
+
 // ─── PÁGINA ───────────────────────────────────────────────────────────────────
 
 export default function BenchmarkClientePage() {
   const { filters, setShowFABs, showFABs } = useFilters()
   const contentRef = useRef(null)
 
-  // Determina cliente a partir do filtro global; fallback para o primeiro da lista
   const clienteSelecionado = filters.cliente || CLIENTES[0]
   const dados = MOCK_DATA[clienteSelecionado] ?? MOCK_DATA[CLIENTES[0]]
 
   const [showConfirmExport, setShowConfirmExport] = useState(false)
 
-  function handleExportClick() {
-    setShowConfirmExport(true)
-  }
-
   function handleExportConfirm() {
     setShowConfirmExport(false)
-    // Oculta os FABs flutuantes para não aparecerem no print
     setShowFABs(false)
     requestAnimationFrame(() => {
       window.print()
       setShowFABs(true)
     })
-  }
-
-  function handleToggleFABs() {
-    setShowFABs(v => !v)
-  }
-
-  function handleOpenFilter() {
-    window.dispatchEvent(new Event('openFilterFAB'))
   }
 
   return (
@@ -493,68 +538,13 @@ export default function BenchmarkClientePage() {
         />
       )}
 
+      <BenchmarkFABs
+        showFABs={showFABs}
+        onExport={() => setShowConfirmExport(true)}
+        onToggle={() => setShowFABs(v => !v)}
+      />
+
       <div ref={contentRef} style={{ maxWidth: 1280, margin: '0 auto', padding: '20px 24px' }}>
-
-        {/* Barra de ações — botões de export e filtro, e toggle de visibilidade */}
-        <div style={{
-          display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
-          gap: 8, marginBottom: 16,
-        }} className="no-print">
-          {/* Toggle FABs */}
-          <button
-            onClick={handleToggleFABs}
-            title={showFABs ? 'Ocultar botões flutuantes' : 'Mostrar botões flutuantes'}
-            style={{
-              padding: '7px 12px', borderRadius: 6, fontSize: 12,
-              background: '#f7f5f2', color: '#4a3728',
-              border: '1px solid #e0dbd4', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}
-          >
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              {showFABs
-                ? <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
-                : <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              }
-            </svg>
-            {showFABs ? 'Ocultar botões' : 'Mostrar botões'}
-          </button>
-
-          {/* Botão de filtro */}
-          <button
-            onClick={handleOpenFilter}
-            style={{
-              padding: '7px 14px', borderRadius: 6, fontSize: 12,
-              background: '#f7f5f2', color: '#4a3728',
-              border: '1px solid #e0dbd4', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}
-          >
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
-            </svg>
-            Filtrar
-          </button>
-
-          {/* Botão de export PDF */}
-          <button
-            onClick={handleExportClick}
-            style={{
-              padding: '7px 14px', borderRadius: 6, fontSize: 12,
-              background: '#2d7a2d', color: '#ffffff',
-              border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 6,
-              fontWeight: 600,
-            }}
-          >
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a1 1 0 001 1h16a1 1 0 001-1v-3" />
-            </svg>
-            Exportar PDF
-          </button>
-        </div>
-
-        {/* Cabeçalho dinâmico */}
         <DynamicHeader
           cliente={clienteSelecionado}
           processo={dados.processo}
