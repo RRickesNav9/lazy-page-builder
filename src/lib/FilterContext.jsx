@@ -43,6 +43,7 @@ const FilterContext = createContext()
 export function FilterProvider({ children }) {
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [showFABs, setShowFABs] = useState(true)
 
   const openDrawer  = useCallback(() => setDrawerOpen(true), [])
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
@@ -92,6 +93,7 @@ export function FilterProvider({ children }) {
     <FilterContext.Provider value={{
       filters, setFilters, applyFilters, clearFilters,
       drawerOpen, openDrawer, closeDrawer,
+      showFABs, setShowFABs,
       activeCount, DEFAULT_FILTERS,
       queryFilters, currentSafra,
     }}>

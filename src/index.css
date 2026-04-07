@@ -65,3 +65,10 @@ body {
 ::-webkit-scrollbar-track { background: #f7f5f2; }
 ::-webkit-scrollbar-thumb { background: #e0dbd4; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #c0b8ae; }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff !important; }
+  /* Garante que o cabeçalho verde do app não aparece */
+  header, nav { display: none !important; }
+}

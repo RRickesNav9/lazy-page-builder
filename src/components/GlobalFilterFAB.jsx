@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useFilters } from '../lib/FilterContext'
 import { useFilterOptions, useStopMotivos } from '../hooks/useData'
 
+
+
 const PERIODOS = [
   { value: 'ontem',  label: 'Ontem' },
   { value: '7dias',  label: '7 dias' },
@@ -25,7 +27,7 @@ const TIPO_PARADA_COLOR = {
 }
 
 export default function GlobalFilterFAB() {
-  const { filters, applyFilters, activeCount } = useFilters()
+  const { filters, applyFilters, activeCount, showFABs } = useFilters()
   const options  = useFilterOptions()
   const motivos  = useStopMotivos()
 
@@ -34,6 +36,13 @@ export default function GlobalFilterFAB() {
   const [motivosOpen,  setMotivosOpen]  = useState(false)
   const [motivoSearch, setMotivoSearch] = useState('')
   const panelRef = useRef(null)
+
+  // Abre o painel quando outro componente dispara o evento 'openFilterFAB'
+  useEffect(() => {
+    function handle() { setOpen(true) }
+    window.addEventListener('openFilterFAB', handle)
+    return () => window.removeEventListener('openFilterFAB', handle)
+  }, [])
 
   useEffect(() => {
     if (open) { setPending(filters); setMotivosOpen(false); setMotivoSearch('') }
@@ -83,6 +92,8 @@ export default function GlobalFilterFAB() {
   }, [motivos, motivoSearch])
 
   const nExcluded = pending.excludedMotivos.length
+
+  if (!showFABs) return null
 
   return (
     <>
