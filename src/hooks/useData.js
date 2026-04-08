@@ -281,6 +281,79 @@ export function useClienteBenchmark(filters = {}) {
   return { metricas, loading, error }
 }
 
+// Mapa métrica → denominador correto para média ponderada (espelho de compute-performance-stats)
+const METRIC_WEIGHT_MAP = {
+  rendimento_operacional_hah:   'tempo_produtivo_h',
+  eficiencia_geral_pct:         'tempo_total_h',
+  eficiencia_operacional_pct:   'tempo_total_h',
+  consumo_medio_efetivo_lha:    'area_ha',
+  consumo_medio_lh:             'tempo_total_h',
+  disponibilidade_mecanica_pct: 'tempo_total_h',
+  velocidade_media_kmh:         'tempo_produtivo_h',
+  rpm_medio:                    'tempo_total_h',
+}
+
+// Calcula média ponderada das métricas a partir de rows brutas de dashboard_operational_view
+export function computeWeightedAvg(rows) {
+  if (!rows || rows.length === 0) return null
+  const result = {}
+  for (const [metrica, peso] of Object.entries(METRIC_WEIGHT_MAP)) {
+    let sumProd = 0, sumPeso = 0
+    for (const row of rows) {
+      const v = row[metrica]
+      const w = row[peso]
+      if (v != null && w != null && w > 0) {
+        sumProd += v * w
+        sumPeso += w
+      }
+    }
+    result[metrica] = sumPeso > 0 ? sumProd / sumPeso : 0
+  }
+  return result
+}
+
+// Agrega métricas de uma máquina específica via média ponderada
+export function useMaquinaMetricas(filters = {}) {
+  const [metricas, setMetricas] = useState(null)
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState(null)
+
+  useEffect(() => {
+    if (!filters.equipamento_cod) { setMetricas(null); setLoading(false); return }
+    setLoading(true); setError(null)
+    async function run() {
+      try {
+        let query = supabase
+          .from('dashboard_operational_view')
+          .select('rendimento_operacional_hah,eficiencia_geral_pct,eficiencia_operacional_pct,consumo_medio_efetivo_lha,consumo_medio_lh,disponibilidade_mecanica_pct,velocidade_media_kmh,rpm_medio,tempo_produtivo_h,tempo_total_h,area_ha')
+          .eq('equipamento_cod', filters.equipamento_cod)
+        if (filters.processo)   query = query.eq('processo',   filters.processo)
+        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
+        if (filters.safra)      query = query.eq('safra',      filters.safra)
+        if (filters.dataInicio) query = query.gte('data',      filters.dataInicio)
+        if (filters.dataFim)    query = query.lte('data',      filters.dataFim)
+        let all = [], from = 0
+        while (true) {
+          const { data: page, error: err } = await query.range(from, from + 999)
+          if (err) throw err
+          all = all.concat(page)
+          if (page.length < 1000) break
+          from += 1000
+        }
+        setMetricas(computeWeightedAvg(all))
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    run()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(filters)])
+
+  return { metricas, loading, error }
+}
+
 // Busca equipamentos disponíveis para um cliente específico (para o seletor de benchmark)
 export function useEquipamentoOptions(cliente) {
   const [equipamentos, setEquipamentos] = useState([])
