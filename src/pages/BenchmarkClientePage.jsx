@@ -529,8 +529,6 @@ export default function BenchmarkClientePage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <SectionCard
               title="MÉTRICAS COMPARÁVEIS — CLIENTE VS. GRUPO PORTEIRA"
-              subtitle="Mesmo tipo de operação e cultura"
-              footnote="Grupo Porteira: média ponderada de todos os clientes com a mesma operação e cultura na safra. Quando não há dados de outros clientes, os valores do grupo aparecem como zero."
             >
               <Legenda />
               <MetricasTable metricas={metricas} />

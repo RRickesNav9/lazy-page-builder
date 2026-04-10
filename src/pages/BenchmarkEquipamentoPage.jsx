@@ -457,8 +457,12 @@ export default function BenchmarkEquipamentoPage() {
 
   const maqInfoA = equipamentos.find(e => e.equipamento_cod === sideA.cod)
   const maqInfoB = equipamentos.find(e => e.equipamento_cod === sideB.cod)
-  const labelEquipA = maqInfoA ? `${maqInfoA.cliente || ''} · ${maqInfoA.equipamento_cod}${sideA.dataInicio ? ' (' + sideA.dataInicio + ')' : ''}` : 'Equipamento A'
-  const labelEquipB = maqInfoB ? `${maqInfoB.cliente || ''} · ${maqInfoB.equipamento_cod}${sideB.dataInicio ? ' (' + sideB.dataInicio + ')' : ''}` : 'Equipamento B'
+  const labelEquipA = maqInfoA
+    ? `${maqInfoA.equipamento_cod} — ${maqInfoA.equipamento}${sideA.dataInicio ? ' (' + sideA.dataInicio + ')' : ''}`
+    : 'Equipamento A'
+  const labelEquipB = maqInfoB
+    ? `${maqInfoB.equipamento_cod} — ${maqInfoB.equipamento}${sideB.dataInicio ? ' (' + sideB.dataInicio + ')' : ''}`
+    : 'Equipamento B'
 
   // ── Tab 3: Modelo vs. Modelo ───────────────────────────────────────────────
 
@@ -503,11 +507,12 @@ export default function BenchmarkEquipamentoPage() {
           {tab1Cod && (
             <SectionCard
               title="Máquina vs. Média do Modelo"
-              subtitle={maqInfo1?.modelo || ''}
-              footnote="Média do modelo abrange todos os clientes do grupo Porteira com o mesmo modelo, operação e cultura — não é filtrada por cliente."
             >
               <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
-                {[{ color: '#2d4a2d', label: 'Esta máquina' }, { color: '#c8960c', label: 'Média do modelo (grupo)' }].map(({ color, label }) => (
+                {[
+                  { color: '#2d4a2d', label: maqInfo1 ? `${maqInfo1.equipamento_cod} — ${maqInfo1.equipamento}` : 'Esta máquina' },
+                  { color: '#c8960c', label: maqInfo1?.modelo ? `${maqInfo1.modelo} — Porteira` : 'Média do modelo' },
+                ].map(({ color, label }) => (
                   <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6b6560' }}>
                     <span style={{ width: 10, height: 10, background: color, borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
                     {label}
@@ -523,8 +528,8 @@ export default function BenchmarkEquipamentoPage() {
                 <CompareTable
                   metricasA={maqMetricas}
                   metricasB={modeloNorm1}
-                  labelA={`${maqInfo1?.cliente || ''} · ${tab1Cod}`}
-                  labelB="Média modelo"
+                  labelA={maqInfo1 ? `${maqInfo1.equipamento_cod} — ${maqInfo1.equipamento}` : tab1Cod}
+                  labelB={maqInfo1?.modelo ? `${maqInfo1.modelo} — Porteira` : 'Média modelo'}
                 />
               )}
             </SectionCard>
@@ -581,7 +586,6 @@ export default function BenchmarkEquipamentoPage() {
             <SectionCard
               title="Comparativo de Métricas"
               subtitle="Equipamento A vs. Equipamento B"
-              footnote="Valores agregados por média ponderada para a máquina e período selecionados. O período pode ser diferente entre os dois lados para comparação temporal da mesma máquina."
             >
               <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
                 {[{ color: '#2d4a2d', label: labelEquipA }, { color: '#c8960c', label: labelEquipB }].map(({ color, label }) => (
@@ -626,7 +630,6 @@ export default function BenchmarkEquipamentoPage() {
             <SectionCard
               title="Comparativo de Modelos"
               subtitle={`${modeloA || '—'} vs. ${modeloB || '—'}`}
-              footnote="Médias ponderadas de todos os equipamentos do modelo no grupo Porteira — imune ao filtro de cliente por design. A faixa sombreada nas barras representa min → max entre máquinas individuais do modelo."
             >
               <div style={{ marginBottom: 16 }}>
                 <FieldLabel>Métricas exibidas</FieldLabel>
