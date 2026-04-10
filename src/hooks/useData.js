@@ -388,7 +388,9 @@ export function useAllEquipamentos(filters = {}) {
           .from('dashboard_operational_view')
           .select('cliente,equipamento,equipamento_cod,modelo_equipamento')
           .neq('cliente', 'Média Porteira')
-        if (filters.processo)   query = query.eq('processo',   filters.processo)
+        // processo específico tem prioridade; senão restringe ao universo permitido da página
+        if (filters.processo)                      query = query.eq('processo', filters.processo)
+        else if (filters.allowedProcessos?.length) query = query.in('processo', filters.allowedProcessos)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
         // Deduplica em memória — select de apenas 4 colunas mantém o payload pequeno
         let all = [], from = 0
@@ -423,7 +425,8 @@ export function useAllEquipamentos(filters = {}) {
       }
     }
     run()
-  }, [filters.processo, filters.tipo_safra]) // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.processo, filters.tipo_safra, JSON.stringify(filters.allowedProcessos)])
 
   return { equipamentos, loading }
 }

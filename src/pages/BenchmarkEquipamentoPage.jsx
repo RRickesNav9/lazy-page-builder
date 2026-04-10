@@ -408,10 +408,12 @@ export default function BenchmarkEquipamentoPage() {
 
   // ── hooks compartilhados ───────────────────────────────────────────────────
 
-  // Todas as máquinas do grupo, agrupadas por cliente no select
+  // Todas as máquinas do grupo, agrupadas por cliente no select.
+  // allowedProcessos restringe a busca a Colheita/Plantio mesmo sem processo específico selecionado.
   const { equipamentos } = useAllEquipamentos({
-    ...(processoFiltro && { processo: processoFiltro }),
-    ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
+    ...(processoFiltro     && { processo:          processoFiltro }),
+    ...(filters.tipo_safra && { tipo_safra:         filters.tipo_safra }),
+    allowedProcessos: ['Colheita', 'Plantio'],
   })
 
   // ── Tab 1: Máquina vs. Modelo ──────────────────────────────────────────────
