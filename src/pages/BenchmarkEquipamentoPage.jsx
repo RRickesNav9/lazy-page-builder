@@ -5,8 +5,9 @@
 import { useState, useMemo } from 'react'
 import { useFilters } from '../lib/FilterContext'
 import {
-  useEquipamentoOptions, useEquipamentoBenchmark, useEquipamentoComparativo,
+  useEquipamentoBenchmark, useEquipamentoComparativo,
   useMaquinaMetricas, computeWeightedAvg,
+  useAllEquipamentos, useModeloStats,
 } from '../hooks/useData'
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
@@ -24,9 +25,9 @@ const METRICAS_CONFIG = [
 ]
 
 const TABS = [
-  { id: 'maquina-modelo', label: 'Máquina vs. Modelo'       },
-  { id: 'periodo',        label: 'Comparativo de Períodos'  },
-  { id: 'modelo-modelo',  label: 'Modelo vs. Modelo'        },
+  { id: 'maquina-modelo', label: 'Máquina vs. Modelo'        },
+  { id: 'equip-equip',    label: 'Equipamento vs. Equipamento' },
+  { id: 'modelo-modelo',  label: 'Modelo vs. Modelo'         },
 ]
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -126,6 +127,13 @@ function FieldLabel({ children }) {
 }
 
 function MaquinaSelect({ label, value, onChange, equipamentos }) {
+  // Agrupa por cliente para exibir optgroup
+  const byCliente = equipamentos.reduce((acc, e) => {
+    const c = e.cliente || 'Sem cliente'
+    if (!acc[c]) acc[c] = []
+    acc[c].push(e)
+    return acc
+  }, {})
   return (
     <div>
       <FieldLabel>{label}</FieldLabel>
@@ -134,10 +142,14 @@ function MaquinaSelect({ label, value, onChange, equipamentos }) {
         background: '#fff', border: '1px solid #e0dbd4', borderRadius: 4, cursor: 'pointer',
       }}>
         <option value="">Selecionar máquina...</option>
-        {equipamentos.map(e => (
-          <option key={e.equipamento_cod || e.equipamento} value={e.equipamento_cod}>
-            {e.equipamento_cod} · {e.equipamento}{e.modelo ? ` — ${e.modelo}` : ''}
-          </option>
+        {Object.entries(byCliente).map(([cliente, lista]) => (
+          <optgroup key={cliente} label={cliente}>
+            {lista.map(e => (
+              <option key={e.equipamento_cod || e.equipamento} value={e.equipamento_cod}>
+                {e.equipamento_cod} · {e.equipamento}{e.modelo ? ` — ${e.modelo}` : ''}
+              </option>
+            ))}
+          </optgroup>
         ))}
       </select>
     </div>
@@ -313,33 +325,58 @@ function MetricaSelector({ selected, onToggle }) {
   )
 }
 
-function ModeloMetricBar({ cfg, valA, valB, labelA, labelB }) {
-  const maxVal = Math.max(valA || 0, valB || 0, 0.001)
+// statsA/statsB: { min, max, n } para a métrica, vindos de useModeloStats
+function ModeloMetricBar({ cfg, valA, valB, labelA, labelB, statsA, statsB }) {
+  const allVals = [valA || 0, valB || 0, statsA?.min || 0, statsA?.max || 0, statsB?.min || 0, statsB?.max || 0]
+  const maxVal = Math.max(...allVals, 0.001)
+
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div style={{ marginBottom: 18 }}>
       <div style={{ fontSize: 10, fontWeight: 600, color: '#4a3728', marginBottom: 5 }}>
         {cfg.label}
         <span style={{ fontWeight: 400, color: '#6b6560' }}> · {cfg.unit}</span>
       </div>
       {[
-        { label: labelA, val: valA, color: '#2d4a2d' },
-        { label: labelB, val: valB, color: '#c8960c'  },
-      ].map(({ label, val, color }) => (
-        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <div style={{
-            width: 110, fontSize: 8, color: '#6b6560', textAlign: 'right',
-            flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {label || '—'}
+        { label: labelA, val: valA, color: '#2d4a2d', stats: statsA },
+        { label: labelB, val: valB, color: '#c8960c', stats: statsB },
+      ].map(({ label, val, color, stats }) => {
+        const minPct = stats?.min ? (stats.min / maxVal) * 100 : null
+        const maxPct = stats?.max ? (stats.max / maxVal) * 100 : null
+        return (
+          <div key={label} style={{ marginBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                width: 110, fontSize: 8, color: '#6b6560', textAlign: 'right',
+                flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {label || '—'}
+              </div>
+              {/* Barra: range min-max em cinza claro + avg como barra sólida */}
+              <div style={{ flex: 1, height: 11, background: '#f0ede8', borderRadius: 2, position: 'relative', overflow: 'hidden' }}>
+                {/* Range min→max */}
+                {minPct != null && maxPct != null && (
+                  <div style={{
+                    position: 'absolute', top: 0, bottom: 0,
+                    left: `${minPct}%`, width: `${maxPct - minPct}%`,
+                    background: color, opacity: 0.22, borderRadius: 2,
+                  }} />
+                )}
+                {/* Média (avg) */}
+                <div style={{ height: '100%', width: `${(val / maxVal) * 100}%`, background: color, borderRadius: 2 }} />
+              </div>
+              <div style={{ width: 42, fontSize: 10, fontWeight: 700, color: '#1a1a1a', textAlign: 'right', flexShrink: 0 }}>
+                {fmt(val, cfg.d)}
+              </div>
+            </div>
+            {/* Linha min/max */}
+            {stats && stats.n > 1 && (
+              <div style={{ marginLeft: 118, fontSize: 8, color: '#9a9490', marginTop: 1 }}>
+                {stats.n} máq. · mín {fmt(stats.min, cfg.d)} · máx {fmt(stats.max, cfg.d)}
+              </div>
+            )}
           </div>
-          <div style={{ flex: 1, height: 11, background: '#f0ede8', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${(val / maxVal) * 100}%`, background: color, borderRadius: 2 }} />
-          </div>
-          <div style={{ width: 42, fontSize: 10, fontWeight: 700, color: '#1a1a1a', textAlign: 'right', flexShrink: 0 }}>
-            {fmt(val, cfg.d)}
-          </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -349,36 +386,32 @@ function ModeloMetricBar({ cfg, valA, valB, labelA, labelB }) {
 export default function BenchmarkEquipamentoPage() {
   const { filters, queryFilters, currentSafra } = useFilters()
 
-  // ── estado das abas ────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState('maquina-modelo')
-
-  // Tab 1
-  const [tab1Cod, setTab1Cod] = useState('')
-
-  // Tab 2 — dois lados com máquina + datas independentes
-  const [sideA, setSideA] = useState({ cod: '', dataInicio: queryFilters.dataInicio || '', dataFim: queryFilters.dataFim || '' })
-  const [sideB, setSideB] = useState({ cod: '', dataInicio: '', dataFim: '' })
-
-  // Tab 3
-  const [modeloA, setModeloA]           = useState('')
-  const [modeloB, setModeloB]           = useState('')
+  const [tab1Cod, setTab1Cod]     = useState('')
+  const [sideA, setSideA]         = useState({ cod: '', dataInicio: '', dataFim: '' })
+  const [sideB, setSideB]         = useState({ cod: '', dataInicio: '', dataFim: '' })
+  const [modeloA, setModeloA]     = useState('')
+  const [modeloB, setModeloB]     = useState('')
   const [selectedMetrics, setSelectedMetrics] = useState(() => new Set(METRICAS_CONFIG.map(m => m.key)))
 
   function toggleMetric(key) {
     setSelectedMetrics(prev => {
       const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
+      next.has(key) ? next.delete(key) : next.add(key)
       return next
     })
   }
 
-  // ── hooks de dados ─────────────────────────────────────────────────────────
+  // ── hooks compartilhados ───────────────────────────────────────────────────
 
-  // Máquinas disponíveis para o cliente selecionado no filtro global
-  const equipamentos = useEquipamentoOptions(filters.cliente)
+  // Todas as máquinas do grupo, agrupadas por cliente no select
+  const { equipamentos } = useAllEquipamentos({
+    ...(filters.processo   && { processo:   filters.processo }),
+    ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
+  })
 
-  // Tab 1 — métricas da máquina selecionada
+  // ── Tab 1: Máquina vs. Modelo ──────────────────────────────────────────────
+
   const maqInfo1 = equipamentos.find(e => e.equipamento_cod === tab1Cod)
   const { metricas: maqMetricas, loading: loadingMaq } = useMaquinaMetricas({
     ...(tab1Cod && { equipamento_cod: tab1Cod }),
@@ -388,8 +421,6 @@ export default function BenchmarkEquipamentoPage() {
     ...(queryFilters.dataInicio && { dataInicio: queryFilters.dataInicio }),
     ...(queryFilters.dataFim    && { dataFim:    queryFilters.dataFim    }),
   })
-
-  // Tab 1 — benchmark do modelo da máquina
   const { data: modeloData1, loading: loadingModelo1 } = useEquipamentoBenchmark({
     ...(maqInfo1?.modelo && { modelo_equipamento: maqInfo1.modelo }),
     ...(filters.processo   && { processo:   filters.processo }),
@@ -398,7 +429,8 @@ export default function BenchmarkEquipamentoPage() {
   })
   const modeloNorm1 = useMemo(() => normalizarModeloRow(modeloData1[0] ?? null), [modeloData1])
 
-  // Tab 2 — comparativo de períodos via useEquipamentoComparativo
+  // ── Tab 2: Equipamento vs. Equipamento ────────────────────────────────────
+
   const tab2FiltersA = sideA.cod ? {
     equipamento_cod: sideA.cod,
     ...(filters.processo   && { processo:   filters.processo }),
@@ -413,11 +445,17 @@ export default function BenchmarkEquipamentoPage() {
     ...(sideB.dataInicio   && { dataInicio: sideB.dataInicio }),
     ...(sideB.dataFim      && { dataFim:    sideB.dataFim    }),
   } : {}
-  const { dataA, dataB, loading: loadingPeriodo } = useEquipamentoComparativo(tab2FiltersA, tab2FiltersB)
-  const metricasPeriodoA = useMemo(() => computeWeightedAvg(dataA), [dataA])
-  const metricasPeriodoB = useMemo(() => computeWeightedAvg(dataB), [dataB])
+  const { dataA, dataB, loading: loadingEquip } = useEquipamentoComparativo(tab2FiltersA, tab2FiltersB)
+  const metricasEquipA = useMemo(() => computeWeightedAvg(dataA), [dataA])
+  const metricasEquipB = useMemo(() => computeWeightedAvg(dataB), [dataB])
 
-  // Tab 3 — todos os modelos disponíveis + benchmark de cada modelo selecionado
+  const maqInfoA = equipamentos.find(e => e.equipamento_cod === sideA.cod)
+  const maqInfoB = equipamentos.find(e => e.equipamento_cod === sideB.cod)
+  const labelEquipA = maqInfoA ? `${maqInfoA.cliente || ''} · ${maqInfoA.equipamento_cod}${sideA.dataInicio ? ' (' + sideA.dataInicio + ')' : ''}` : 'Equipamento A'
+  const labelEquipB = maqInfoB ? `${maqInfoB.cliente || ''} · ${maqInfoB.equipamento_cod}${sideB.dataInicio ? ' (' + sideB.dataInicio + ')' : ''}` : 'Equipamento B'
+
+  // ── Tab 3: Modelo vs. Modelo ───────────────────────────────────────────────
+
   const { data: allModelosData, loading: loadingModelos } = useEquipamentoBenchmark({
     ...(filters.processo   && { processo:   filters.processo }),
     ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
@@ -430,11 +468,13 @@ export default function BenchmarkEquipamentoPage() {
   const modeloNormA = useMemo(() => normalizarModeloRow(allModelosData.find(r => r.modelo_equipamento === modeloA) ?? null), [allModelosData, modeloA])
   const modeloNormB = useMemo(() => normalizarModeloRow(allModelosData.find(r => r.modelo_equipamento === modeloB) ?? null), [allModelosData, modeloB])
 
-  // ── helpers de label ───────────────────────────────────────────────────────
-  const labelSideA = sideA.cod ? `${sideA.cod}${sideA.dataInicio ? ' · ' + sideA.dataInicio : ''}` : 'Período A'
-  const labelSideB = sideB.cod ? `${sideB.cod}${sideB.dataInicio ? ' · ' + sideB.dataInicio : ''}` : 'Período B'
-
-  const semCliente = !filters.cliente
+  const modeloStatsFilters = {
+    ...(filters.processo   && { processo:   filters.processo }),
+    ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
+    safra: currentSafra,
+  }
+  const { stats: statsA } = useModeloStats({ ...modeloStatsFilters, ...(modeloA && { modelo_equipamento: modeloA }) })
+  const { stats: statsB } = useModeloStats({ ...modeloStatsFilters, ...(modeloB && { modelo_equipamento: modeloB }) })
 
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -446,28 +486,22 @@ export default function BenchmarkEquipamentoPage() {
       {activeTab === 'maquina-modelo' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <SectionCard>
-            {semCliente ? (
-              <div style={{ color: '#6b6560', fontSize: 13 }}>
-                Selecione um cliente nos filtros para ver as máquinas disponíveis.
-              </div>
-            ) : (
-              <MaquinaSelect
-                label="Máquina"
-                value={tab1Cod}
-                onChange={setTab1Cod}
-                equipamentos={equipamentos}
-              />
-            )}
+            <MaquinaSelect
+              label="Máquina"
+              value={tab1Cod}
+              onChange={setTab1Cod}
+              equipamentos={equipamentos}
+            />
           </SectionCard>
 
           {tab1Cod && (
             <SectionCard
               title="Máquina vs. Média do Modelo"
               subtitle={maqInfo1?.modelo || ''}
-              footnote="Média do modelo calculada a partir de todos os registros do mesmo modelo no grupo Porteira, na mesma operação, cultura e safra."
+              footnote="Média do modelo abrange todos os clientes do grupo Porteira com o mesmo modelo, operação e cultura — não é filtrada por cliente."
             >
               <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
-                {[{ color: '#2d4a2d', label: 'Esta máquina' }, { color: '#c8960c', label: 'Média do modelo' }].map(({ color, label }) => (
+                {[{ color: '#2d4a2d', label: 'Esta máquina' }, { color: '#c8960c', label: 'Média do modelo (grupo)' }].map(({ color, label }) => (
                   <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6b6560' }}>
                     <span style={{ width: 10, height: 10, background: color, borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
                     {label}
@@ -483,8 +517,8 @@ export default function BenchmarkEquipamentoPage() {
                 <CompareTable
                   metricasA={maqMetricas}
                   metricasB={modeloNorm1}
-                  labelA="Máquina"
-                  labelB="Modelo"
+                  labelA={`${maqInfo1?.cliente || ''} · ${tab1Cod}`}
+                  labelB="Média modelo"
                 />
               )}
             </SectionCard>
@@ -492,19 +526,11 @@ export default function BenchmarkEquipamentoPage() {
         </div>
       )}
 
-      {/* ── TAB 2: COMPARATIVO DE PERÍODOS ─────────────────────────────────── */}
-      {activeTab === 'periodo' && (
+      {/* ── TAB 2: EQUIPAMENTO VS. EQUIPAMENTO ─────────────────────────────── */}
+      {activeTab === 'equip-equip' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {semCliente && (
-            <div style={{ color: '#6b6560', fontSize: 13, padding: '8px 0' }}>
-              Selecione um cliente nos filtros para ver as máquinas disponíveis.
-            </div>
-          )}
-
-          {/* Seletores dos dois lados */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            {/* Lado A */}
-            <SectionCard title="Período A">
+            <SectionCard title="Equipamento A">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <MaquinaSelect
                   label="Máquina"
@@ -513,7 +539,7 @@ export default function BenchmarkEquipamentoPage() {
                   equipamentos={equipamentos}
                 />
                 <div>
-                  <FieldLabel>Intervalo de datas</FieldLabel>
+                  <FieldLabel>Período (opcional)</FieldLabel>
                   <DateRangeInputs
                     inicio={sideA.dataInicio}
                     fim={sideA.dataFim}
@@ -524,8 +550,7 @@ export default function BenchmarkEquipamentoPage() {
               </div>
             </SectionCard>
 
-            {/* Lado B */}
-            <SectionCard title="Período B">
+            <SectionCard title="Equipamento B">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <MaquinaSelect
                   label="Máquina"
@@ -534,7 +559,7 @@ export default function BenchmarkEquipamentoPage() {
                   equipamentos={equipamentos}
                 />
                 <div>
-                  <FieldLabel>Intervalo de datas</FieldLabel>
+                  <FieldLabel>Período (opcional)</FieldLabel>
                   <DateRangeInputs
                     inicio={sideB.dataInicio}
                     fim={sideB.dataFim}
@@ -546,15 +571,14 @@ export default function BenchmarkEquipamentoPage() {
             </SectionCard>
           </div>
 
-          {/* Tabela comparativa */}
           {(sideA.cod || sideB.cod) && (
             <SectionCard
               title="Comparativo de Métricas"
-              subtitle="Período A vs. Período B"
-              footnote="Valores agregados por média ponderada para o intervalo e máquina selecionados."
+              subtitle="Equipamento A vs. Equipamento B"
+              footnote="Valores agregados por média ponderada para a máquina e período selecionados. O período pode ser diferente entre os dois lados para comparação temporal da mesma máquina."
             >
               <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
-                {[{ color: '#2d4a2d', label: 'Período A' }, { color: '#c8960c', label: 'Período B' }].map(({ color, label }) => (
+                {[{ color: '#2d4a2d', label: labelEquipA }, { color: '#c8960c', label: labelEquipB }].map(({ color, label }) => (
                   <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6b6560' }}>
                     <span style={{ width: 10, height: 10, background: color, borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
                     {label}
@@ -562,16 +586,16 @@ export default function BenchmarkEquipamentoPage() {
                 ))}
               </div>
               <StateMsg
-                loading={loadingPeriodo}
-                empty={!loadingPeriodo && !metricasPeriodoA && !metricasPeriodoB}
-                emptyText="Selecione máquina e intervalo de datas para os dois períodos."
+                loading={loadingEquip}
+                empty={!loadingEquip && !metricasEquipA && !metricasEquipB}
+                emptyText="Selecione ao menos uma máquina para comparar."
               />
-              {!loadingPeriodo && (metricasPeriodoA || metricasPeriodoB) && (
+              {!loadingEquip && (metricasEquipA || metricasEquipB) && (
                 <CompareTable
-                  metricasA={metricasPeriodoA ?? {}}
-                  metricasB={metricasPeriodoB ?? {}}
-                  labelA={labelSideA}
-                  labelB={labelSideB}
+                  metricasA={metricasEquipA ?? {}}
+                  metricasB={metricasEquipB ?? {}}
+                  labelA={labelEquipA}
+                  labelB={labelEquipB}
                 />
               )}
             </SectionCard>
@@ -582,7 +606,6 @@ export default function BenchmarkEquipamentoPage() {
       {/* ── TAB 3: MODELO VS. MODELO ────────────────────────────────────────── */}
       {activeTab === 'modelo-modelo' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Seletores de modelo */}
           <SectionCard>
             <div style={{ display: 'flex', gap: 16 }}>
               <ModeloSelect label="Modelo A" value={modeloA} onChange={setModeloA} modelos={modeloOptions} />
@@ -597,15 +620,13 @@ export default function BenchmarkEquipamentoPage() {
             <SectionCard
               title="Comparativo de Modelos"
               subtitle={`${modeloA || '—'} vs. ${modeloB || '—'}`}
-              footnote="Médias ponderadas de todos os equipamentos do modelo no grupo Porteira, na mesma operação, cultura e safra."
+              footnote="Médias ponderadas de todos os equipamentos do modelo no grupo Porteira — imune ao filtro de cliente por design. A faixa sombreada nas barras representa min → max entre máquinas individuais do modelo."
             >
-              {/* Seletor de métricas */}
               <div style={{ marginBottom: 16 }}>
                 <FieldLabel>Métricas exibidas</FieldLabel>
                 <MetricaSelector selected={selectedMetrics} onToggle={toggleMetric} />
               </div>
 
-              {/* Legenda */}
               <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
                 {[
                   { color: '#2d4a2d', label: modeloA || 'Modelo A' },
@@ -634,6 +655,8 @@ export default function BenchmarkEquipamentoPage() {
                       valB={modeloNormB?.[cfg.key] ?? 0}
                       labelA={modeloA}
                       labelB={modeloB}
+                      statsA={statsA?.[cfg.key]}
+                      statsB={statsB?.[cfg.key]}
                     />
                   ))}
                   {selectedMetrics.size === 0 && (

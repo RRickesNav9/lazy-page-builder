@@ -354,6 +354,116 @@ export function useMaquinaMetricas(filters = {}) {
   return { metricas, loading, error }
 }
 
+// Busca todas as máquinas do grupo sem restrição de cliente, incluindo o nome do cliente na label.
+// Filtra por processo/tipo_safra se definidos nos filtros globais.
+export function useAllEquipamentos(filters = {}) {
+  const [equipamentos, setEquipamentos] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    async function run() {
+      try {
+        let query = supabase
+          .from('dashboard_operational_view')
+          .select('cliente,equipamento,equipamento_cod,modelo_equipamento')
+          .neq('cliente', 'Média Porteira')
+        if (filters.processo)   query = query.eq('processo',   filters.processo)
+        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
+        // Deduplica em memória — select de apenas 4 colunas mantém o payload pequeno
+        let all = [], from = 0
+        while (true) {
+          const { data: page, error } = await query.range(from, from + 999)
+          if (error) throw error
+          all = all.concat(page)
+          if (page.length < 1000) break
+          from += 1000
+        }
+        const seen = new Set()
+        const opts = []
+        for (const r of all) {
+          const k = r.equipamento_cod || r.equipamento
+          if (k && !seen.has(k)) {
+            seen.add(k)
+            opts.push({
+              cliente: r.cliente,
+              equipamento: r.equipamento,
+              equipamento_cod: r.equipamento_cod,
+              modelo: r.modelo_equipamento,
+            })
+          }
+        }
+        opts.sort((a, b) =>
+          (a.cliente || '').localeCompare(b.cliente || '') ||
+          (a.equipamento_cod || '').localeCompare(b.equipamento_cod || '')
+        )
+        setEquipamentos(opts)
+      } finally {
+        setLoading(false)
+      }
+    }
+    run()
+  }, [filters.processo, filters.tipo_safra]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return { equipamentos, loading }
+}
+
+// Calcula min/max por métrica para um modelo, agrupando por máquina via média ponderada.
+// Retorna { [metrica]: { min, max, n } } ou null se sem dados.
+export function useModeloStats(filters = {}) {
+  const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!filters.modelo_equipamento) { setStats(null); return }
+    setLoading(true)
+    async function run() {
+      try {
+        let query = supabase
+          .from('dashboard_operational_view')
+          .select('equipamento_cod,rendimento_operacional_hah,eficiencia_geral_pct,eficiencia_operacional_pct,consumo_medio_efetivo_lha,consumo_medio_lh,disponibilidade_mecanica_pct,velocidade_media_kmh,rpm_medio,tempo_produtivo_h,tempo_total_h,area_ha')
+          .eq('modelo_equipamento', filters.modelo_equipamento)
+        if (filters.processo)   query = query.eq('processo',   filters.processo)
+        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
+        if (filters.safra)      query = query.eq('safra',      filters.safra)
+        let all = [], from = 0
+        while (true) {
+          const { data: page, error } = await query.range(from, from + 999)
+          if (error) throw error
+          all = all.concat(page)
+          if (page.length < 1000) break
+          from += 1000
+        }
+        // Agrupa por máquina e calcula média ponderada individual
+        const byMachine = {}
+        for (const row of all) {
+          const k = row.equipamento_cod || 'unknown'
+          if (!byMachine[k]) byMachine[k] = []
+          byMachine[k].push(row)
+        }
+        const machineAvgs = Object.values(byMachine).map(rows => computeWeightedAvg(rows)).filter(Boolean)
+        if (machineAvgs.length === 0) { setStats(null); return }
+
+        const metrics = Object.keys(METRIC_WEIGHT_MAP)
+        const result = {}
+        for (const m of metrics) {
+          const vals = machineAvgs.map(a => a[m]).filter(v => v != null && v > 0)
+          result[m] = { min: vals.length ? Math.min(...vals) : 0, max: vals.length ? Math.max(...vals) : 0, n: vals.length }
+        }
+        setStats(result)
+      } catch {
+        setStats(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+    run()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(filters)])
+
+  return { stats, loading }
+}
+
 // Busca equipamentos disponíveis para um cliente específico (para o seletor de benchmark)
 export function useEquipamentoOptions(cliente) {
   const [equipamentos, setEquipamentos] = useState([])
