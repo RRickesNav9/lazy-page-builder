@@ -144,6 +144,26 @@ export function useFilterOptions() {
   return options
 }
 
+// Retorna as linhas brutas de dashboard_filter_options para filtros cascateados no FAB.
+// Cada linha é uma combinação distinta de (cliente, propriedade, processo, tipo_safra).
+export function useFilterOptionsRaw() {
+  const [rawRows, setRawRows] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetch() {
+      const { data } = await supabase
+        .from('dashboard_filter_options')
+        .select('cliente, propriedade, processo, tipo_safra')
+      if (data) setRawRows(data)
+      setLoading(false)
+    }
+    fetch()
+  }, [])
+
+  return { rawRows, loading }
+}
+
 // Busca motivos de parada distintos para o seletor de exclusão no filtro
 export function useStopMotivos() {
   const [motivos, setMotivos] = useState([])

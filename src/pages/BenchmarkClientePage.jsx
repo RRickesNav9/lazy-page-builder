@@ -521,7 +521,7 @@ export default function BenchmarkClientePage() {
           <div style={{ padding: '40px 0', textAlign: 'center', color: '#8b2020', fontSize: 13 }}>
             {errorCliente
               ? `Erro ao carregar dados: ${errorCliente}`
-              : 'Nenhum dado encontrado para os filtros selecionados. Selecione um cliente e operação no filtro.'}
+              : 'Nenhum dado encontrado para os filtros selecionados. Selecione um cliente e processo no filtro.'}
           </div>
         )}
 

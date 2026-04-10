@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FilterProvider, useFilters } from './lib/FilterContext'
 import GlobalFilterFAB from './components/GlobalFilterFAB'
 import AnaliseGeralPage from './pages/AnaliseGeralPage'
@@ -15,6 +15,13 @@ const PAGES = {
   analise:       AnaliseGeralPage,
   benchmark:     BenchmarkClientePage,
   'bench-equip': BenchmarkEquipamentoPage,
+}
+
+// Processos permitidos por página — null = irrestrito
+const PAGE_PROCESSOS = {
+  analise:       null,
+  benchmark:     ['Colheita', 'Plantio'],
+  'bench-equip': ['Colheita', 'Plantio'],
 }
 
 
@@ -46,6 +53,19 @@ function Breadcrumb() {
 function AppInner() {
   const [activePage, setActivePage] = useState('analise')
   const PageComponent = PAGES[activePage]
+  const { filters, applyFilters } = useFilters()
+  const allowedProcessos = PAGE_PROCESSOS[activePage]
+
+  // Ao trocar para uma página com processos restritos, limpa o processo se ele não for permitido
+  useEffect(() => {
+    if (!allowedProcessos) return
+    const valid = allowedProcessos.some(
+      p => p.toLowerCase() === (filters.processo || '').toLowerCase()
+    )
+    if (!valid && filters.processo) {
+      applyFilters({ ...filters, processo: '' })
+    }
+  }, [activePage]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div style={{ minHeight: '100vh', background: '#ffffff', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
@@ -81,7 +101,7 @@ function AppInner() {
 
       <PageComponent />
 
-      <GlobalFilterFAB />
+      <GlobalFilterFAB allowedProcessos={allowedProcessos} />
     </div>
   )
 }

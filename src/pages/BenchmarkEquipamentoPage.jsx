@@ -394,6 +394,10 @@ export default function BenchmarkEquipamentoPage() {
   const [modeloB, setModeloB]     = useState('')
   const [selectedMetrics, setSelectedMetrics] = useState(() => new Set(METRICAS_CONFIG.map(m => m.key)))
 
+  // O filtro global já garante que processo é Colheita ou Plantio nesta página (via App.jsx + cascade do FAB).
+  // processoFiltro é apenas o valor normalizado para passar aos hooks.
+  const processoFiltro = filters.processo || null
+
   function toggleMetric(key) {
     setSelectedMetrics(prev => {
       const next = new Set(prev)
@@ -406,7 +410,7 @@ export default function BenchmarkEquipamentoPage() {
 
   // Todas as máquinas do grupo, agrupadas por cliente no select
   const { equipamentos } = useAllEquipamentos({
-    ...(filters.processo   && { processo:   filters.processo }),
+    ...(processoFiltro && { processo: processoFiltro }),
     ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
   })
 
@@ -415,7 +419,7 @@ export default function BenchmarkEquipamentoPage() {
   const maqInfo1 = equipamentos.find(e => e.equipamento_cod === tab1Cod)
   const { metricas: maqMetricas, loading: loadingMaq } = useMaquinaMetricas({
     ...(tab1Cod && { equipamento_cod: tab1Cod }),
-    ...(filters.processo   && { processo:   filters.processo }),
+    ...(processoFiltro && { processo: processoFiltro }),
     ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
     safra: currentSafra,
     ...(queryFilters.dataInicio && { dataInicio: queryFilters.dataInicio }),
@@ -423,7 +427,7 @@ export default function BenchmarkEquipamentoPage() {
   })
   const { data: modeloData1, loading: loadingModelo1 } = useEquipamentoBenchmark({
     ...(maqInfo1?.modelo && { modelo_equipamento: maqInfo1.modelo }),
-    ...(filters.processo   && { processo:   filters.processo }),
+    ...(processoFiltro && { processo: processoFiltro }),
     ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
     safra: currentSafra,
   })
@@ -433,14 +437,14 @@ export default function BenchmarkEquipamentoPage() {
 
   const tab2FiltersA = sideA.cod ? {
     equipamento_cod: sideA.cod,
-    ...(filters.processo   && { processo:   filters.processo }),
+    ...(processoFiltro && { processo: processoFiltro }),
     ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
     ...(sideA.dataInicio   && { dataInicio: sideA.dataInicio }),
     ...(sideA.dataFim      && { dataFim:    sideA.dataFim    }),
   } : {}
   const tab2FiltersB = sideB.cod ? {
     equipamento_cod: sideB.cod,
-    ...(filters.processo   && { processo:   filters.processo }),
+    ...(processoFiltro && { processo: processoFiltro }),
     ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
     ...(sideB.dataInicio   && { dataInicio: sideB.dataInicio }),
     ...(sideB.dataFim      && { dataFim:    sideB.dataFim    }),
@@ -457,7 +461,7 @@ export default function BenchmarkEquipamentoPage() {
   // ── Tab 3: Modelo vs. Modelo ───────────────────────────────────────────────
 
   const { data: allModelosData, loading: loadingModelos } = useEquipamentoBenchmark({
-    ...(filters.processo   && { processo:   filters.processo }),
+    ...(processoFiltro && { processo: processoFiltro }),
     ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
     safra: currentSafra,
   })
@@ -469,7 +473,7 @@ export default function BenchmarkEquipamentoPage() {
   const modeloNormB = useMemo(() => normalizarModeloRow(allModelosData.find(r => r.modelo_equipamento === modeloB) ?? null), [allModelosData, modeloB])
 
   const modeloStatsFilters = {
-    ...(filters.processo   && { processo:   filters.processo }),
+    ...(processoFiltro && { processo: processoFiltro }),
     ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
     safra: currentSafra,
   }

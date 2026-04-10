@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useFilters } from '../lib/FilterContext'
-import { useFilterOptions, useStopMotivos } from '../hooks/useData'
+import { useFilterOptionsRaw, useStopMotivos } from '../hooks/useData'
 
 
 
@@ -26,16 +26,42 @@ const TIPO_PARADA_COLOR = {
   SEM_APONTAMENTO: '#6b7280',
 }
 
-export default function GlobalFilterFAB() {
+export default function GlobalFilterFAB({ allowedProcessos = null }) {
   const { filters, applyFilters, activeCount, showFABs } = useFilters()
-  const options  = useFilterOptions()
-  const motivos  = useStopMotivos()
+  const { rawRows } = useFilterOptionsRaw()
+  const motivos     = useStopMotivos()
 
   const [open,         setOpen]         = useState(false)
   const [pending,      setPending]      = useState(filters)
   const [motivosOpen,  setMotivosOpen]  = useState(false)
   const [motivoSearch, setMotivoSearch] = useState('')
   const panelRef = useRef(null)
+
+  // Linhas restritas ao escopo da página (null = irrestrito)
+  const pageRows = useMemo(() => {
+    if (!allowedProcessos || rawRows.length === 0) return rawRows
+    return rawRows.filter(r =>
+      allowedProcessos.some(p => p.toLowerCase() === (r.processo || '').toLowerCase())
+    )
+  }, [rawRows, allowedProcessos])
+
+  // Opções cascateadas: cada dimensão mostra só valores que existem nas linhas
+  // compatíveis com todas as OUTRAS dimensões já selecionadas no painel.
+  const cascadedOpts = useMemo(() => {
+    const filter = (excludeDim) => pageRows.filter(r => {
+      if (excludeDim !== 'cliente'     && pending.cliente     && r.cliente     !== pending.cliente)     return false
+      if (excludeDim !== 'propriedade' && pending.propriedade && r.propriedade !== pending.propriedade) return false
+      if (excludeDim !== 'processo'    && pending.processo    && r.processo    !== pending.processo)    return false
+      if (excludeDim !== 'tipo_safra'  && pending.tipo_safra  && r.tipo_safra  !== pending.tipo_safra)  return false
+      return true
+    })
+    return {
+      clientes:    [...new Set(filter('cliente').map(r => r.cliente).filter(Boolean))].sort(),
+      propriedades:[...new Set(filter('propriedade').map(r => r.propriedade).filter(Boolean))].sort(),
+      processos:   [...new Set(filter('processo').map(r => r.processo).filter(Boolean))].sort(),
+      tipos_safra: [...new Set(filter('tipo_safra').map(r => r.tipo_safra).filter(Boolean))].sort(),
+    }
+  }, [pageRows, pending.cliente, pending.propriedade, pending.processo, pending.tipo_safra])
 
   // Abre o painel quando outro componente dispara o evento 'openFilterFAB'
   useEffect(() => {
@@ -44,9 +70,22 @@ export default function GlobalFilterFAB() {
     return () => window.removeEventListener('openFilterFAB', handle)
   }, [])
 
+  // Ao abrir o painel, sincroniza pending com os filtros ativos
   useEffect(() => {
     if (open) { setPending(filters); setMotivosOpen(false); setMotivoSearch('') }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-limpa valores pendentes que deixaram de ter dados após uma mudança em cascata
+  useEffect(() => {
+    if (!open) return
+    const updates = {}
+    if (pending.cliente     && !cascadedOpts.clientes.includes(pending.cliente))         updates.cliente = ''
+    if (pending.propriedade && !cascadedOpts.propriedades.includes(pending.propriedade)) updates.propriedade = ''
+    if (pending.processo    && !cascadedOpts.processos.includes(pending.processo))       updates.processo = ''
+    if (pending.tipo_safra  && !cascadedOpts.tipos_safra.includes(pending.tipo_safra))   updates.tipo_safra = ''
+    if (Object.keys(updates).length > 0) setPending(p => ({ ...p, ...updates }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending.cliente, pending.propriedade, pending.processo, pending.tipo_safra, open])
 
   useEffect(() => {
     if (!open) return
@@ -179,25 +218,25 @@ export default function GlobalFilterFAB() {
           <Label>Cliente</Label>
           <Select value={pending.cliente} onChange={e => set('cliente', e.target.value)}>
             <option value="">Todos</option>
-            {options.clientes.map(c => <option key={c} value={c}>{c}</option>)}
+            {cascadedOpts.clientes.map(c => <option key={c} value={c}>{c}</option>)}
           </Select>
 
           <Label>Propriedade</Label>
           <Select value={pending.propriedade} onChange={e => set('propriedade', e.target.value)}>
             <option value="">Todas</option>
-            {options.propriedades.map(p => <option key={p} value={p}>{p}</option>)}
+            {cascadedOpts.propriedades.map(p => <option key={p} value={p}>{p}</option>)}
           </Select>
 
           <Label>Processo / Operação</Label>
           <Select value={pending.processo} onChange={e => set('processo', e.target.value)}>
             <option value="">Todos</option>
-            {options.processos.map(p => <option key={p} value={p}>{p}</option>)}
+            {cascadedOpts.processos.map(p => <option key={p} value={p}>{p}</option>)}
           </Select>
 
           <Label>Cultura</Label>
           <Select value={pending.tipo_safra} onChange={e => set('tipo_safra', e.target.value)}>
             <option value="">Todas</option>
-            {options.tipos_safra.map(t => <option key={t} value={t}>{t}</option>)}
+            {cascadedOpts.tipos_safra.map(t => <option key={t} value={t}>{t}</option>)}
           </Select>
 
           {/* ── Benchmark toggle ─────────────────────────────────────── */}
