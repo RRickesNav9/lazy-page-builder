@@ -4,7 +4,6 @@ import GlobalFilterFAB from './components/GlobalFilterFAB'
 import AnaliseGeralPage from './pages/AnaliseGeralPage'
 import BenchmarkClientePage from './pages/BenchmarkClientePage'
 import BenchmarkEquipamentoPage from './pages/BenchmarkEquipamentoPage'
-import { exportToPDF } from './utils/pdfExport'
 
 const NAV = [
   { id: 'analise',         label: 'Análise Geral' },
@@ -33,7 +32,7 @@ const PAGE_SOLINFTEC = {
 }
 
 
-function Breadcrumb({ onExport, exporting }) {
+function Breadcrumb() {
   const { filters } = useFilters()
   const items = [
     { label: 'Cliente',     value: filters.cliente     || 'Todos' },
@@ -46,36 +45,21 @@ function Breadcrumb({ onExport, exporting }) {
     <div className="no-print" style={{
       background: '#f7f5f2', borderBottom: '1px solid #e0dbd4',
       padding: '8px 24px', fontSize: 12, display: 'flex', alignItems: 'center',
-      justifyContent: 'space-between', gap: 4, flexWrap: 'wrap',
+      gap: 4, flexWrap: 'wrap',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-        {items.map((item, i) => (
-          <span key={item.label}>
-            {i > 0 && <span style={{ color: '#6b6560', margin: '0 6px' }}>·</span>}
-            <span style={{ color: '#6b6560' }}>{item.label}: </span>
-            <span style={{ color: '#4a3728', fontWeight: 500 }}>{item.value}</span>
-          </span>
-        ))}
-      </div>
-      <button
-        onClick={onExport}
-        disabled={exporting}
-        style={{
-          padding: '4px 12px', fontSize: 11, fontWeight: 500,
-          background: exporting ? '#4a6741' : '#2d4a2d', color: '#fff', border: 'none',
-          borderRadius: 4, cursor: exporting ? 'default' : 'pointer', letterSpacing: '0.03em',
-          flexShrink: 0, opacity: exporting ? 0.8 : 1,
-        }}
-      >
-        {exporting ? 'Gerando PDF…' : '↓ Exportar PDF'}
-      </button>
+      {items.map((item, i) => (
+        <span key={item.label}>
+          {i > 0 && <span style={{ color: '#6b6560', margin: '0 6px' }}>·</span>}
+          <span style={{ color: '#6b6560' }}>{item.label}: </span>
+          <span style={{ color: '#4a3728', fontWeight: 500 }}>{item.value}</span>
+        </span>
+      ))}
     </div>
   )
 }
 
 function AppInner() {
-  const [activePage, setActivePage]   = useState('analise')
-  const [exporting, setExporting]     = useState(false)
+  const [activePage, setActivePage] = useState('analise')
   const PageComponent  = PAGES[activePage]
   const { filters, applyFilters } = useFilters()
   const allowedProcessos = PAGE_PROCESSOS[activePage]
@@ -92,27 +76,10 @@ function AppInner() {
     }
   }, [activePage]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleExportPDF() {
-    const el = document.getElementById('pdf-content')
-    if (!el || exporting) return
-    setExporting(true)
-    try {
-      await exportToPDF(el, {
-        cliente:   filters.cliente,
-        processo:  filters.processo,
-        tipoSafra: filters.tipo_safra,
-      })
-    } catch (e) {
-      console.error('ERRO: falha ao gerar PDF:', e.message)
-    } finally {
-      setExporting(false)
-    }
-  }
-
   return (
     <div className="app-root" style={{ minHeight: '100vh', background: '#ffffff', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
 
-      <header style={{
+      <header className="no-print" style={{
         background: '#2d4a2d', padding: '12px 24px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
@@ -122,9 +89,9 @@ function AppInner() {
         </div>
       </header>
 
-      <Breadcrumb onExport={handleExportPDF} exporting={exporting} />
+      <Breadcrumb />
 
-      <nav style={{ borderBottom: '1px solid #e0dbd4', padding: '0 24px', background: '#ffffff', display: 'flex' }}>
+      <nav className="no-print" style={{ borderBottom: '1px solid #e0dbd4', padding: '0 24px', background: '#ffffff', display: 'flex' }}>
         {NAV.map(item => (
           <button
             key={item.id}
@@ -146,9 +113,7 @@ function AppInner() {
         <PageComponent />
       </div>
 
-      <div className="no-print">
-        <GlobalFilterFAB allowedProcessos={allowedProcessos} solinftecOnly={solinftecOnly} />
-      </div>
+      <GlobalFilterFAB allowedProcessos={allowedProcessos} solinftecOnly={solinftecOnly} />
     </div>
   )
 }

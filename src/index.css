@@ -66,16 +66,40 @@ body {
 ::-webkit-scrollbar-thumb { background: #e0dbd4; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #c0b8ae; }
 
-/* margin: 0 elimina os cabeçalhos e rodapés injetados pelo browser (data, URL, nº página) */
 @page {
   size: A4 portrait;
-  margin: 0;
+  margin: 15mm;
 }
 
-/* A exportação via html2canvas+jsPDF não usa window.print() — CSS @media print é reserva */
 @media print {
-  .no-print { display: none !important; }
-  header, nav { display: none !important; }
-  body { background: #fff !important; }
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  /* ── Ocultar chrome da aplicação ──────────────────────────────────────────── */
+  .no-print,
+  [data-pdf-exclude="true"] { display: none !important; }
+
+  /* ── Corpo ────────────────────────────────────────────────────────────────── */
+  body {
+    margin: 0;
+    background: #fff !important;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  /* ── Manter cores exatas (background, fill, etc.) ────────────────────────── */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ── Evitar quebra de página dentro de blocos ────────────────────────────── */
+  table, tr, td, th,
+  .rounded-xl, [style*="border-radius"] {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* ── Tabelas ocupam largura total, sem scroll ────────────────────────────── */
+  table { width: 100% !important; }
+  [style*="overflow"] { overflow: visible !important; }
+
+  /* ── Scrollbars ocultas ──────────────────────────────────────────────────── */
+  ::-webkit-scrollbar { display: none; }
 }

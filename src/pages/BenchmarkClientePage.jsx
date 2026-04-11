@@ -1,11 +1,9 @@
 // BenchmarkClientePage.jsx
 // Compara métricas de um cliente específico contra a média do grupo Porteira.
-// Seleção de cliente via filtro global. Cabeçalho dinâmico + export PDF.
+// Seleção de cliente via filtro global. Export via window.print() (FAB global).
 
-import { useState, useRef } from 'react'
 import { useFilters } from '../lib/FilterContext'
 import { useClienteBenchmark, useGrupoBenchmark } from '../hooks/useData'
-import { exportToPDF } from '../utils/pdfExport'
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
 
@@ -309,134 +307,10 @@ function MetricasTable({ metricas }) {
   )
 }
 
-// ─── MODAL DE CONFIRMAÇÃO DE EXPORT ──────────────────────────────────────────
-
-function ConfirmExportModal({ cliente, processo, tipoSafra, onConfirm, onCancel }) {
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 2000,
-      background: 'rgba(0,0,0,0.45)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
-      <div style={{
-        background: '#fff', borderRadius: 10, padding: 28,
-        maxWidth: 380, width: '90%',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#2d4a2d" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a1 1 0 001 1h16a1 1 0 001-1v-3M7 7V4a1 1 0 011-1h8a1 1 0 011 1v3" />
-          </svg>
-          <span style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a' }}>Exportar como PDF</span>
-        </div>
-        <p style={{ fontSize: 13, color: '#4a3728', marginBottom: 6 }}>
-          Será gerado um PDF do relatório de benchmark com os seguintes dados:
-        </p>
-        <div style={{
-          background: '#f7f5f2', borderRadius: 6, padding: '10px 14px',
-          marginBottom: 20, fontSize: 12, color: '#4a3728', lineHeight: 1.7,
-        }}>
-          <div><strong>Cliente:</strong> {cliente || '—'}</div>
-          <div><strong>Processo:</strong> {processo || '—'}</div>
-          <div><strong>Cultura:</strong> {tipoSafra || 'Não especificado'}</div>
-        </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            onClick={onCancel}
-            style={{
-              flex: 1, padding: '9px 0',
-              background: '#f7f5f2', color: '#4a3728',
-              border: '1px solid #e0dbd4', borderRadius: 7,
-              fontSize: 13, fontWeight: 500, cursor: 'pointer',
-            }}
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={onConfirm}
-            style={{
-              flex: 1, padding: '9px 0',
-              background: '#2d4a2d', color: '#fff',
-              border: 'none', borderRadius: 7,
-              fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            }}
-          >
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a1 1 0 001 1h16a1 1 0 001-1v-3" />
-            </svg>
-            Exportar
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── FABs FLUTUANTES DA PÁGINA ────────────────────────────────────────────────
-
-// Empilha Export PDF (acima do filtro) e Toggle (acima do export).
-// Quando oculto, exibe apenas uma setinha para re-expandir.
-// Posicionamento: filtro=bottom:24, export=bottom:84, toggle=bottom:144
-function BenchmarkFABs({ onExport, onToggle, showFABs }) {
-  const fabBase = {
-    position: 'fixed', right: 24, zIndex: 1000,
-    width: 48, height: 48, borderRadius: '50%',
-    border: 'none', cursor: 'pointer',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-  }
-
-  if (!showFABs) {
-    // Somente a seta para expandir, posicionada onde ficaria o filtro
-    return (
-      <button
-        onClick={onToggle}
-        title="Mostrar botões"
-        className="no-print"
-        style={{ ...fabBase, bottom: 24, background: '#4a6741', color: '#fff' }}
-      >
-        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
-        </svg>
-      </button>
-    )
-  }
-
-  return (
-    <>
-      {/* Toggle — topo da pilha */}
-      <button
-        onClick={onToggle}
-        title="Ocultar botões"
-        className="no-print"
-        style={{ ...fabBase, bottom: 144, background: '#4a6741', color: '#fff' }}
-      >
-        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {/* Export PDF */}
-      <button
-        onClick={onExport}
-        title="Exportar PDF"
-        className="no-print"
-        style={{ ...fabBase, bottom: 84, background: '#2d7a2d', color: '#fff' }}
-      >
-        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a1 1 0 001 1h16a1 1 0 001-1v-3" />
-        </svg>
-      </button>
-    </>
-  )
-}
-
 // ─── PÁGINA ───────────────────────────────────────────────────────────────────
 
 export default function BenchmarkClientePage() {
-  const { filters, queryFilters, currentSafra, setShowFABs, showFABs } = useFilters()
-  const contentRef = useRef(null)
+  const { filters, queryFilters, currentSafra } = useFilters()
 
   const cliente   = filters.cliente    || ''
   const processo  = filters.processo   || ''
@@ -476,48 +350,14 @@ export default function BenchmarkClientePage() {
   const loading = loadingCliente || loadingGrupo
   const semDados = !loading && !clienteMetricas
 
-  const [showConfirmExport, setShowConfirmExport] = useState(false)
-  const [isExporting, setIsExporting]             = useState(false)
-
-  async function handleExportConfirm() {
-    setShowConfirmExport(false)
-    setIsExporting(true)
-    try {
-      await exportToPDF(contentRef.current, { cliente, processo, tipoSafra })
-    } catch (e) {
-      console.error('ERRO: falha ao gerar PDF:', e.message)
-    } finally {
-      setIsExporting(false)
-    }
-  }
-
   return (
     <>
-      {showConfirmExport && (
-        <ConfirmExportModal
-          cliente={cliente || '—'}
-          processo={processo || '—'}
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '20px 24px' }}>
+        <DynamicHeader
+          cliente={cliente}
+          processo={processo}
           tipoSafra={tipoSafra}
-          onConfirm={handleExportConfirm}
-          onCancel={() => setShowConfirmExport(false)}
         />
-      )}
-
-      <BenchmarkFABs
-        showFABs={showFABs}
-        onExport={() => setShowConfirmExport(true)}
-        onToggle={() => setShowFABs(v => !v)}
-      />
-
-      <div ref={contentRef} style={{ maxWidth: 1280, margin: '0 auto', padding: '20px 24px' }}>
-        {/* DynamicHeader excluído do PDF — o cabeçalho vetorial do jsPDF já cobre esses dados */}
-        <div data-pdf-exclude="true">
-          <DynamicHeader
-            cliente={cliente}
-            processo={processo}
-            tipoSafra={tipoSafra}
-          />
-        </div>
 
         {loading && (
           <div style={{ padding: '40px 0', textAlign: 'center', color: '#6b6560', fontSize: 13 }}>

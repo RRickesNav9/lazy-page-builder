@@ -136,7 +136,26 @@ export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly
 
   return (
     <>
-      {/* FAB */}
+      {/* FAB — Exportar PDF (window.print) */}
+      <button
+        onClick={() => window.print()}
+        data-pdf-exclude="true"
+        title="Exportar PDF"
+        style={{
+          position: 'fixed', bottom: 84, right: 24, zIndex: 1000,
+          width: 48, height: 48, borderRadius: '50%',
+          background: '#2d7a2d', color: '#fff',
+          border: 'none', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+        }}
+      >
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a1 1 0 001 1h16a1 1 0 001-1v-3M7 7V4a1 1 0 011-1h8a1 1 0 011 1v3" />
+        </svg>
+      </button>
+
+      {/* FAB — Filtros */}
       <button
         onClick={() => setOpen(o => !o)}
         data-pdf-exclude="true"
@@ -169,7 +188,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly
       {/* Painel slide-up */}
       {open && (
         <div ref={panelRef} data-pdf-exclude="true" style={{
-          position: 'fixed', bottom: 84, right: 24, zIndex: 999,
+          position: 'fixed', bottom: 144, right: 24, zIndex: 999,
           width: 320, maxHeight: '80vh', overflowY: 'auto',
           background: '#fff', border: '1px solid #e0dbd4', borderRadius: 12,
           boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: 20,
