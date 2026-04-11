@@ -1,7 +1,7 @@
 // pdfExport.js
 // Renderiza conteúdo em container virtual de 794px (= A4 @ 96 dpi) antes de capturar.
 // Isso garante que texto de 14px de tela ≈ 9pt no PDF — legível sem compressão excessiva.
-// html2canvas scale=3 para alta resolução. jsPDF com cabeçalho e rodapé vetoriais.
+// html2canvas scale=4 para alta resolução. jsPDF com cabeçalho e rodapé vetoriais.
 
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
@@ -18,7 +18,7 @@ const CONTENT_W = A4_W - 2 * MARGIN            // 180 mm
 const CONTENT_H = A4_H - 2 * MARGIN - HDR - FTR  // 237 mm
 
 // Largura de captura = A4 @ 96dpi — garante escala 1:1 com o papel
-// 14px de tela × 3 (scale) / (794×3/180) px·mm⁻¹ ≈ 3,17 mm ≈ 9pt (legível)
+// 14px de tela × 4 (scale) / (794×4/180) px·mm⁻¹ ≈ 3,17 mm ≈ 9pt (legível)
 const PDF_PX_W = Math.round((A4_W / 25.4) * 96)  // 794 px
 
 // ─── PALETA FIXA ─────────────────────────────────────────────────────────────
@@ -155,28 +155,32 @@ export async function exportToPDF(element, options = {}) {
   wrapper.appendChild(clone)
   document.body.appendChild(wrapper)
 
-  // Aguarda o navegador recalcular o layout do clone
+  // Aguarda o navegador recalcular o layout do clone — 3× rAF + 200ms para elementos complexos
   await new Promise(r => requestAnimationFrame(r))
   await new Promise(r => requestAnimationFrame(r))
-  await new Promise(r => setTimeout(r, 80))
+  await new Promise(r => requestAnimationFrame(r))
+  await new Promise(r => setTimeout(r, 200))
 
-  // Remove overflow restritivo de elementos no clone — garante captura de tabelas e gráficos completos
+  // Normaliza elementos no clone para captura correta:
+  // - overflow restritivo truncaria tabelas e gráficos
+  // - position: fixed/sticky no clone renderiza no viewport, não no contexto do clone
   for (const el of clone.querySelectorAll('*')) {
     const cs = window.getComputedStyle(el)
     if (cs.overflowX === 'auto' || cs.overflowX === 'scroll') el.style.overflowX = 'visible'
+    if (cs.position === 'fixed' || cs.position === 'sticky') el.style.position = 'relative'
   }
 
   let canvas, breaks
 
   try {
-    // 3 — Captura de alta resolução (scale=3 ≈ 288dpi no A4)
+    // 3 — Captura de alta resolução (scale=4 ≈ 384dpi no A4)
     canvas = await html2canvas(clone, {
-      scale:           3,
+      scale:           4,
       useCORS:         true,
       allowTaint:      false,
       logging:         false,
       backgroundColor: '#ffffff',
-      windowWidth:     PDF_PX_W,
+      windowWidth:     clone.scrollWidth,
       width:           clone.scrollWidth,
       height:          clone.scrollHeight,
     })
@@ -184,7 +188,7 @@ export async function exportToPDF(element, options = {}) {
     // 4 — Calcula quebras de página enquanto o clone ainda está no DOM
     const pxPerMm = canvas.width / CONTENT_W
     const idealPx = CONTENT_H * pxPerMm
-    breaks = findBreakPoints(clone, idealPx, 3, canvas.height)
+    breaks = findBreakPoints(clone, idealPx, 4, canvas.height)
   } finally {
     // Remove o clone (sucesso ou falha)
     document.body.removeChild(wrapper)
@@ -218,7 +222,7 @@ export async function exportToPDF(element, options = {}) {
     ctx.fillRect(0, 0, slice.width, slice.height)
     ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH)
 
-    const imgData  = slice.toDataURL('image/jpeg', 0.93)
+    const imgData  = slice.toDataURL('image/jpeg', 0.95)
     const sliceHMm = srcH / pxPerMm
     pdf.addImage(imgData, 'JPEG', MARGIN, MARGIN + HDR, CONTENT_W, sliceHMm, `s${pg}`)
   }
