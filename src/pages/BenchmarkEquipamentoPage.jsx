@@ -657,41 +657,8 @@ export default function BenchmarkEquipamentoPage() {
   const { stats: statsA } = useModeloStats({ ...modeloStatsFilters, ...(modeloA && { modelo_equipamento: modeloA }) })
   const { stats: statsB } = useModeloStats({ ...modeloStatsFilters, ...(modeloB && { modelo_equipamento: modeloB }) })
 
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const headerExtraFields = useMemo(() => {
-    if (activeTab === 'maquina-modelo') {
-      const equipLabel = maqInfo1
-        ? `${maqInfo1.equipamento_cod} — ${maqInfo1.equipamento}`
-        : '—'
-      return [
-        { label: 'Equipamento', value: equipLabel },
-        { label: 'Modelo',      value: maqInfo1?.modelo || '—' },
-      ]
-    }
-    if (activeTab === 'equip-equip') {
-      const labelA = maqInfoA ? `${maqInfoA.equipamento_cod} — ${maqInfoA.equipamento}` : '—'
-      const labelB = maqInfoB ? `${maqInfoB.equipamento_cod} — ${maqInfoB.equipamento}` : '—'
-      return [
-        { label: 'Equip. A', value: labelA },
-        { label: 'Equip. B', value: labelB },
-      ]
-    }
-    // modelo-modelo
-    return [
-      { label: 'Modelo A', value: modeloA || '—' },
-      { label: 'Modelo B', value: modeloB || '—' },
-    ]
-  }, [activeTab, maqInfo1, maqInfoA, maqInfoB, modeloA, modeloB])
-
   return (
     <div style={{ padding: '24px', maxWidth: 1280, margin: '0 auto' }}>
-      <DynamicHeader
-        processo={processoFiltro}
-        tipoSafra={filters.tipo_safra}
-        safra={currentSafra}
-        extraFields={headerExtraFields}
-      />
       <TabControl tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
       {/* ── TAB 1: MÁQUINA VS. MODELO ──────────────────────────────────────── */}
@@ -705,6 +672,16 @@ export default function BenchmarkEquipamentoPage() {
               equipamentos={equipamentos}
             />
           </SectionCard>
+
+          <DynamicHeader
+            processo={processoFiltro}
+            tipoSafra={filters.tipo_safra}
+            safra={currentSafra}
+            extraFields={[
+              { label: 'Equipamento', value: maqInfo1 ? `${maqInfo1.equipamento_cod} — ${maqInfo1.equipamento}` : '—' },
+              { label: 'Modelo',      value: maqInfo1?.modelo || '—' },
+            ]}
+          />
 
           {tab1Cod && (
             <SectionCard
@@ -784,6 +761,16 @@ export default function BenchmarkEquipamentoPage() {
             </SectionCard>
           </div>
 
+          <DynamicHeader
+            processo={processoFiltro}
+            tipoSafra={filters.tipo_safra}
+            safra={currentSafra}
+            extraFields={[
+              { label: 'Equip. A', value: maqInfoA ? `${maqInfoA.equipamento_cod} — ${maqInfoA.equipamento}` : '—' },
+              { label: 'Equip. B', value: maqInfoB ? `${maqInfoB.equipamento_cod} — ${maqInfoB.equipamento}` : '—' },
+            ]}
+          />
+
           {(sideA.cod || sideB.cod) && (
             <SectionCard
               title="Comparativo de Métricas"
@@ -827,6 +814,16 @@ export default function BenchmarkEquipamentoPage() {
               <div style={{ marginTop: 10, fontSize: 12, color: '#6b6560' }}>Carregando modelos...</div>
             )}
           </SectionCard>
+
+          <DynamicHeader
+            processo={processoFiltro}
+            tipoSafra={filters.tipo_safra}
+            safra={currentSafra}
+            extraFields={[
+              { label: 'Modelo A', value: modeloA || '—' },
+              { label: 'Modelo B', value: modeloB || '—' },
+            ]}
+          />
 
           {(modeloA || modeloB) && (
             <SectionCard
