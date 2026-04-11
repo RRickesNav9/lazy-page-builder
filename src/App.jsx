@@ -85,7 +85,7 @@ function AppInner() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <img 
-            src="/src/assets/logo-porteira.png" 
+            src="/src/assets/logo-porteira.svg" 
             alt="Porteira Adentro"
             style={{ height: '48px', width: 'auto' }}
           />
