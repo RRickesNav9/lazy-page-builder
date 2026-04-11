@@ -83,8 +83,12 @@ function AppInner() {
         background: '#2d4a2d', padding: '12px 24px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <div>
-          <div style={{ color: '#fff', fontSize: 15, fontWeight: 600 }}>PORTEIRA ADENTRO</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <img 
+            src="/src/assets/logo-porteira.svg" 
+            alt="Porteira Adentro"
+            style={{ height: '48px', width: 'auto' }}
+          />
           <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>Relatório de Operações Agrícolas</div>
         </div>
       </header>
