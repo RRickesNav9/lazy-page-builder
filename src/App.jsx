@@ -4,7 +4,6 @@ import GlobalFilterFAB from './components/GlobalFilterFAB'
 import AnaliseGeralPage from './pages/AnaliseGeralPage'
 import BenchmarkClientePage from './pages/BenchmarkClientePage'
 import BenchmarkEquipamentoPage from './pages/BenchmarkEquipamentoPage'
-import logoPorteira from './assets/logo-porteira-adentro.png'
 
 const NAV = [
   { id: 'analise',         label: 'Análise Geral' },
@@ -74,16 +73,9 @@ function AppInner() {
         background: '#2d4a2d', padding: '12px 24px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <img 
-            src={logoPorteira} 
-            alt="Porteira Adentro" 
-            style={{ height: 48, width: 'auto' }}
-          />
-          <div>
-            <div style={{ color: '#ffffff', fontWeight: 600, fontSize: 15 }}>PORTEIRA ADENTRO</div>
-            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>Relatório de Operações Agrícolas</div>
-          </div>
+        <div>
+          <div style={{ color: '#fff', fontSize: 15, fontWeight: 600 }}>PORTEIRA ADENTRO</div>
+          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>Relatório de Operações Agrícolas</div>
         </div>
       </header>
 
