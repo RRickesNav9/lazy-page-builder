@@ -307,11 +307,8 @@ function GroupRow({ node, path, expanded, onToggle, cols }) {
           </div>
         </td>
         {cols.map(col => (
-          <td key={col.key} style={{ padding: '8px 14px', textAlign: 'right', fontSize: col._isRef ? 11 : 13, color: col._isRef ? '#8a9a85' : '#1a1a1a', whiteSpace: 'nowrap' }}>
-            {col._isRef
-              ? <span style={{ fontStyle: 'italic' }}>({col.fmt(col._refVal)})</span>
-              : node.agg ? col.fmt(node.agg[col.key] ?? 0) : '—'
-            }
+          <td key={col.key} style={{ padding: '8px 14px', textAlign: 'right', fontSize: 13, color: '#1a1a1a', whiteSpace: 'nowrap' }}>
+            {node.agg ? col.fmt(node.agg[col.key] ?? 0) : '—'}
           </td>
         ))}
       </tr>
@@ -393,19 +390,6 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
     ...SELECTABLE_METRICS.filter(m => metricCols.includes(m.key)),
   ]
 
-  // Interleave ref columns for average metrics when "Comparar com grupo" is active
-  const displayCols = useMemo(() => {
-    if (!showGroupAvg || !grupoRow) return activeCols
-    const cols = []
-    for (const col of activeCols) {
-      cols.push(col)
-      const refVal = grupoRow[col.key + '_grupo']
-      if (AVG_GROUP_KEYS.has(col.key) && refVal != null) {
-        cols.push({ key: col.key + '__ref', label: 'Ref. Grupo', fmt: col.fmt, _isRef: true, _refVal: refVal })
-      }
-    }
-    return cols
-  }, [activeCols, showGroupAvg, grupoRow])
 
   const dimLabel = activeDims.map(k => DIMS.find(d => d.key === k)?.label ?? k).join(' + ')
   const metLabel = metricCols.length
@@ -515,14 +499,31 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
               <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b6560', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 {dimLabel}
               </th>
-              {displayCols.map(col => (
-                <th key={col.key} style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: col._isRef ? 400 : 600, color: col._isRef ? '#8a9a85' : '#6b6560', textTransform: col._isRef ? 'none' : 'uppercase', letterSpacing: col._isRef ? 'normal' : '0.06em', whiteSpace: 'nowrap' }}>
-                  {col._isRef ? <span style={{ fontStyle: 'italic' }}>Ref. Grupo</span> : col.label}
+              {activeCols.map(col => (
+                <th key={col.key} style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#6b6560', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                  {col.label}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
+            {/* Linha "Média do grupo" — visível só quando toggle ativo e benchmark disponível */}
+            {showGroupAvg && grupoRow && (
+              <tr style={{ borderBottom: '1px dashed #b8d4b8', background: '#f0f7ee' }}>
+                <td style={{ padding: '7px 12px', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 11, color: '#4a6741', fontStyle: 'italic', fontWeight: 500 }}>
+                    Média do grupo
+                  </span>
+                </td>
+                {activeCols.map(col => (
+                  <td key={col.key} style={{ padding: '7px 14px', textAlign: 'right', fontSize: 11, color: '#4a6741', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
+                    {AVG_GROUP_KEYS.has(col.key) && grupoRow[col.key + '_grupo'] != null
+                      ? col.fmt(grupoRow[col.key + '_grupo'])
+                      : '—'}
+                  </td>
+                ))}
+              </tr>
+            )}
             {groups.length === 0 ? (
               <tr><td colSpan={activeCols.length + 1} style={{ padding: 24, textAlign: 'center', color: '#6b6560', fontSize: 13 }}>Sem dados.</td></tr>
             ) : (
@@ -533,7 +534,7 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
                   path={node.key}
                   expanded={expanded}
                   onToggle={toggleExpand}
-                  cols={displayCols}
+                  cols={activeCols}
                 />
               ))
             )}
@@ -589,8 +590,9 @@ export default function AnaliseGeralPage() {
   const stopDist = useMemo(() => calcStopDistribution(filteredData), [filteredData])
 
   const mainBenchmark = benchmarks?.[0] ?? null
-  // referência de grupo só ativa quando o toggle "Comparar com grupo" está ligado
+  // referências de grupo só ativas quando o toggle "Comparar com grupo" está ligado
   const benchRend = showGroupAvg ? (mainBenchmark?.rendimento_operacional_hah_grupo ?? null) : null
+  const benchVel  = showGroupAvg ? (mainBenchmark?.velocidade_media_kmh_grupo      ?? null) : null
 
   // Paginação independente por bloco
   const [vis1,  setVis1]  = useState(6) // par 1: área + rendimento
@@ -621,7 +623,7 @@ export default function AnaliseGeralPage() {
   // escalas baseadas no total de equipamentos (não no slice) para barra estável ao expandir
   const maxArea  = useMemo(() => Math.max(...equipRows.map(e => e.area_ha), 1), [equipRows])
   const maxRend  = useMemo(() => Math.max(...equipRows.map(e => e.rendimento_operacional_hah), benchRend ?? 0, 0.1), [equipRows, benchRend])
-  const maxVel   = useMemo(() => Math.max(...equipRows.map(e => e.velocidade_media_kmh), 0.1), [equipRows])
+  const maxVel   = useMemo(() => Math.max(...equipRows.map(e => e.velocidade_media_kmh), benchVel ?? 0, 0.1), [equipRows, benchVel])
   const maxComb  = useMemo(() => Math.max(...equipRows.map(e => e.consumo_medio_lh), 0.1), [equipRows])
   const maxTempo = useMemo(() => Math.max(...equipRows.map(e => e.tempo_produtivo_h), 0.1), [equipRows])
 
@@ -712,8 +714,8 @@ export default function AnaliseGeralPage() {
       {/* ── BLOCO 1: KPIs ────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap' }}>
         <KPICard label="Área Total"        value={fmtHa(agg.area_ha)} />
-        <KPICard label="Rendimento Médio"  value={fmtHah(agg.rendimento_operacional_hah)} sub={benchRend ? `ref: ${fmtHah(benchRend)}` : undefined} />
-        <KPICard label="Velocidade Média"  value={fmtKmh(agg.velocidade_media_kmh)} />
+        <KPICard label="Rendimento Médio"  value={fmtHah(agg.rendimento_operacional_hah)} sub={benchRend ? `Média do grupo = ${fmtHah(benchRend)}` : undefined} />
+        <KPICard label="Velocidade Média"  value={fmtKmh(agg.velocidade_media_kmh)} sub={benchVel ? `Média do grupo = ${fmtKmh(benchVel)}` : undefined} />
         <KPICard label="Eficiência Geral"  value={fmtPct(agg.eficiencia_geral_pct)} />
         <KPICard label="Tempo Efetivo"     value={fmtH(agg.tempo_produtivo_h)} />
       </div>
@@ -736,7 +738,7 @@ export default function AnaliseGeralPage() {
                 <HBar key={e.equip} label={e.label} value={e.area_ha} maxVal={maxArea} barColor="#2d4a2d" displayValue={fmtHa(e.area_ha)} />
               ))}
             </MiniPanel>
-            <MiniPanel title="Rendimento Operacional (ha/h)" subtitle={benchRend ? `ref: ${fmtHah(benchRend)}` : undefined}>
+            <MiniPanel title="Rendimento Operacional (ha/h)" subtitle={benchRend ? `Média do grupo = ${fmtHah(benchRend)}` : undefined}>
               {byRend.slice(0, vis1).map(e => {
                 const st = rendStatus(e.rendimento_operacional_hah, benchRend)
                 return (
@@ -751,12 +753,12 @@ export default function AnaliseGeralPage() {
 
           {/* Par 2: Velocidade + Consumo */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12, marginBottom: 6 }}>
-            <MiniPanel title="Velocidade Média (km/h)">
+            <MiniPanel title="Velocidade Média (km/h)" subtitle={benchVel ? `Média do grupo = ${fmtKmh(benchVel)}` : undefined}>
               {byVel.slice(0, vis2).map(e => (
-                <HBar key={e.equip} label={e.label} value={e.velocidade_media_kmh} maxVal={maxVel} barColor="#4a6741" displayValue={fmtKmh(e.velocidade_media_kmh)} />
+                <HBar key={e.equip} label={e.label} value={e.velocidade_media_kmh} maxVal={maxVel} barColor="#4a6741" displayValue={fmtKmh(e.velocidade_media_kmh)} refLine={!!benchVel} refValue={benchVel} />
               ))}
             </MiniPanel>
-            <MiniPanel title="Consumo Médio (l/h)" subtitle={`↓ menor = melhor — média: ${fmt(agg.consumo_medio_lh, 1, ' l/h')}`}>
+            <MiniPanel title="Consumo Médio (l/h)">
               {byComb.slice(0, vis2).map(e => (
                 <HBar key={e.equip} label={e.label} value={e.consumo_medio_lh} maxVal={maxComb} barColor="#c8960c" displayValue={fmt(e.consumo_medio_lh, 1, ' l/h')} />
               ))}
