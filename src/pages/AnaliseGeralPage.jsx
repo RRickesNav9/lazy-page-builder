@@ -589,8 +589,36 @@ export default function AnaliseGeralPage() {
 
   const n = equipRows.length
 
+  const cliente   = filters.cliente    || ''
+  const processo  = filters.processo   || ''
+  const tipoSafra = filters.tipo_safra || ''
+  const date      = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+
   return (
     <div style={{ padding: '24px', maxWidth: 1280, margin: '0 auto' }}>
+
+      {/* Cabeçalho verde com contexto dos filtros ativos */}
+      <div style={{
+        background: '#2d4a2d', borderRadius: 8,
+        padding: '14px 20px', marginBottom: 20,
+        display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
+      }}>
+        {[
+          { label: 'Cliente',  value: cliente   || 'Todos'            },
+          { label: 'Processo', value: processo  || 'Todos'            },
+          { label: 'Cultura',  value: tipoSafra || 'Não especificado' },
+          { label: 'Data',     value: date                             },
+        ].map(f => (
+          <div key={f.label} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.6)' }}>
+              {f.label}
+            </span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#ffffff' }}>
+              {f.value}
+            </span>
+          </div>
+        ))}
+      </div>
 
       {/* Banner de exclusão ativa */}
       {excludedMotivos.length > 0 && (
