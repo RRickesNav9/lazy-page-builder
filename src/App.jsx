@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import logoPorteira from './assets/logo-porteira.svg'
 import { FilterProvider, useFilters } from './lib/FilterContext'
 import GlobalFilterFAB from './components/GlobalFilterFAB'
 import AnaliseGeralPage from './pages/AnaliseGeralPage'
@@ -85,9 +86,9 @@ function AppInner() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <img 
-            src="/src/assets/logo-porteira.svg" 
+            src={logoPorteira} 
             alt="Porteira Adentro"
-            style={{ height: '48px', width: 'auto' }}
+            style={{ height: '56px', width: 'auto' }}
           />
           <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>Relatório de Operações Agrícolas</div>
         </div>
