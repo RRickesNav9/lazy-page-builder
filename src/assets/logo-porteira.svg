@@ -105,10 +105,8 @@
 
 
 
-  <!-- Linha de Base Marrom (Aumentada para alinhar com as extremidades do texto) -->
+  <!-- Linha de Base Marrom -->
 
-  <!-- A barra agora vai do X=140 até o X=660, cobrindo a largura visual do texto -->
-
-  <path d="M 140 315 L 660 315 L 650 323 L 150 323 Z" fill="#603913" />
+  <path d="M 120 335 L 680 335 L 670 345 L 130 345 Z" fill="#603913" />
 
 </svg>
