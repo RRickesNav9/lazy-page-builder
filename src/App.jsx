@@ -80,6 +80,10 @@ function AppInner() {
             alt="Porteira Adentro" 
             style={{ height: 48, width: 'auto' }}
           />
+          <div>
+            <div style={{ color: '#ffffff', fontWeight: 600, fontSize: 15 }}>PORTEIRA ADENTRO</div>
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>Relatório de Operações Agrícolas</div>
+          </div>
         </div>
       </header>
 
