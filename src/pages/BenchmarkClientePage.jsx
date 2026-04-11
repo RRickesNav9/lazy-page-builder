@@ -359,6 +359,12 @@ export default function BenchmarkClientePage() {
           tipoSafra={tipoSafra}
         />
 
+        {filters.metricFilter?.field && filters.metricFilter?.value !== '' && filters.metricFilter?.value != null && (
+          <div style={{ background: '#edf5ed', border: '1px solid #4a6741', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#1e4d1e' }}>
+            Filtro de métrica ativo nesta safra — os resultados refletem o período e dimensões selecionados.
+          </div>
+        )}
+
         {loading && (
           <div style={{ padding: '40px 0', textAlign: 'center', color: '#6b6560', fontSize: 13 }}>
             Carregando dados...

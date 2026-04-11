@@ -10,6 +10,7 @@ export const DEFAULT_FILTERS = {
   tipo_safra: '',
   excludedMotivos: [],
   showBenchmark: false,
+  metricFilter: { field: '', operator: '>=', value: '' },
 }
 
 function dateRangeForPeriodo(periodo) {
@@ -86,6 +87,7 @@ export function FilterProvider({ children }) {
     if (filters.excludedMotivos.length) count++
     if (filters.showBenchmark)         count++
     if (filters.periodo !== '7dias')   count++
+    if (filters.metricFilter?.field)   count++
     return count
   }, [filters])
 

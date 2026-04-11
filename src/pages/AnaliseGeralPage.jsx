@@ -6,6 +6,19 @@ import {
   fmtHah, fmtHa, fmtKmh, fmtPct, fmtH, fmt,
 } from '../lib/utils'
 
+/* ── Filtro de métrica — labels para o banner ────────────────────────────── */
+
+const METRIC_FILTER_LABELS = {
+  rendimento_operacional_hah: 'Rendimento Op. (ha/h)',
+  eficiencia_geral_pct:       'Eficiência Geral (%)',
+  eficiencia_operacional_pct: 'Eficiência Op. (%)',
+  velocidade_media_kmh:       'Velocidade (km/h)',
+  consumo_medio_efetivo_lha:  'Consumo Ef. (l/ha)',
+  consumo_medio_lh:           'Consumo Médio (l/h)',
+  disponibilidade_mecanica_pct: 'Disponibilidade (%)',
+  area_ha:                    'Área (ha)',
+}
+
 /* ── Constantes da Tabela de Dimensões ────────────────────────────────────── */
 
 const DIMS = [
@@ -294,8 +307,11 @@ function GroupRow({ node, path, expanded, onToggle, cols }) {
           </div>
         </td>
         {cols.map(col => (
-          <td key={col.key} style={{ padding: '8px 14px', textAlign: 'right', fontSize: 13, color: '#1a1a1a', whiteSpace: 'nowrap' }}>
-            {node.agg ? col.fmt(node.agg[col.key] ?? 0) : '—'}
+          <td key={col.key} style={{ padding: '8px 14px', textAlign: 'right', fontSize: col._isRef ? 11 : 13, color: col._isRef ? '#8a9a85' : '#1a1a1a', whiteSpace: 'nowrap' }}>
+            {col._isRef
+              ? <span style={{ fontStyle: 'italic' }}>({col.fmt(col._refVal)})</span>
+              : node.agg ? col.fmt(node.agg[col.key] ?? 0) : '—'
+            }
           </td>
         ))}
       </tr>
@@ -309,16 +325,26 @@ function GroupRow({ node, path, expanded, onToggle, cols }) {
           cols={cols}
         />
       ))}
+
     </>
   )
 }
 
-function DimensionTable({ data }) {
+// Métricas que possuem referência de grupo (taxas — não somas)
+const AVG_GROUP_KEYS = new Set([
+  'rendimento_operacional_hah', 'consumo_medio_efetivo_lha',
+  'velocidade_media_kmh', 'eficiencia_geral_pct',
+  'disponibilidade_mecanica_pct', 'consumo_medio_lh',
+  'rendimento_real_hah', 'eficiencia_operacional_pct',
+])
+
+function DimensionTable({ data, grupoRow }) {
   const [activeDims,    setActiveDims]    = useState(['cliente', 'processo'])
   const [metricCols,    setMetricCols]    = useState(['velocidade_media_kmh', 'eficiencia_geral_pct'])
   const [expanded,      setExpanded]      = useState(new Set())
   const [dimDropOpen,   setDimDropOpen]   = useState(false)
   const [metDropOpen,   setMetDropOpen]   = useState(false)
+  const [showGroupAvg,  setShowGroupAvg]  = useState(false)
   const dimRef = useRef(null)
   const metRef = useRef(null)
 
@@ -367,6 +393,20 @@ function DimensionTable({ data }) {
     ...FIXED_METRICS,
     ...SELECTABLE_METRICS.filter(m => metricCols.includes(m.key)),
   ]
+
+  // Interleave ref columns for average metrics when "Comparar com grupo" is active
+  const displayCols = useMemo(() => {
+    if (!showGroupAvg || !grupoRow) return activeCols
+    const cols = []
+    for (const col of activeCols) {
+      cols.push(col)
+      const refVal = grupoRow[col.key + '_grupo']
+      if (AVG_GROUP_KEYS.has(col.key) && refVal != null) {
+        cols.push({ key: col.key + '__ref', label: 'Ref. Grupo', fmt: col.fmt, _isRef: true, _refVal: refVal })
+      }
+    }
+    return cols
+  }, [activeCols, showGroupAvg, grupoRow])
 
   const dimLabel = activeDims.map(k => DIMS.find(d => d.key === k)?.label ?? k).join(' + ')
   const metLabel = metricCols.length
@@ -425,6 +465,19 @@ function DimensionTable({ data }) {
           )}
         </div>
 
+        {/* Toggle Comparar com grupo */}
+        {grupoRow && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none', padding: '6px 10px', border: '1px solid #d4cfc9', borderRadius: 6, background: showGroupAvg ? '#edf5ed' : '#fff' }}>
+            <input
+              type="checkbox"
+              checked={showGroupAvg}
+              onChange={e => setShowGroupAvg(e.target.checked)}
+              style={{ accentColor: '#2d4a2d', cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: 12, color: showGroupAvg ? '#1e4d1e' : '#4a3728', fontWeight: showGroupAvg ? 600 : 400 }}>Comparar com grupo</span>
+          </label>
+        )}
+
         {/* Seletor de métricas adicionais */}
         <div ref={metRef} style={{ position: 'relative' }}>
           <button
@@ -476,9 +529,9 @@ function DimensionTable({ data }) {
               <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b6560', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 {dimLabel}
               </th>
-              {activeCols.map(col => (
-                <th key={col.key} style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#6b6560', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
-                  {col.label}
+              {displayCols.map(col => (
+                <th key={col.key} style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: col._isRef ? 400 : 600, color: col._isRef ? '#8a9a85' : '#6b6560', textTransform: col._isRef ? 'none' : 'uppercase', letterSpacing: col._isRef ? 'normal' : '0.06em', whiteSpace: 'nowrap' }}>
+                  {col._isRef ? <span style={{ fontStyle: 'italic' }}>Ref. Grupo</span> : col.label}
                 </th>
               ))}
             </tr>
@@ -494,7 +547,7 @@ function DimensionTable({ data }) {
                   path={node.key}
                   expanded={expanded}
                   onToggle={toggleExpand}
-                  cols={activeCols}
+                  cols={displayCols}
                 />
               ))
             )}
@@ -509,7 +562,7 @@ function DimensionTable({ data }) {
 
 export default function AnaliseGeralPage() {
   const { filters, queryFilters, currentSafra } = useFilters()
-  const { excludedMotivos } = filters
+  const { excludedMotivos, metricFilter } = filters
 
   const { data: raw, loading } = useOperationalData(queryFilters)
   const { data: stopRows }     = useStopData(queryFilters)
@@ -520,9 +573,34 @@ export default function AnaliseGeralPage() {
   })
 
   const data = useMemo(() => applyStopExclusions(raw, stopRows, excludedMotivos), [raw, stopRows, excludedMotivos])
-  const agg      = useMemo(() => aggregateRows(data), [data])
-  const timeDist = useMemo(() => calcTimeDistribution(data), [data])
-  const stopDist = useMemo(() => calcStopDistribution(data), [data])
+
+  // Filtro de métrica: mantém apenas sessões de equipamentos cuja média agregada passa o limiar
+  const filteredData = useMemo(() => {
+    const { field, operator, value } = metricFilter ?? {}
+    if (!field || value === '' || value == null) return data
+    const num = parseFloat(value)
+    if (isNaN(num)) return data
+    const byEquip = new Map()
+    for (const r of data) {
+      if ((parseFloat(r.area_ha) || 0) <= 0) continue
+      const lbl = equipLabel(r)
+      if (!byEquip.has(lbl)) byEquip.set(lbl, [])
+      byEquip.get(lbl).push(r)
+    }
+    const passingLabels = new Set()
+    for (const [lbl, rows] of byEquip) {
+      const eq = aggregateRows(rows)
+      if (!eq) continue
+      const v = eq[field] ?? 0
+      const passes = operator === '>=' ? v >= num : operator === '<=' ? v <= num : Math.abs(v - num) < 0.001
+      if (passes) passingLabels.add(lbl)
+    }
+    return data.filter(r => passingLabels.has(equipLabel(r)))
+  }, [data, metricFilter])
+
+  const agg      = useMemo(() => aggregateRows(filteredData), [filteredData])
+  const timeDist = useMemo(() => calcTimeDistribution(filteredData), [filteredData])
+  const stopDist = useMemo(() => calcStopDistribution(filteredData), [filteredData])
 
   const mainBenchmark = benchmarks?.[0] ?? null
   const benchRend     = mainBenchmark?.rendimento_operacional_hah_grupo ?? null
@@ -534,13 +612,13 @@ export default function AnaliseGeralPage() {
   const [visOp, setVisOp] = useState(6) // operadores
 
   const equipRows = useMemo(() => {
-    return Object.entries(groupBy(data.filter(r => (parseFloat(r.area_ha) || 0) > 0), 'equipamento'))
+    return Object.entries(groupBy(filteredData.filter(r => (parseFloat(r.area_ha) || 0) > 0), 'equipamento'))
       .map(([equip, rows]) => ({
         equip,
         label: equipLabel(rows[0] ?? {}),
         ...aggregateRows(rows),
       }))
-  }, [data])
+  }, [filteredData])
 
   // reset paginação quando os dados mudam
   useEffect(() => { setVis1(6); setVis2(6); setVis3(6); setVisOp(6) }, [data])
@@ -562,7 +640,7 @@ export default function AnaliseGeralPage() {
 
   const operadorRows = useMemo(() => {
     const map = new Map()
-    for (const r of data) {
+    for (const r of filteredData) {
       const nome = r.operador || 'Desconhecido'
       const acc  = map.get(nome) ?? { nome, trabalhando: 0, deslocamento: 0, manobra: 0, parada: 0 }
       acc.trabalhando  += parseFloat(r.tempo_produtivo_h)    || 0
@@ -584,7 +662,7 @@ export default function AnaliseGeralPage() {
           parada_pct:       (o.parada        / total) * 100,
         }
       })
-  }, [data])
+  }, [filteredData])
 
   if (loading) return <div style={{ padding: 64, textAlign: 'center', color: '#6b6560' }}>Carregando...</div>
   if (!agg)    return <div style={{ padding: 64, textAlign: 'center', color: '#6b6560' }}>Nenhum dado para os filtros selecionados.</div>
@@ -637,6 +715,13 @@ export default function AnaliseGeralPage() {
         </div>
       )}
 
+      {/* Banner de filtro de métrica ativo */}
+      {metricFilter?.field && metricFilter?.value !== '' && metricFilter?.value != null && (
+        <div style={{ background: '#edf5ed', border: '1px solid #4a6741', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#1e4d1e' }}>
+          Filtro de métrica: {METRIC_FILTER_LABELS[metricFilter.field] ?? metricFilter.field} {metricFilter.operator} {metricFilter.value} — {equipRows.length} equipamento(s) exibido(s)
+        </div>
+      )}
+
       {/* ── BLOCO 1: KPIs ────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap' }}>
         <KPICard label="Área Total"        value={fmtHa(agg.area_ha)} />
@@ -649,7 +734,7 @@ export default function AnaliseGeralPage() {
       {/* ── BLOCO 2: Tabela de Dimensões ─────────────────────────────────── */}
       <SectionTitle>Análise por Dimensão</SectionTitle>
       <div style={{ marginBottom: 28 }}>
-        <DimensionTable data={data} />
+        <DimensionTable data={filteredData} grupoRow={mainBenchmark} />
       </div>
 
       {/* ── BLOCO 3: Desempenho por Equipamento (3 pares independentes) ──── */}

@@ -11,6 +11,17 @@ const PERIODOS = [
   { value: 'safra',  label: 'Safra' },
 ]
 
+const METRIC_FILTER_OPTIONS = [
+  { value: 'rendimento_operacional_hah', label: 'Rendimento Op. (ha/h)' },
+  { value: 'eficiencia_geral_pct',       label: 'Eficiência Geral (%)' },
+  { value: 'eficiencia_operacional_pct', label: 'Eficiência Op. (%)' },
+  { value: 'velocidade_media_kmh',       label: 'Velocidade (km/h)' },
+  { value: 'consumo_medio_efetivo_lha',  label: 'Consumo Ef. (l/ha)' },
+  { value: 'consumo_medio_lh',           label: 'Consumo Médio (l/h)' },
+  { value: 'disponibilidade_mecanica_pct', label: 'Disponibilidade (%)' },
+  { value: 'area_ha',                    label: 'Área (ha)' },
+]
+
 const TIPO_PARADA_LABEL = {
   MANUTENCAO:      'Manutenção',
   CLIMATICO:       'Climático',
@@ -122,6 +133,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly
       periodo: '7dias', dataInicio: null, dataFim: null,
       cliente: '', propriedade: '', processo: '', tipo_safra: '',
       excludedMotivos: [],
+      metricFilter: { field: '', operator: '>=', value: '' },
     }
     setPending(cleared); applyFilters(cleared); setOpen(false)
   }
@@ -283,6 +295,47 @@ export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly
             placeholder="Todas"
             options={[{ value: '', label: 'Todas' }, ...cascadedOpts.tipos_safra.map(t => ({ value: t, label: t }))]}
           />
+
+          {/* ── Filtro de Métrica ─────────────────────────────────────── */}
+          <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14, marginBottom: 14 }}>
+            <Label>Filtrar por Métrica</Label>
+            <select
+              value={pending.metricFilter?.field ?? ''}
+              onChange={e => setPending(p => ({ ...p, metricFilter: { ...(p.metricFilter ?? {}), field: e.target.value, value: '' } }))}
+              style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, marginBottom: 8, color: '#1a1a1a', background: '#fff' }}
+            >
+              <option value="">Nenhum</option>
+              {METRIC_FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            {pending.metricFilter?.field && (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9', flexShrink: 0 }}>
+                  {['>=', '<=', '='].map(op => (
+                    <button
+                      key={op}
+                      onClick={() => setPending(p => ({ ...p, metricFilter: { ...(p.metricFilter ?? {}), operator: op } }))}
+                      style={{
+                        padding: '6px 10px', fontSize: 12, border: 'none',
+                        background: (pending.metricFilter?.operator ?? '>=') === op ? '#2d4a2d' : '#fff',
+                        color: (pending.metricFilter?.operator ?? '>=') === op ? '#fff' : '#4a3728',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {op}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={pending.metricFilter?.value ?? ''}
+                  onChange={e => setPending(p => ({ ...p, metricFilter: { ...(p.metricFilter ?? {}), value: e.target.value } }))}
+                  placeholder="Valor..."
+                  style={{ flex: 1, padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13 }}
+                />
+              </div>
+            )}
+          </div>
 
           {/* ── Motivos de parada — dropdown com busca ───────────────── */}
           {motivos.length > 0 && (
