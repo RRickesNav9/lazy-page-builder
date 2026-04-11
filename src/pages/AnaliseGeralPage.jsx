@@ -592,7 +592,15 @@ export default function AnaliseGeralPage() {
   const cliente   = filters.cliente    || ''
   const processo  = filters.processo   || ''
   const tipoSafra = filters.tipo_safra || ''
-  const date      = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+  const fmtDate = (iso) => {
+    if (!iso) return ''
+    const [y, m, d] = iso.split('-')
+    return `${d}-${m}-${y}`
+  }
+  const di = queryFilters.dataInicio
+  const df = queryFilters.dataFim
+  const periodo = di === df ? fmtDate(di) : `${fmtDate(di)} até ${fmtDate(df)}`
 
   return (
     <div style={{ padding: '24px', maxWidth: 1280, margin: '0 auto' }}>
@@ -607,7 +615,7 @@ export default function AnaliseGeralPage() {
           { label: 'Cliente',  value: cliente   || 'Todos'            },
           { label: 'Processo', value: processo  || 'Todos'            },
           { label: 'Cultura',  value: tipoSafra || 'Não especificado' },
-          { label: 'Data',     value: date                             },
+          { label: 'Período',  value: periodo                           },
         ].map(f => (
           <div key={f.label} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.6)' }}>
