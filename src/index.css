@@ -66,17 +66,34 @@ body {
 ::-webkit-scrollbar-thumb { background: #e0dbd4; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #c0b8ae; }
 
+/* margin: 0 elimina os cabeçalhos e rodapés injetados pelo browser (data, URL, nº página) */
 @page {
   size: A4 portrait;
-  margin: 12mm 14mm;
+  margin: 0;
 }
+
+/* Visível apenas na impressão — cabeçalho de marca substitui o header nativo do browser */
+.print-only { display: none; }
 
 @media print {
   /* Oculta chrome da aplicação */
-  .no-print { display: none !important; }
+  .no-print  { display: none !important; }
   header, nav { display: none !important; }
 
-  body { background: #fff !important; }
+  /* Cabeçalho de marca */
+  .print-only { display: flex !important; }
+
+  body {
+    background: #fff !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Margens do documento no lugar dos @page margins (agora zerados) */
+  .app-root {
+    padding: 10mm 12mm;
+    box-sizing: border-box;
+  }
 
   /* Força impressão de cores de fundo (cabeçalhos verdes, badges coloridos, etc.) */
   * {

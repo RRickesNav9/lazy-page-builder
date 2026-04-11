@@ -90,7 +90,24 @@ function AppInner() {
   }, [activePage]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div style={{ minHeight: '100vh', background: '#ffffff', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
+    <div className="app-root" style={{ minHeight: '100vh', background: '#ffffff', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
+
+      {/* Cabeçalho de marca — visível apenas no PDF, substitui data/URL do browser */}
+      <div className="print-only" style={{
+        background: '#2d4a2d', padding: '12px 0', marginBottom: 4,
+        justifyContent: 'space-between', alignItems: 'center', color: '#fff',
+      }}>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '0.06em' }}>PORTEIRA ADENTRO</div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 2 }}>
+            Relatório de Operações Agrícolas
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)' }}>
+          {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+        </div>
+      </div>
+
       <header style={{
         background: '#2d4a2d', padding: '12px 24px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
