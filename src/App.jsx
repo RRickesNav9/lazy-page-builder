@@ -4,6 +4,7 @@ import GlobalFilterFAB from './components/GlobalFilterFAB'
 import AnaliseGeralPage from './pages/AnaliseGeralPage'
 import BenchmarkClientePage from './pages/BenchmarkClientePage'
 import BenchmarkEquipamentoPage from './pages/BenchmarkEquipamentoPage'
+import { exportToPDF } from './utils/pdfExport'
 
 const NAV = [
   { id: 'analise',         label: 'Análise Geral' },
@@ -32,13 +33,13 @@ const PAGE_SOLINFTEC = {
 }
 
 
-function Breadcrumb() {
+function Breadcrumb({ onExport, exporting }) {
   const { filters } = useFilters()
   const items = [
-    { label: 'Cliente',     value: filters.cliente    || 'Todos' },
+    { label: 'Cliente',     value: filters.cliente     || 'Todos' },
     { label: 'Propriedade', value: filters.propriedade || 'Todas' },
-    { label: 'Operação',    value: filters.processo    || 'Todas' },
-    { label: 'Cultura',     value: filters.tipo_safra  || 'Todas' },
+    { label: 'Operação',    value: filters.processo     || 'Todas' },
+    { label: 'Cultura',     value: filters.tipo_safra   || 'Todas' },
   ]
 
   return (
@@ -57,23 +58,25 @@ function Breadcrumb() {
         ))}
       </div>
       <button
-        onClick={() => window.print()}
+        onClick={onExport}
+        disabled={exporting}
         style={{
           padding: '4px 12px', fontSize: 11, fontWeight: 500,
-          background: '#2d4a2d', color: '#fff', border: 'none',
-          borderRadius: 4, cursor: 'pointer', letterSpacing: '0.03em',
-          flexShrink: 0,
+          background: exporting ? '#4a6741' : '#2d4a2d', color: '#fff', border: 'none',
+          borderRadius: 4, cursor: exporting ? 'default' : 'pointer', letterSpacing: '0.03em',
+          flexShrink: 0, opacity: exporting ? 0.8 : 1,
         }}
       >
-        ↓ Exportar PDF
+        {exporting ? 'Gerando PDF…' : '↓ Exportar PDF'}
       </button>
     </div>
   )
 }
 
 function AppInner() {
-  const [activePage, setActivePage] = useState('analise')
-  const PageComponent = PAGES[activePage]
+  const [activePage, setActivePage]   = useState('analise')
+  const [exporting, setExporting]     = useState(false)
+  const PageComponent  = PAGES[activePage]
   const { filters, applyFilters } = useFilters()
   const allowedProcessos = PAGE_PROCESSOS[activePage]
   const solinftecOnly    = PAGE_SOLINFTEC[activePage] ?? false
@@ -89,24 +92,25 @@ function AppInner() {
     }
   }, [activePage]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  async function handleExportPDF() {
+    const el = document.getElementById('pdf-content')
+    if (!el || exporting) return
+    setExporting(true)
+    try {
+      await exportToPDF(el, {
+        cliente:   filters.cliente,
+        processo:  filters.processo,
+        tipoSafra: filters.tipo_safra,
+      })
+    } catch (e) {
+      console.error('ERRO: falha ao gerar PDF:', e.message)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="app-root" style={{ minHeight: '100vh', background: '#ffffff', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
-
-      {/* Cabeçalho de marca — visível apenas no PDF, substitui data/URL do browser */}
-      <div className="print-only" style={{
-        background: '#2d4a2d', padding: '12px 0', marginBottom: 4,
-        justifyContent: 'space-between', alignItems: 'center', color: '#fff',
-      }}>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '0.06em' }}>PORTEIRA ADENTRO</div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 2 }}>
-            Relatório de Operações Agrícolas
-          </div>
-        </div>
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)' }}>
-          {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-        </div>
-      </div>
 
       <header style={{
         background: '#2d4a2d', padding: '12px 24px',
@@ -118,7 +122,7 @@ function AppInner() {
         </div>
       </header>
 
-      <Breadcrumb />
+      <Breadcrumb onExport={handleExportPDF} exporting={exporting} />
 
       <nav style={{ borderBottom: '1px solid #e0dbd4', padding: '0 24px', background: '#ffffff', display: 'flex' }}>
         {NAV.map(item => (
@@ -138,7 +142,9 @@ function AppInner() {
         ))}
       </nav>
 
-      <PageComponent />
+      <div id="pdf-content">
+        <PageComponent />
+      </div>
 
       <div className="no-print">
         <GlobalFilterFAB allowedProcessos={allowedProcessos} solinftecOnly={solinftecOnly} />

@@ -5,6 +5,7 @@
 import { useState, useRef } from 'react'
 import { useFilters } from '../lib/FilterContext'
 import { useClienteBenchmark, useGrupoBenchmark } from '../hooks/useData'
+import { exportToPDF } from '../utils/pdfExport'
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
 
@@ -476,14 +477,18 @@ export default function BenchmarkClientePage() {
   const semDados = !loading && !clienteMetricas
 
   const [showConfirmExport, setShowConfirmExport] = useState(false)
+  const [isExporting, setIsExporting]             = useState(false)
 
-  function handleExportConfirm() {
+  async function handleExportConfirm() {
     setShowConfirmExport(false)
-    setShowFABs(false)
-    requestAnimationFrame(() => {
-      window.print()
-      setShowFABs(true)
-    })
+    setIsExporting(true)
+    try {
+      await exportToPDF(contentRef.current, { cliente, processo, tipoSafra })
+    } catch (e) {
+      console.error('ERRO: falha ao gerar PDF:', e.message)
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   return (

@@ -72,39 +72,10 @@ body {
   margin: 0;
 }
 
-/* Visível apenas na impressão — cabeçalho de marca substitui o header nativo do browser */
-.print-only { display: none; }
-
+/* A exportação via html2canvas+jsPDF não usa window.print() — CSS @media print é reserva */
 @media print {
-  /* Oculta chrome da aplicação */
-  .no-print  { display: none !important; }
+  .no-print { display: none !important; }
   header, nav { display: none !important; }
-
-  /* Cabeçalho de marca */
-  .print-only { display: flex !important; }
-
-  body {
-    background: #fff !important;
-    margin: 0;
-    padding: 0;
-  }
-
-  /* Margens do documento no lugar dos @page margins (agora zerados) */
-  .app-root {
-    padding: 10mm 12mm;
-    box-sizing: border-box;
-  }
-
-  /* Força impressão de cores de fundo (cabeçalhos verdes, badges coloridos, etc.) */
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* Remove overflow que oculta conteúdo de tabelas na impressão */
-  div { overflow: visible !important; }
-
-  /* Controle de quebra de página em tabelas */
-  tr { break-inside: avoid; page-break-inside: avoid; }
-  table { break-inside: auto; page-break-inside: auto; }
+  body { background: #fff !important; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 }

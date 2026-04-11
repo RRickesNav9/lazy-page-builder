@@ -659,19 +659,23 @@ export default function BenchmarkEquipamentoPage() {
 
   return (
     <div style={{ padding: '24px', maxWidth: 1280, margin: '0 auto' }}>
-      <TabControl tabs={TABS} active={activeTab} onChange={setActiveTab} />
+      <div data-pdf-exclude="true">
+        <TabControl tabs={TABS} active={activeTab} onChange={setActiveTab} />
+      </div>
 
       {/* ── TAB 1: MÁQUINA VS. MODELO ──────────────────────────────────────── */}
       {activeTab === 'maquina-modelo' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <SectionCard>
-            <MaquinaSelect
-              label="Máquina"
-              value={tab1Cod}
-              onChange={setTab1Cod}
-              equipamentos={equipamentos}
-            />
-          </SectionCard>
+          <div data-pdf-exclude="true">
+            <SectionCard>
+              <MaquinaSelect
+                label="Máquina"
+                value={tab1Cod}
+                onChange={setTab1Cod}
+                equipamentos={equipamentos}
+              />
+            </SectionCard>
+          </div>
 
           <DynamicHeader
             processo={processoFiltro}
@@ -719,7 +723,7 @@ export default function BenchmarkEquipamentoPage() {
       {/* ── TAB 2: EQUIPAMENTO VS. EQUIPAMENTO ─────────────────────────────── */}
       {activeTab === 'equip-equip' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div data-pdf-exclude="true" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <SectionCard title="Equipamento A">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <MaquinaSelect
@@ -805,15 +809,17 @@ export default function BenchmarkEquipamentoPage() {
       {/* ── TAB 3: MODELO VS. MODELO ────────────────────────────────────────── */}
       {activeTab === 'modelo-modelo' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <SectionCard>
-            <div style={{ display: 'flex', gap: 16 }}>
-              <ModeloSelect label="Modelo A" value={modeloA} onChange={setModeloA} modelos={modeloOptions} />
-              <ModeloSelect label="Modelo B" value={modeloB} onChange={setModeloB} modelos={modeloOptions} />
-            </div>
-            {loadingModelos && (
-              <div style={{ marginTop: 10, fontSize: 12, color: '#6b6560' }}>Carregando modelos...</div>
-            )}
-          </SectionCard>
+          <div data-pdf-exclude="true">
+            <SectionCard>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <ModeloSelect label="Modelo A" value={modeloA} onChange={setModeloA} modelos={modeloOptions} />
+                <ModeloSelect label="Modelo B" value={modeloB} onChange={setModeloB} modelos={modeloOptions} />
+              </div>
+              {loadingModelos && (
+                <div style={{ marginTop: 10, fontSize: 12, color: '#6b6560' }}>Carregando modelos...</div>
+              )}
+            </SectionCard>
+          </div>
 
           <DynamicHeader
             processo={processoFiltro}
