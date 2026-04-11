@@ -1,46 +1,114 @@
-<svg viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg">
-  <!-- Porteira Esquerda -->
-  <g id="porteira-left">
-    <!-- Estrutura vertical -->
-    <rect x="120" y="90" width="12" height="200" fill="#5c4033" rx="2"/>
-    <rect x="260" y="90" width="12" height="200" fill="#5c4033" rx="2"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+
+  <!-- Grupo Centralizador das Porteiras -->
+
+  <!-- A largura total das porteiras é de 327px. Para centralizar em 800px, transladamos para X = (800 - 327) / 2 = 236.5 -->
+
+  <g transform="translate(236.5, 110)">
+
     
-    <!-- Travessas horizontais -->
-    <rect x="120" y="100" width="152" height="12" fill="#5c4033" rx="2"/>
-    <rect x="120" y="145" width="152" height="12" fill="#5c4033" rx="2"/>
-    <rect x="120" y="190" width="152" height="12" fill="#5c4033" rx="2"/>
-    <rect x="120" y="235" width="152" height="12" fill="#5c4033" rx="2"/>
-    <rect x="120" y="280" width="152" height="12" fill="#5c4033" rx="2"/>
-    
-    <!-- Diagonais -->
-    <line x1="140" y1="100" x2="250" y2="155" stroke="#5c4033" stroke-width="10" stroke-linecap="round"/>
-    <line x1="170" y1="190" x2="260" y2="240" stroke="#5c4033" stroke-width="10" stroke-linecap="round"/>
+
+    <!-- PORTEIRA DA ESQUERDA -->
+
+    <g fill="#603913">
+
+      <!-- Poste Externo (Esquerda) com Pé apenas para fora (esquerda) -->
+
+      <!-- Inicia reto no X=0 e X=12, mas na base (Y=114 a 120) expande para a esquerda (X=-8) -->
+
+      <path d="M 0 0 L 12 0 L 12 120 L -8 120 L -8 114 L 0 114 Z" />
+
+      
+
+      <!-- Poste Interno (Direita) - Totalmente Reto -->
+
+      <rect x="138" y="0" width="12" height="120" />
+
+      
+
+      <!-- Travessas Horizontais -->
+
+      <rect x="12" y="15" width="126" height="8" />
+
+      <rect x="12" y="38" width="126" height="8" />
+
+      <rect x="12" y="61" width="126" height="8" />
+
+      <rect x="12" y="84" width="126" height="8" />
+
+      <rect x="12" y="107" width="126" height="8" />
+
+      
+
+      <!-- Travessa Diagonal -->
+
+      <path d="M 12 107 L 138 15 L 138 25 L 12 117 Z" />
+
+    </g>
+
+
+
+
+    <!-- PORTEIRA DA DIREITA -->
+
+    <!-- Transladada 177px para a direita em relação à primeira porteira -->
+
+    <g fill="#603913" transform="translate(177, 0)">
+
+      <!-- Poste Interno (Esquerda) - Totalmente Reto -->
+
+      <rect x="0" y="0" width="12" height="120" />
+
+      
+
+      <!-- Poste Externo (Direita) com Pé apenas para fora (direita) -->
+
+      <!-- Inicia reto no X=138 e X=150, mas na base (Y=114 a 120) expande para a direita (X=158) -->
+
+      <path d="M 138 0 L 150 0 L 150 114 L 158 114 L 158 120 L 138 120 Z" />
+
+      
+
+      <!-- Travessas Horizontais -->
+
+      <rect x="12" y="15" width="126" height="8" />
+
+      <rect x="12" y="38" width="126" height="8" />
+
+      <rect x="12" y="61" width="126" height="8" />
+
+      <rect x="12" y="84" width="126" height="8" />
+
+      <rect x="12" y="107" width="126" height="8" />
+
+      
+
+      <!-- Travessa Diagonal -->
+
+      <path d="M 12 15 L 138 107 L 138 117 L 12 25 Z" />
+
+    </g>
+
   </g>
-  
-  <!-- Porteira Direita -->
-  <g id="porteira-right">
-    <!-- Estrutura vertical -->
-    <rect x="328" y="90" width="12" height="200" fill="#5c4033" rx="2"/>
-    <rect x="468" y="90" width="12" height="200" fill="#5c4033" rx="2"/>
-    
-    <!-- Travessas horizontais -->
-    <rect x="328" y="100" width="152" height="12" fill="#5c4033" rx="2"/>
-    <rect x="328" y="145" width="152" height="12" fill="#5c4033" rx="2"/>
-    <rect x="328" y="190" width="152" height="12" fill="#5c4033" rx="2"/>
-    <rect x="328" y="235" width="152" height="12" fill="#5c4033" rx="2"/>
-    <rect x="328" y="280" width="152" height="12" fill="#5c4033" rx="2"/>
-    
-    <!-- Diagonais -->
-    <line x1="348" y1="100" x2="458" y2="155" stroke="#5c4033" stroke-width="10" stroke-linecap="round"/>
-    <line x1="378" y1="190" x2="468" y2="240" stroke="#5c4033" stroke-width="10" stroke-linecap="round"/>
-  </g>
-  
-  <!-- Texto "PORTEIRA ADENTRO" -->
-  <text x="300" y="340" font-family="'Segoe UI', Arial, sans-serif" font-size="48" font-weight="bold" 
-        fill="#1d5016" text-anchor="middle" letter-spacing="2">
+
+
+
+
+  <!-- Texto PORTEIRA ADENTRO -->
+
+  <text x="400" y="300" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="52" fill="#2D523E" text-anchor="middle" letter-spacing="2">
+
     PORTEIRA ADENTRO
+
   </text>
-  
-  <!-- Linha decorativa abaixo -->
-  <line x1="150" y1="365" x2="450" y2="365" stroke="#5c4033" stroke-width="8" stroke-linecap="round"/>
+
+
+
+
+  <!-- Linha de Base Marrom (Aumentada para alinhar com as extremidades do texto) -->
+
+  <!-- A barra agora vai do X=140 até o X=660, cobrindo a largura visual do texto -->
+
+  <path d="M 140 315 L 660 315 L 650 323 L 150 323 Z" fill="#603913" />
+
 </svg>
