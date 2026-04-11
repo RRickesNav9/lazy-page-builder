@@ -27,15 +27,23 @@ const TIPO_PARADA_COLOR = {
 }
 
 export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly = false }) {
-  const { filters, applyFilters, activeCount, showFABs } = useFilters()
+  const { filters, applyFilters, activeCount } = useFilters()
   const { rawRows } = useFilterOptionsRaw(solinftecOnly)
   const motivos     = useStopMotivos()
 
+  const [expanded,     setExpanded]     = useState(false)
   const [open,         setOpen]         = useState(false)
   const [pending,      setPending]      = useState(filters)
   const [motivosOpen,  setMotivosOpen]  = useState(false)
   const [motivoSearch, setMotivoSearch] = useState('')
   const panelRef = useRef(null)
+
+  function toggleExpanded() {
+    setExpanded(e => {
+      if (e) setOpen(false) // fecha painel ao colapsar
+      return !e
+    })
+  }
 
   // Linhas restritas ao escopo da página (null = irrestrito)
   const pageRows = useMemo(() => {
@@ -113,7 +121,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly
     const cleared = {
       periodo: '7dias', dataInicio: null, dataFim: null,
       cliente: '', propriedade: '', processo: '', tipo_safra: '',
-      excludedMotivos: [], showBenchmark: false,
+      excludedMotivos: [],
     }
     setPending(cleared); applyFilters(cleared); setOpen(false)
   }
@@ -132,63 +140,78 @@ export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly
 
   const nExcluded = pending.excludedMotivos.length
 
-  if (!showFABs) return null
+  const fabBase = {
+    position: 'fixed', right: 24, zIndex: 1000,
+    width: 48, height: 48, borderRadius: '50%',
+    border: 'none', cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+  }
 
   return (
     <>
-      {/* FAB — Exportar PDF (window.print) */}
+      {/* FAB — Chevron toggle (sempre visível) */}
       <button
-        onClick={() => window.print()}
+        onClick={toggleExpanded}
         data-pdf-exclude="true"
-        title="Exportar PDF"
-        style={{
-          position: 'fixed', bottom: 84, right: 24, zIndex: 1000,
-          width: 48, height: 48, borderRadius: '50%',
-          background: '#2d7a2d', color: '#fff',
-          border: 'none', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-        }}
+        title={expanded ? 'Ocultar botões' : 'Mostrar botões'}
+        style={{ ...fabBase, bottom: 24, background: '#8a9a85', color: '#fff' }}
       >
-        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a1 1 0 001 1h16a1 1 0 001-1v-3M7 7V4a1 1 0 011-1h8a1 1 0 011 1v3" />
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+          {expanded
+            ? <path strokeLinecap="round" strokeLinejoin="round" d="M19 15l-7-7-7 7" />
+            : <path strokeLinecap="round" strokeLinejoin="round" d="M5 9l7 7 7-7" />
+          }
         </svg>
       </button>
 
-      {/* FAB — Filtros */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        data-pdf-exclude="true"
-        style={{
-          position: 'fixed', bottom: 24, right: 24, zIndex: 1000,
-          width: 48, height: 48, borderRadius: '50%',
-          background: activeCount > 0 ? '#2d4a2d' : '#4a6741',
-          color: '#fff', border: 'none', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-        }}
-        title="Filtros"
-      >
-        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
-        </svg>
-        {activeCount > 0 && (
-          <span style={{
-            position: 'absolute', top: -4, right: -4,
-            width: 18, height: 18, borderRadius: '50%',
-            background: '#d97706', color: '#fff',
-            fontSize: 10, fontWeight: 700,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            {activeCount}
-          </span>
-        )}
-      </button>
+      {/* FAB — Filtros (visível quando expandido) */}
+      {expanded && (
+        <button
+          onClick={() => setOpen(o => !o)}
+          data-pdf-exclude="true"
+          style={{
+            ...fabBase, bottom: 84,
+            background: activeCount > 0 ? '#2d4a2d' : '#4a6741',
+            color: '#fff',
+          }}
+          title="Filtros"
+        >
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+          </svg>
+          {activeCount > 0 && (
+            <span style={{
+              position: 'absolute', top: -4, right: -4,
+              width: 18, height: 18, borderRadius: '50%',
+              background: '#d97706', color: '#fff',
+              fontSize: 10, fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {activeCount}
+            </span>
+          )}
+        </button>
+      )}
 
-      {/* Painel slide-up */}
-      {open && (
+      {/* FAB — Exportar PDF (visível quando expandido) */}
+      {expanded && (
+        <button
+          onClick={() => window.print()}
+          data-pdf-exclude="true"
+          title="Exportar PDF"
+          style={{ ...fabBase, bottom: 144, background: '#2d5016', color: '#fff' }}
+        >
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a1 1 0 001 1h16a1 1 0 001-1v-3M7 7V4a1 1 0 011-1h8a1 1 0 011 1v3" />
+          </svg>
+        </button>
+      )}
+
+      {/* Painel de filtros */}
+      {open && expanded && (
         <div ref={panelRef} data-pdf-exclude="true" style={{
-          position: 'fixed', bottom: 144, right: 24, zIndex: 999,
+          position: 'fixed', bottom: 204, right: 24, zIndex: 999,
           width: 320, maxHeight: '80vh', overflowY: 'auto',
           background: '#fff', border: '1px solid #e0dbd4', borderRadius: 12,
           boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: 20,
@@ -228,12 +251,6 @@ export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly
             </div>
           )}
 
-          {pending.showBenchmark && pending.periodo === 'custom' && (
-            <div style={{ fontSize: 11, color: '#6b6560', marginBottom: 10, fontStyle: 'italic' }}>
-              Benchmark exibe média da safra que contém o período selecionado.
-            </div>
-          )}
-
           {/* ── Dimensões ────────────────────────────────────────────── */}
           <Label>Cliente</Label>
           <SearchableSelect
@@ -266,12 +283,6 @@ export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly
             placeholder="Todas"
             options={[{ value: '', label: 'Todas' }, ...cascadedOpts.tipos_safra.map(t => ({ value: t, label: t }))]}
           />
-
-          {/* ── Benchmark toggle ─────────────────────────────────────── */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '10px 0 14px' }}>
-            <span style={{ fontSize: 13, color: '#1a1a1a' }}>Exibir Média Porteira</span>
-            <Toggle checked={pending.showBenchmark} onChange={v => set('showBenchmark', v)} />
-          </div>
 
           {/* ── Motivos de parada — dropdown com busca ───────────────── */}
           {motivos.length > 0 && (

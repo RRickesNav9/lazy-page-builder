@@ -128,13 +128,13 @@ function HBar({ label, value, maxVal, barColor, displayValue, refLine, refValue 
 
 function MiniPanel({ title, subtitle, children, footer }) {
   return (
-    <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, padding: '14px 16px', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#4a3728', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{title}</div>
-        {subtitle && <span style={{ fontSize: 11, color: '#6b6560' }}>{subtitle}</span>}
+    <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ background: '#2d5016', padding: '10px 16px', display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{title}</div>
+        {subtitle && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>{subtitle}</span>}
       </div>
-      <div style={{ flex: 1 }}>{children}</div>
-      {footer}
+      <div style={{ flex: 1, padding: '12px 16px' }}>{children}</div>
+      {footer && <div style={{ padding: '0 16px 12px' }}>{footer}</div>}
     </div>
   )
 }
@@ -207,10 +207,11 @@ function MotivosParadaPanel({ stopRows }) {
   const canReduce = visible > 6
 
   return (
-    <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, padding: '14px 16px' }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: '#4a3728', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
+    <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, overflow: 'hidden' }}>
+      <div style={{ background: '#2d5016', padding: '10px 16px', fontSize: 12, fontWeight: 600, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
         Motivos de Parada
       </div>
+      <div style={{ padding: '12px 16px' }}>
       {motivoRows.length === 0 ? (
         <div style={{ fontSize: 12, color: '#6b6560', padding: '12px 0' }}>Sem dados de parada.</div>
       ) : (
@@ -254,6 +255,7 @@ function MotivosParadaPanel({ stopRows }) {
           </div>
         </>
       )}
+      </div>
     </div>
   )
 }
@@ -507,7 +509,7 @@ function DimensionTable({ data }) {
 
 export default function AnaliseGeralPage() {
   const { filters, queryFilters, currentSafra } = useFilters()
-  const { excludedMotivos, showBenchmark } = filters
+  const { excludedMotivos } = filters
 
   const { data: raw, loading } = useOperationalData(queryFilters)
   const { data: stopRows }     = useStopData(queryFilters)
@@ -522,7 +524,7 @@ export default function AnaliseGeralPage() {
   const timeDist = useMemo(() => calcTimeDistribution(data), [data])
   const stopDist = useMemo(() => calcStopDistribution(data), [data])
 
-  const mainBenchmark = showBenchmark ? (benchmarks?.[0] ?? null) : null
+  const mainBenchmark = benchmarks?.[0] ?? null
   const benchRend     = mainBenchmark?.rendimento_operacional_hah_grupo ?? null
 
   // Paginação independente por bloco
@@ -697,11 +699,11 @@ export default function AnaliseGeralPage() {
                 <HBar key={e.equip} label={e.label} value={e.tempo_produtivo_h} maxVal={maxTempo} barColor="#2d4a2d" displayValue={fmtH(e.tempo_produtivo_h)} />
               ))}
             </MiniPanel>
-            <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, padding: '14px 16px' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#4a3728', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
+            <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, overflow: 'hidden' }}>
+              <div style={{ background: '#2d5016', padding: '10px 16px', fontSize: 12, fontWeight: 600, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Disponibilidade Mecânica (%)
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+              <div style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
                 {byDisp.slice(0, vis3).map(e => {
                   const st = dispStatus(e.disponibilidade_mecanica_pct)
                   const sc = STATUS_COLORS[st]
@@ -725,45 +727,47 @@ export default function AnaliseGeralPage() {
       <SectionTitle>Eficiência e Disponibilidade Mecânica</SectionTitle>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28, alignItems: 'start' }}>
 
-        <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, padding: '14px 16px' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#4a3728', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
+        <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, overflow: 'hidden' }}>
+          <div style={{ background: '#2d5016', padding: '10px 16px', fontSize: 12, fontWeight: 600, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Distribuição do Tempo
           </div>
-          {/* Legenda com totais de horas por estado */}
-          <div style={{ display: 'flex', gap: 14, marginBottom: 8, flexWrap: 'wrap' }}>
-            {timeDist.map(d => (
-              <div key={d.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <div style={{ width: 10, height: 10, background: d.color, borderRadius: 2, flexShrink: 0 }} />
-                <span style={{ fontSize: 11, color: '#6b6560' }}>{d.label}</span>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#1a1a1a' }}>{fmtH(d.value)}</span>
-              </div>
-            ))}
-          </div>
-          {/* Barra global */}
-          <StackedBar segments={timeDist.map(d => ({ pct: d.pct, color: d.color }))} height={28} />
-          {/* Por operador */}
-          <div style={{ marginTop: 12 }}>
-            {operadorRows.slice(0, visOp).map(op => (
-              <div key={op.nome} style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
-                <div style={{ width: 100, fontSize: 12, color: '#1a1a1a', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {op.nome}
+          <div style={{ padding: '12px 16px' }}>
+            {/* Legenda com totais de horas por estado */}
+            <div style={{ display: 'flex', gap: 14, marginBottom: 8, flexWrap: 'wrap' }}>
+              {timeDist.map(d => (
+                <div key={d.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ width: 10, height: 10, background: d.color, borderRadius: 2, flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, color: '#6b6560' }}>{d.label}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#1a1a1a' }}>{fmtH(d.value)}</span>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <StackedBar segments={[
-                    { pct: op.trabalhando_pct,  color: '#2d4a2d' },
-                    { pct: op.deslocamento_pct, color: '#c8960c' },
-                    { pct: op.manobra_pct,      color: '#7a5c00' },
-                    { pct: op.parada_pct,        color: '#8b2020' },
-                  ]} height={16} showLabels={false} />
+              ))}
+            </div>
+            {/* Barra global */}
+            <StackedBar segments={timeDist.map(d => ({ pct: d.pct, color: d.color }))} height={28} />
+            {/* Por operador */}
+            <div style={{ marginTop: 12 }}>
+              {operadorRows.slice(0, visOp).map(op => (
+                <div key={op.nome} style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+                  <div style={{ width: 100, fontSize: 12, color: '#1a1a1a', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {op.nome}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <StackedBar segments={[
+                      { pct: op.trabalhando_pct,  color: '#2d4a2d' },
+                      { pct: op.deslocamento_pct, color: '#c8960c' },
+                      { pct: op.manobra_pct,      color: '#7a5c00' },
+                      { pct: op.parada_pct,        color: '#8b2020' },
+                    ]} height={16} showLabels={false} />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            <ShowMoreBtn
+              current={visOp} total={operadorRows.length}
+              onMore={() => setVisOp(v => v + 6)}
+              onLess={() => setVisOp(v => Math.max(6, v - 6))}
+            />
           </div>
-          <ShowMoreBtn
-            current={visOp} total={operadorRows.length}
-            onMore={() => setVisOp(v => v + 6)}
-            onLess={() => setVisOp(v => Math.max(6, v - 6))}
-          />
         </div>
 
         <MotivosParadaPanel stopRows={stopRows} />
