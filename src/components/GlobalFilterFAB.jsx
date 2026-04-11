@@ -368,30 +368,31 @@ function Label({ children }) {
 }
 
 // options: [{ value, label }] — primeiro item é sempre a opção "todos" (value='')
+// Usa onBlur+setTimeout em vez de document listener para não conflitar com o handler do painel.
 function SearchableSelect({ value, onChange, placeholder, options }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const ref = useRef(null)
+  const inputRef = useRef(null)
 
   const selectedLabel = options.find(o => o.value === value)?.label ?? ''
   const filtered = options.filter(o => !search || o.label.toLowerCase().includes(search.toLowerCase()))
 
-  useEffect(() => {
-    function handle(e) {
-      if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setSearch('') }
-    }
-    document.addEventListener('mousedown', handle)
-    return () => document.removeEventListener('mousedown', handle)
-  }, [])
+  function selectOption(val) {
+    onChange(val)
+    setSearch('')
+    setOpen(false)
+  }
 
   return (
-    <div ref={ref} style={{ marginBottom: open ? 0 : 12 }}>
+    <div style={{ marginBottom: open ? 0 : 12 }}>
       <div style={{ position: 'relative' }}>
         <input
+          ref={inputRef}
           type="text"
           value={open ? search : selectedLabel}
           onChange={e => { setSearch(e.target.value); setOpen(true) }}
           onFocus={() => { setOpen(true); setSearch('') }}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder={placeholder}
           style={{
             width: '100%', padding: '6px 28px 6px 10px', boxSizing: 'border-box',
@@ -401,9 +402,15 @@ function SearchableSelect({ value, onChange, placeholder, options }) {
         />
         <span
           onMouseDown={e => {
-            e.preventDefault()
-            if (value) { onChange(''); setSearch(''); setOpen(false) }
-            else setOpen(o => !o)
+            e.preventDefault() // mantém o foco no input
+            if (value) {
+              onChange('')
+              setSearch('')
+              setOpen(false)
+            } else {
+              if (!open) { setSearch(''); inputRef.current?.focus() }
+              else inputRef.current?.blur()
+            }
           }}
           style={{
             position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
@@ -424,7 +431,8 @@ function SearchableSelect({ value, onChange, placeholder, options }) {
           ) : filtered.map(o => (
             <div
               key={o.value === '' ? '__all__' : o.value}
-              onMouseDown={e => { e.preventDefault(); onChange(o.value); setSearch(''); setOpen(false) }}
+              onMouseDown={e => e.preventDefault()} // previne blur antes do click
+              onClick={() => selectOption(o.value)}
               style={{
                 padding: '6px 10px', fontSize: 13, cursor: 'pointer',
                 color: o.value === value ? '#1e4d1e' : (o.value === '' ? '#6b6560' : '#1a1a1a'),

@@ -2,7 +2,7 @@
 // Analisa desempenho de máquinas: individual vs. modelo, comparativo de períodos e modelos.
 // Dados reais via dashboard_operational_view e media_equipamentos_porteira.
 
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useFilters } from '../lib/FilterContext'
 import {
   useEquipamentoBenchmark, useEquipamentoComparativo,
@@ -129,7 +129,7 @@ function FieldLabel({ children }) {
 function MaquinaSelect({ label, value, onChange, equipamentos }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const ref = useRef(null)
+  const inputRef = useRef(null)
 
   const selected = equipamentos.find(e => e.equipamento_cod === value)
   const displayLabel = selected
@@ -156,23 +156,17 @@ function MaquinaSelect({ label, value, onChange, equipamentos }) {
     return acc
   }, {})
 
-  useEffect(() => {
-    function handle(e) {
-      if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setSearch('') }
-    }
-    document.addEventListener('mousedown', handle)
-    return () => document.removeEventListener('mousedown', handle)
-  }, [])
-
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <div style={{ position: 'relative' }}>
       <FieldLabel>{label}</FieldLabel>
       <div style={{ position: 'relative' }}>
         <input
+          ref={inputRef}
           type="text"
           value={open ? search : displayLabel}
           onChange={e => { setSearch(e.target.value); setOpen(true) }}
           onFocus={() => { setOpen(true); setSearch('') }}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder="Selecionar máquina..."
           style={{
             width: '100%', padding: '6px 30px 6px 10px', boxSizing: 'border-box',
@@ -185,7 +179,7 @@ function MaquinaSelect({ label, value, onChange, equipamentos }) {
           onMouseDown={e => {
             e.preventDefault()
             if (value) { onChange(''); setSearch(''); setOpen(false) }
-            else setOpen(o => !o)
+            else { setSearch(''); inputRef.current?.focus() }
           }}
           style={{
             position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
@@ -218,7 +212,8 @@ function MaquinaSelect({ label, value, onChange, equipamentos }) {
               {lista.map(e => (
                 <div
                   key={e.equipamento_cod || e.equipamento}
-                  onMouseDown={ev => { ev.preventDefault(); onChange(e.equipamento_cod); setSearch(''); setOpen(false) }}
+                  onMouseDown={ev => ev.preventDefault()}
+                  onClick={() => { onChange(e.equipamento_cod); setSearch(''); setOpen(false) }}
                   style={{
                     padding: '5px 10px 5px 16px', fontSize: 12, cursor: 'pointer',
                     color: e.equipamento_cod === value ? '#1e4d1e' : '#1a1a1a',
@@ -239,28 +234,22 @@ function MaquinaSelect({ label, value, onChange, equipamentos }) {
 function ModeloSelect({ label, value, onChange, modelos }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const ref = useRef(null)
+  const inputRef = useRef(null)
 
   const searchLower = search.toLowerCase()
   const filtered = modelos.filter(m => !search || m.toLowerCase().includes(searchLower))
 
-  useEffect(() => {
-    function handle(e) {
-      if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setSearch('') }
-    }
-    document.addEventListener('mousedown', handle)
-    return () => document.removeEventListener('mousedown', handle)
-  }, [])
-
   return (
-    <div ref={ref} style={{ flex: 1, position: 'relative' }}>
+    <div style={{ flex: 1, position: 'relative' }}>
       <FieldLabel>{label}</FieldLabel>
       <div style={{ position: 'relative' }}>
         <input
+          ref={inputRef}
           type="text"
           value={open ? search : value}
           onChange={e => { setSearch(e.target.value); setOpen(true) }}
           onFocus={() => { setOpen(true); setSearch('') }}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder="Selecionar modelo..."
           style={{
             width: '100%', padding: '6px 30px 6px 10px', boxSizing: 'border-box',
@@ -273,7 +262,7 @@ function ModeloSelect({ label, value, onChange, modelos }) {
           onMouseDown={e => {
             e.preventDefault()
             if (value) { onChange(''); setSearch(''); setOpen(false) }
-            else setOpen(o => !o)
+            else { setSearch(''); inputRef.current?.focus() }
           }}
           style={{
             position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
@@ -296,7 +285,8 @@ function ModeloSelect({ label, value, onChange, modelos }) {
           ) : filtered.map(m => (
             <div
               key={m}
-              onMouseDown={ev => { ev.preventDefault(); onChange(m); setSearch(''); setOpen(false) }}
+              onMouseDown={ev => ev.preventDefault()}
+              onClick={() => { onChange(m); setSearch(''); setOpen(false) }}
               style={{
                 padding: '5px 10px', fontSize: 12, cursor: 'pointer',
                 color: m === value ? '#1e4d1e' : '#1a1a1a',
@@ -439,6 +429,37 @@ function CompareTable({ metricasA, metricasB, labelA, labelB }) {
           ))}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+// ─── CABEÇALHO DINÂMICO ───────────────────────────────────────────────────────
+
+function DynamicHeader({ processo, tipoSafra, safra }) {
+  const fieldStyle  = { display: 'flex', flexDirection: 'column', gap: 2 }
+  const labelStyle  = { fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.6)' }
+  const valueStyle  = { fontSize: 14, fontWeight: 700, color: '#ffffff' }
+  const divStyle    = { width: 1, height: 32, background: 'rgba(255,255,255,0.2)', flexShrink: 0 }
+  return (
+    <div style={{
+      background: '#2d4a2d', borderRadius: 8,
+      padding: '14px 20px', marginBottom: 20,
+      display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
+    }}>
+      <div style={fieldStyle}>
+        <span style={labelStyle}>Processo</span>
+        <span style={valueStyle}>{processo || '—'}</span>
+      </div>
+      <div style={divStyle} />
+      <div style={fieldStyle}>
+        <span style={labelStyle}>Cultura</span>
+        <span style={valueStyle}>{tipoSafra || 'Não especificado'}</span>
+      </div>
+      <div style={divStyle} />
+      <div style={fieldStyle}>
+        <span style={labelStyle}>Safra</span>
+        <span style={valueStyle}>{safra || '—'}</span>
+      </div>
     </div>
   )
 }
@@ -632,6 +653,11 @@ export default function BenchmarkEquipamentoPage() {
 
   return (
     <div style={{ padding: '24px', maxWidth: 1280, margin: '0 auto' }}>
+      <DynamicHeader
+        processo={processoFiltro}
+        tipoSafra={filters.tipo_safra}
+        safra={currentSafra}
+      />
       <TabControl tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
       {/* ── TAB 1: MÁQUINA VS. MODELO ──────────────────────────────────────── */}
