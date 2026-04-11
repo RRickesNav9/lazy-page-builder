@@ -96,7 +96,7 @@
 
   <!-- Texto PORTEIRA ADENTRO -->
 
-  <text x="400" y="300" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="52" fill="#2D523E" text-anchor="middle" letter-spacing="2">
+  <text x="400" y="320" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="72" fill="#ffffff" text-anchor="middle" letter-spacing="2">
 
     PORTEIRA ADENTRO
 
