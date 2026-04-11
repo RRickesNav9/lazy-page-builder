@@ -66,9 +66,28 @@ body {
 ::-webkit-scrollbar-thumb { background: #e0dbd4; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #c0b8ae; }
 
+@page {
+  size: A4 portrait;
+  margin: 12mm 14mm;
+}
+
 @media print {
+  /* Oculta chrome da aplicação */
   .no-print { display: none !important; }
-  body { background: #fff !important; }
-  /* Garante que o cabeçalho verde do app não aparece */
   header, nav { display: none !important; }
+
+  body { background: #fff !important; }
+
+  /* Força impressão de cores de fundo (cabeçalhos verdes, badges coloridos, etc.) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Remove overflow que oculta conteúdo de tabelas na impressão */
+  div { overflow: visible !important; }
+
+  /* Controle de quebra de página em tabelas */
+  tr { break-inside: avoid; page-break-inside: avoid; }
+  table { break-inside: auto; page-break-inside: auto; }
 }

@@ -42,17 +42,31 @@ function Breadcrumb() {
   ]
 
   return (
-    <div style={{
+    <div className="no-print" style={{
       background: '#f7f5f2', borderBottom: '1px solid #e0dbd4',
-      padding: '8px 24px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap',
+      padding: '8px 24px', fontSize: 12, display: 'flex', alignItems: 'center',
+      justifyContent: 'space-between', gap: 4, flexWrap: 'wrap',
     }}>
-      {items.map((item, i) => (
-        <span key={item.label}>
-          {i > 0 && <span style={{ color: '#6b6560', margin: '0 6px' }}>·</span>}
-          <span style={{ color: '#6b6560' }}>{item.label}: </span>
-          <span style={{ color: '#4a3728', fontWeight: 500 }}>{item.value}</span>
-        </span>
-      ))}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+        {items.map((item, i) => (
+          <span key={item.label}>
+            {i > 0 && <span style={{ color: '#6b6560', margin: '0 6px' }}>·</span>}
+            <span style={{ color: '#6b6560' }}>{item.label}: </span>
+            <span style={{ color: '#4a3728', fontWeight: 500 }}>{item.value}</span>
+          </span>
+        ))}
+      </div>
+      <button
+        onClick={() => window.print()}
+        style={{
+          padding: '4px 12px', fontSize: 11, fontWeight: 500,
+          background: '#2d4a2d', color: '#fff', border: 'none',
+          borderRadius: 4, cursor: 'pointer', letterSpacing: '0.03em',
+          flexShrink: 0,
+        }}
+      >
+        ↓ Exportar PDF
+      </button>
     </div>
   )
 }
@@ -109,7 +123,9 @@ function AppInner() {
 
       <PageComponent />
 
-      <GlobalFilterFAB allowedProcessos={allowedProcessos} solinftecOnly={solinftecOnly} />
+      <div className="no-print">
+        <GlobalFilterFAB allowedProcessos={allowedProcessos} solinftecOnly={solinftecOnly} />
+      </div>
     </div>
   )
 }
