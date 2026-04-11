@@ -10,6 +10,7 @@ export const DEFAULT_FILTERS = {
   tipo_safra: '',
   excludedMotivos: [],
   showBenchmark: false,
+  showGroupAvg: false,
   metricFilter: { field: '', operator: '>=', value: '' },
 }
 
@@ -86,6 +87,7 @@ export function FilterProvider({ children }) {
     if (filters.tipo_safra)            count++
     if (filters.excludedMotivos.length) count++
     if (filters.showBenchmark)         count++
+    if (filters.showGroupAvg)          count++
     if (filters.periodo !== '7dias')   count++
     if (filters.metricFilter?.field)   count++
     return count

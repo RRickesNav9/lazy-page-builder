@@ -338,13 +338,12 @@ const AVG_GROUP_KEYS = new Set([
   'rendimento_real_hah', 'eficiencia_operacional_pct',
 ])
 
-function DimensionTable({ data, grupoRow }) {
+function DimensionTable({ data, grupoRow, showGroupAvg }) {
   const [activeDims,    setActiveDims]    = useState(['cliente', 'processo'])
   const [metricCols,    setMetricCols]    = useState(['velocidade_media_kmh', 'eficiencia_geral_pct'])
   const [expanded,      setExpanded]      = useState(new Set())
   const [dimDropOpen,   setDimDropOpen]   = useState(false)
   const [metDropOpen,   setMetDropOpen]   = useState(false)
-  const [showGroupAvg,  setShowGroupAvg]  = useState(false)
   const dimRef = useRef(null)
   const metRef = useRef(null)
 
@@ -465,19 +464,6 @@ function DimensionTable({ data, grupoRow }) {
           )}
         </div>
 
-        {/* Toggle Comparar com grupo */}
-        {grupoRow && (
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none', padding: '6px 10px', border: '1px solid #d4cfc9', borderRadius: 6, background: showGroupAvg ? '#edf5ed' : '#fff' }}>
-            <input
-              type="checkbox"
-              checked={showGroupAvg}
-              onChange={e => setShowGroupAvg(e.target.checked)}
-              style={{ accentColor: '#2d4a2d', cursor: 'pointer' }}
-            />
-            <span style={{ fontSize: 12, color: showGroupAvg ? '#1e4d1e' : '#4a3728', fontWeight: showGroupAvg ? 600 : 400 }}>Comparar com grupo</span>
-          </label>
-        )}
-
         {/* Seletor de métricas adicionais */}
         <div ref={metRef} style={{ position: 'relative' }}>
           <button
@@ -562,7 +548,7 @@ function DimensionTable({ data, grupoRow }) {
 
 export default function AnaliseGeralPage() {
   const { filters, queryFilters, currentSafra } = useFilters()
-  const { excludedMotivos, metricFilter } = filters
+  const { excludedMotivos, metricFilter, showGroupAvg } = filters
 
   const { data: raw, loading } = useOperationalData(queryFilters)
   const { data: stopRows }     = useStopData(queryFilters)
@@ -603,7 +589,8 @@ export default function AnaliseGeralPage() {
   const stopDist = useMemo(() => calcStopDistribution(filteredData), [filteredData])
 
   const mainBenchmark = benchmarks?.[0] ?? null
-  const benchRend     = mainBenchmark?.rendimento_operacional_hah_grupo ?? null
+  // referência de grupo só ativa quando o toggle "Comparar com grupo" está ligado
+  const benchRend = showGroupAvg ? (mainBenchmark?.rendimento_operacional_hah_grupo ?? null) : null
 
   // Paginação independente por bloco
   const [vis1,  setVis1]  = useState(6) // par 1: área + rendimento
@@ -734,7 +721,7 @@ export default function AnaliseGeralPage() {
       {/* ── BLOCO 2: Tabela de Dimensões ─────────────────────────────────── */}
       <SectionTitle>Análise por Dimensão</SectionTitle>
       <div style={{ marginBottom: 28 }}>
-        <DimensionTable data={filteredData} grupoRow={mainBenchmark} />
+        <DimensionTable data={filteredData} grupoRow={showGroupAvg ? mainBenchmark : null} showGroupAvg={showGroupAvg} />
       </div>
 
       {/* ── BLOCO 3: Desempenho por Equipamento (3 pares independentes) ──── */}

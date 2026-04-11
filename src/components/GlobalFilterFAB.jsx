@@ -133,6 +133,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly
       periodo: '7dias', dataInicio: null, dataFim: null,
       cliente: '', propriedade: '', processo: '', tipo_safra: '',
       excludedMotivos: [],
+      showGroupAvg: false,
       metricFilter: { field: '', operator: '>=', value: '' },
     }
     setPending(cleared); applyFilters(cleared); setOpen(false)
@@ -295,6 +296,15 @@ export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly
             placeholder="Todas"
             options={[{ value: '', label: 'Todas' }, ...cascadedOpts.tipos_safra.map(t => ({ value: t, label: t }))]}
           />
+
+          {/* ── Comparar com grupo ────────────────────────────────���──── */}
+          <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14, marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b6560' }}>Comparar com grupo</div>
+              <div style={{ fontSize: 11, color: '#8a9a85', marginTop: 2 }}>Referências na tabela e gráficos</div>
+            </div>
+            <Toggle checked={pending.showGroupAvg ?? false} onChange={v => set('showGroupAvg', v)} />
+          </div>
 
           {/* ── Filtro de Métrica ─────────────────────────────────────── */}
           <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14, marginBottom: 14 }}>
