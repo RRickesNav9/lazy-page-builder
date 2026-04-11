@@ -129,7 +129,8 @@ export async function exportToPDF(element, options = {}) {
   const { cliente = '', processo = '', tipoSafra = '' } = options
 
   // 1 — Oculta temporariamente os elementos marcados com [data-pdf-exclude]
-  const excluded    = [...element.querySelectorAll('[data-pdf-exclude]')]
+  //     Busca no documento inteiro — inclui FABs e painéis fora do elemento exportado
+  const excluded    = [...document.querySelectorAll('[data-pdf-exclude]')]
   const prevDisplay = excluded.map(el => el.style.display)
   excluded.forEach(el => { el.style.display = 'none' })
 
@@ -158,6 +159,12 @@ export async function exportToPDF(element, options = {}) {
   await new Promise(r => requestAnimationFrame(r))
   await new Promise(r => requestAnimationFrame(r))
   await new Promise(r => setTimeout(r, 80))
+
+  // Remove overflow restritivo de elementos no clone — garante captura de tabelas e gráficos completos
+  for (const el of clone.querySelectorAll('*')) {
+    const cs = window.getComputedStyle(el)
+    if (cs.overflowX === 'auto' || cs.overflowX === 'scroll') el.style.overflowX = 'visible'
+  }
 
   let canvas, breaks
 

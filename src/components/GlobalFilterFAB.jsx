@@ -139,6 +139,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly
       {/* FAB */}
       <button
         onClick={() => setOpen(o => !o)}
+        data-pdf-exclude="true"
         style={{
           position: 'fixed', bottom: 24, right: 24, zIndex: 1000,
           width: 48, height: 48, borderRadius: '50%',
@@ -167,7 +168,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly
 
       {/* Painel slide-up */}
       {open && (
-        <div ref={panelRef} style={{
+        <div ref={panelRef} data-pdf-exclude="true" style={{
           position: 'fixed', bottom: 84, right: 24, zIndex: 999,
           width: 320, maxHeight: '80vh', overflowY: 'auto',
           background: '#fff', border: '1px solid #e0dbd4', borderRadius: 12,

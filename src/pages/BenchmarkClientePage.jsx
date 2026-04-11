@@ -510,11 +510,14 @@ export default function BenchmarkClientePage() {
       />
 
       <div ref={contentRef} style={{ maxWidth: 1280, margin: '0 auto', padding: '20px 24px' }}>
-        <DynamicHeader
-          cliente={cliente}
-          processo={processo}
-          tipoSafra={tipoSafra}
-        />
+        {/* DynamicHeader excluído do PDF — o cabeçalho vetorial do jsPDF já cobre esses dados */}
+        <div data-pdf-exclude="true">
+          <DynamicHeader
+            cliente={cliente}
+            processo={processo}
+            tipoSafra={tipoSafra}
+          />
+        </div>
 
         {loading && (
           <div style={{ padding: '40px 0', textAlign: 'center', color: '#6b6560', fontSize: 13 }}>
