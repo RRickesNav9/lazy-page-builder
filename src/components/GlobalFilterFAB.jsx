@@ -26,9 +26,9 @@ const TIPO_PARADA_COLOR = {
   SEM_APONTAMENTO: '#6b7280',
 }
 
-export default function GlobalFilterFAB({ allowedProcessos = null }) {
+export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly = false }) {
   const { filters, applyFilters, activeCount, showFABs } = useFilters()
-  const { rawRows } = useFilterOptionsRaw()
+  const { rawRows } = useFilterOptionsRaw(solinftecOnly)
   const motivos     = useStopMotivos()
 
   const [open,         setOpen]         = useState(false)
@@ -216,28 +216,36 @@ export default function GlobalFilterFAB({ allowedProcessos = null }) {
 
           {/* ── Dimensões ────────────────────────────────────────────── */}
           <Label>Cliente</Label>
-          <Select value={pending.cliente} onChange={e => set('cliente', e.target.value)}>
-            <option value="">Todos</option>
-            {cascadedOpts.clientes.map(c => <option key={c} value={c}>{c}</option>)}
-          </Select>
+          <SearchableSelect
+            value={pending.cliente}
+            onChange={val => set('cliente', val)}
+            placeholder="Todos"
+            options={[{ value: '', label: 'Todos' }, ...cascadedOpts.clientes.map(c => ({ value: c, label: c }))]}
+          />
 
           <Label>Propriedade</Label>
-          <Select value={pending.propriedade} onChange={e => set('propriedade', e.target.value)}>
-            <option value="">Todas</option>
-            {cascadedOpts.propriedades.map(p => <option key={p} value={p}>{p}</option>)}
-          </Select>
+          <SearchableSelect
+            value={pending.propriedade}
+            onChange={val => set('propriedade', val)}
+            placeholder="Todas"
+            options={[{ value: '', label: 'Todas' }, ...cascadedOpts.propriedades.map(p => ({ value: p, label: p }))]}
+          />
 
           <Label>Processo / Operação</Label>
-          <Select value={pending.processo} onChange={e => set('processo', e.target.value)}>
-            <option value="">Todos</option>
-            {cascadedOpts.processos.map(p => <option key={p} value={p}>{p}</option>)}
-          </Select>
+          <SearchableSelect
+            value={pending.processo}
+            onChange={val => set('processo', val)}
+            placeholder="Todos"
+            options={[{ value: '', label: 'Todos' }, ...cascadedOpts.processos.map(p => ({ value: p, label: p }))]}
+          />
 
           <Label>Cultura</Label>
-          <Select value={pending.tipo_safra} onChange={e => set('tipo_safra', e.target.value)}>
-            <option value="">Todas</option>
-            {cascadedOpts.tipos_safra.map(t => <option key={t} value={t}>{t}</option>)}
-          </Select>
+          <SearchableSelect
+            value={pending.tipo_safra}
+            onChange={val => set('tipo_safra', val)}
+            placeholder="Todas"
+            options={[{ value: '', label: 'Todas' }, ...cascadedOpts.tipos_safra.map(t => ({ value: t, label: t }))]}
+          />
 
           {/* ── Benchmark toggle ─────────────────────────────────────── */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '10px 0 14px' }}>
@@ -359,15 +367,77 @@ function Label({ children }) {
   )
 }
 
-function Select({ value, onChange, children }) {
+// options: [{ value, label }] — primeiro item é sempre a opção "todos" (value='')
+function SearchableSelect({ value, onChange, placeholder, options }) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const ref = useRef(null)
+
+  const selectedLabel = options.find(o => o.value === value)?.label ?? ''
+  const filtered = options.filter(o => !search || o.label.toLowerCase().includes(search.toLowerCase()))
+
+  useEffect(() => {
+    function handle(e) {
+      if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setSearch('') }
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [])
+
   return (
-    <select value={value} onChange={onChange} style={{
-      width: '100%', padding: '6px 10px', marginBottom: 12,
-      border: '1px solid #d4cfc9', borderRadius: 6,
-      fontSize: 13, color: '#1a1a1a', background: '#fff', cursor: 'pointer',
-    }}>
-      {children}
-    </select>
+    <div ref={ref} style={{ marginBottom: open ? 0 : 12 }}>
+      <div style={{ position: 'relative' }}>
+        <input
+          type="text"
+          value={open ? search : selectedLabel}
+          onChange={e => { setSearch(e.target.value); setOpen(true) }}
+          onFocus={() => { setOpen(true); setSearch('') }}
+          placeholder={placeholder}
+          style={{
+            width: '100%', padding: '6px 28px 6px 10px', boxSizing: 'border-box',
+            border: '1px solid #d4cfc9', borderRadius: open ? '6px 6px 0 0' : 6,
+            fontSize: 13, color: '#1a1a1a', background: '#fff', outline: 'none',
+          }}
+        />
+        <span
+          onMouseDown={e => {
+            e.preventDefault()
+            if (value) { onChange(''); setSearch(''); setOpen(false) }
+            else setOpen(o => !o)
+          }}
+          style={{
+            position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+            cursor: 'pointer', color: '#6b6560',
+            fontSize: value ? 16 : 10, lineHeight: 1, userSelect: 'none',
+          }}
+        >
+          {value ? '×' : '▼'}
+        </span>
+      </div>
+      {open && (
+        <div style={{
+          border: '1px solid #d4cfc9', borderTop: 'none', borderRadius: '0 0 6px 6px',
+          background: '#fff', maxHeight: 160, overflowY: 'auto', marginBottom: 12,
+        }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: '8px 10px', fontSize: 12, color: '#6b6560' }}>Nenhum resultado</div>
+          ) : filtered.map(o => (
+            <div
+              key={o.value === '' ? '__all__' : o.value}
+              onMouseDown={e => { e.preventDefault(); onChange(o.value); setSearch(''); setOpen(false) }}
+              style={{
+                padding: '6px 10px', fontSize: 13, cursor: 'pointer',
+                color: o.value === value ? '#1e4d1e' : (o.value === '' ? '#6b6560' : '#1a1a1a'),
+                background: o.value === value ? '#edf5ed' : 'transparent',
+                fontStyle: o.value === '' ? 'italic' : 'normal',
+              }}
+            >
+              {o.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 

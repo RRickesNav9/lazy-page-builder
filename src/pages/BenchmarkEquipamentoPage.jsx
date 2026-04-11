@@ -2,7 +2,7 @@
 // Analisa desempenho de máquinas: individual vs. modelo, comparativo de períodos e modelos.
 // Dados reais via dashboard_operational_view e media_equipamentos_porteira.
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useFilters } from '../lib/FilterContext'
 import {
   useEquipamentoBenchmark, useEquipamentoComparativo,
@@ -127,46 +127,187 @@ function FieldLabel({ children }) {
 }
 
 function MaquinaSelect({ label, value, onChange, equipamentos }) {
-  // Agrupa por cliente para exibir optgroup
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const ref = useRef(null)
+
+  const selected = equipamentos.find(e => e.equipamento_cod === value)
+  const displayLabel = selected
+    ? `${selected.equipamento_cod} · ${selected.equipamento}${selected.modelo ? ` — ${selected.modelo}` : ''}`
+    : ''
+
+  const searchLower = search.toLowerCase()
   const byCliente = equipamentos.reduce((acc, e) => {
     const c = e.cliente || 'Sem cliente'
     if (!acc[c]) acc[c] = []
     acc[c].push(e)
     return acc
   }, {})
+  const filteredByCliente = Object.entries(byCliente).reduce((acc, [cliente, lista]) => {
+    const filtered = search
+      ? lista.filter(e =>
+          (e.equipamento_cod || '').toLowerCase().includes(searchLower) ||
+          (e.equipamento || '').toLowerCase().includes(searchLower) ||
+          (e.modelo || '').toLowerCase().includes(searchLower) ||
+          cliente.toLowerCase().includes(searchLower)
+        )
+      : lista
+    if (filtered.length > 0) acc[cliente] = filtered
+    return acc
+  }, {})
+
+  useEffect(() => {
+    function handle(e) {
+      if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setSearch('') }
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [])
+
   return (
-    <div>
+    <div ref={ref} style={{ position: 'relative' }}>
       <FieldLabel>{label}</FieldLabel>
-      <select value={value} onChange={e => onChange(e.target.value)} style={{
-        width: '100%', padding: '6px 10px', fontSize: 12, color: '#1a1a1a',
-        background: '#fff', border: '1px solid #e0dbd4', borderRadius: 4, cursor: 'pointer',
-      }}>
-        <option value="">Selecionar máquina...</option>
-        {Object.entries(byCliente).map(([cliente, lista]) => (
-          <optgroup key={cliente} label={cliente}>
-            {lista.map(e => (
-              <option key={e.equipamento_cod || e.equipamento} value={e.equipamento_cod}>
-                {e.equipamento_cod} · {e.equipamento}{e.modelo ? ` — ${e.modelo}` : ''}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
+      <div style={{ position: 'relative' }}>
+        <input
+          type="text"
+          value={open ? search : displayLabel}
+          onChange={e => { setSearch(e.target.value); setOpen(true) }}
+          onFocus={() => { setOpen(true); setSearch('') }}
+          placeholder="Selecionar máquina..."
+          style={{
+            width: '100%', padding: '6px 30px 6px 10px', boxSizing: 'border-box',
+            fontSize: 12, color: '#1a1a1a', background: '#fff',
+            border: '1px solid #e0dbd4', borderRadius: open ? '4px 4px 0 0' : 4,
+            outline: 'none',
+          }}
+        />
+        <span
+          onMouseDown={e => {
+            e.preventDefault()
+            if (value) { onChange(''); setSearch(''); setOpen(false) }
+            else setOpen(o => !o)
+          }}
+          style={{
+            position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+            cursor: 'pointer', color: '#6b6560',
+            fontSize: value ? 16 : 10, lineHeight: 1, userSelect: 'none',
+          }}
+        >
+          {value ? '×' : '▼'}
+        </span>
+      </div>
+      {open && (
+        <div style={{
+          position: 'absolute', left: 0, right: 0, zIndex: 200,
+          border: '1px solid #e0dbd4', borderTop: 'none', borderRadius: '0 0 4px 4px',
+          background: '#fff', maxHeight: 220, overflowY: 'auto',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+        }}>
+          {Object.keys(filteredByCliente).length === 0 ? (
+            <div style={{ padding: '8px 10px', fontSize: 12, color: '#6b6560' }}>Nenhum resultado</div>
+          ) : Object.entries(filteredByCliente).map(([cliente, lista]) => (
+            <div key={cliente}>
+              <div style={{
+                padding: '5px 10px 2px', fontSize: 10, fontWeight: 700,
+                textTransform: 'uppercase', letterSpacing: '0.06em',
+                color: '#2d4a2d', background: '#f7f5f2',
+                position: 'sticky', top: 0,
+              }}>
+                {cliente}
+              </div>
+              {lista.map(e => (
+                <div
+                  key={e.equipamento_cod || e.equipamento}
+                  onMouseDown={ev => { ev.preventDefault(); onChange(e.equipamento_cod); setSearch(''); setOpen(false) }}
+                  style={{
+                    padding: '5px 10px 5px 16px', fontSize: 12, cursor: 'pointer',
+                    color: e.equipamento_cod === value ? '#1e4d1e' : '#1a1a1a',
+                    background: e.equipamento_cod === value ? '#edf5ed' : 'transparent',
+                  }}
+                >
+                  {e.equipamento_cod} · {e.equipamento}{e.modelo ? ` — ${e.modelo}` : ''}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 function ModeloSelect({ label, value, onChange, modelos }) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const ref = useRef(null)
+
+  const searchLower = search.toLowerCase()
+  const filtered = modelos.filter(m => !search || m.toLowerCase().includes(searchLower))
+
+  useEffect(() => {
+    function handle(e) {
+      if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setSearch('') }
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [])
+
   return (
-    <div style={{ flex: 1 }}>
+    <div ref={ref} style={{ flex: 1, position: 'relative' }}>
       <FieldLabel>{label}</FieldLabel>
-      <select value={value} onChange={e => onChange(e.target.value)} style={{
-        width: '100%', padding: '6px 10px', fontSize: 12, color: '#1a1a1a',
-        background: '#fff', border: '1px solid #e0dbd4', borderRadius: 4, cursor: 'pointer',
-      }}>
-        <option value="">Selecionar modelo...</option>
-        {modelos.map(m => <option key={m} value={m}>{m}</option>)}
-      </select>
+      <div style={{ position: 'relative' }}>
+        <input
+          type="text"
+          value={open ? search : value}
+          onChange={e => { setSearch(e.target.value); setOpen(true) }}
+          onFocus={() => { setOpen(true); setSearch('') }}
+          placeholder="Selecionar modelo..."
+          style={{
+            width: '100%', padding: '6px 30px 6px 10px', boxSizing: 'border-box',
+            fontSize: 12, color: '#1a1a1a', background: '#fff',
+            border: '1px solid #e0dbd4', borderRadius: open ? '4px 4px 0 0' : 4,
+            outline: 'none',
+          }}
+        />
+        <span
+          onMouseDown={e => {
+            e.preventDefault()
+            if (value) { onChange(''); setSearch(''); setOpen(false) }
+            else setOpen(o => !o)
+          }}
+          style={{
+            position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+            cursor: 'pointer', color: '#6b6560',
+            fontSize: value ? 16 : 10, lineHeight: 1, userSelect: 'none',
+          }}
+        >
+          {value ? '×' : '▼'}
+        </span>
+      </div>
+      {open && (
+        <div style={{
+          position: 'absolute', left: 0, right: 0, zIndex: 200,
+          border: '1px solid #e0dbd4', borderTop: 'none', borderRadius: '0 0 4px 4px',
+          background: '#fff', maxHeight: 200, overflowY: 'auto',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+        }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: '8px 10px', fontSize: 12, color: '#6b6560' }}>Nenhum resultado</div>
+          ) : filtered.map(m => (
+            <div
+              key={m}
+              onMouseDown={ev => { ev.preventDefault(); onChange(m); setSearch(''); setOpen(false) }}
+              style={{
+                padding: '5px 10px', fontSize: 12, cursor: 'pointer',
+                color: m === value ? '#1e4d1e' : '#1a1a1a',
+                background: m === value ? '#edf5ed' : 'transparent',
+              }}
+            >
+              {m}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -411,9 +552,10 @@ export default function BenchmarkEquipamentoPage() {
   // Todas as máquinas do grupo, agrupadas por cliente no select.
   // allowedProcessos restringe a busca a Colheita/Plantio mesmo sem processo específico selecionado.
   const { equipamentos } = useAllEquipamentos({
-    ...(processoFiltro     && { processo:          processoFiltro }),
-    ...(filters.tipo_safra && { tipo_safra:         filters.tipo_safra }),
+    ...(processoFiltro     && { processo:      processoFiltro }),
+    ...(filters.tipo_safra && { tipo_safra:    filters.tipo_safra }),
     allowedProcessos: ['Colheita', 'Plantio'],
+    solinftecOnly: true,
   })
 
   // ── Tab 1: Máquina vs. Modelo ──────────────────────────────────────────────

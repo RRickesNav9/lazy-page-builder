@@ -24,6 +24,13 @@ const PAGE_PROCESSOS = {
   'bench-equip': ['Colheita', 'Plantio'],
 }
 
+// Páginas que exibem apenas dados Solinftec (excluem John Deere dos filtros e cálculos)
+const PAGE_SOLINFTEC = {
+  analise:       false,
+  benchmark:     true,
+  'bench-equip': true,
+}
+
 
 function Breadcrumb() {
   const { filters } = useFilters()
@@ -55,6 +62,7 @@ function AppInner() {
   const PageComponent = PAGES[activePage]
   const { filters, applyFilters } = useFilters()
   const allowedProcessos = PAGE_PROCESSOS[activePage]
+  const solinftecOnly    = PAGE_SOLINFTEC[activePage] ?? false
 
   // Ao trocar para uma página com processos restritos, limpa o processo se ele não for permitido
   useEffect(() => {
@@ -101,7 +109,7 @@ function AppInner() {
 
       <PageComponent />
 
-      <GlobalFilterFAB allowedProcessos={allowedProcessos} />
+      <GlobalFilterFAB allowedProcessos={allowedProcessos} solinftecOnly={solinftecOnly} />
     </div>
   )
 }

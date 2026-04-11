@@ -146,20 +146,24 @@ export function useFilterOptions() {
 
 // Retorna as linhas brutas de dashboard_filter_options para filtros cascateados no FAB.
 // Cada linha é uma combinação distinta de (cliente, propriedade, processo, tipo_safra).
-export function useFilterOptionsRaw() {
+// solinftecOnly=true exclui linhas do provider John Deere.
+export function useFilterOptionsRaw(solinftecOnly = false) {
   const [rawRows, setRawRows] = useState([])
   const [loading, setLoading] = useState(true)
+  const JD_ID = '6731a094-8f65-472f-95f5-655d1303a72f'
 
   useEffect(() => {
     async function fetch() {
-      const { data } = await supabase
+      let query = supabase
         .from('dashboard_filter_options')
         .select('cliente, propriedade, processo, tipo_safra')
+      if (solinftecOnly) query = query.neq('data_provider_id', JD_ID)
+      const { data } = await query
       if (data) setRawRows(data)
       setLoading(false)
     }
     fetch()
-  }, [])
+  }, [solinftecOnly])
 
   return { rawRows, loading }
 }
@@ -225,10 +229,12 @@ export function useStopData(queryFilters = {}) {
 
 // Agrega métricas de um cliente via média ponderada a partir de dashboard_operational_view.
 // Mesma lógica de peso por métrica usada em compute-performance-stats.
+// Benchmark é exclusivamente Solinftec — JD sempre excluído.
 export function useClienteBenchmark(filters = {}) {
   const [metricas, setMetricas] = useState(null)
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
+  const JD_ID = '6731a094-8f65-472f-95f5-655d1303a72f'
 
   useEffect(() => {
     async function fetch() {
@@ -244,6 +250,7 @@ export function useClienteBenchmark(filters = {}) {
             'tempo_produtivo_h', 'tempo_total_h', 'area_ha',
           ].join(','))
           .neq('cliente', 'Média Porteira')
+          .neq('data_provider_id', JD_ID)
 
         if (filters.cliente)    query = query.eq('cliente',    filters.cliente)
         if (filters.processo)   query = query.eq('processo',   filters.processo)
@@ -376,9 +383,11 @@ export function useMaquinaMetricas(filters = {}) {
 
 // Busca todas as máquinas do grupo sem restrição de cliente, incluindo o nome do cliente na label.
 // Filtra por processo/tipo_safra se definidos nos filtros globais.
+// solinftecOnly=true exclui máquinas do provider John Deere.
 export function useAllEquipamentos(filters = {}) {
   const [equipamentos, setEquipamentos] = useState([])
   const [loading, setLoading] = useState(true)
+  const JD_ID = '6731a094-8f65-472f-95f5-655d1303a72f'
 
   useEffect(() => {
     setLoading(true)
@@ -391,7 +400,8 @@ export function useAllEquipamentos(filters = {}) {
         // processo específico tem prioridade; senão restringe ao universo permitido da página
         if (filters.processo)                      query = query.eq('processo', filters.processo)
         else if (filters.allowedProcessos?.length) query = query.in('processo', filters.allowedProcessos)
-        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
+        if (filters.tipo_safra)    query = query.eq('tipo_safra', filters.tipo_safra)
+        if (filters.solinftecOnly) query = query.neq('data_provider_id', JD_ID)
         // Deduplica em memória — select de apenas 4 colunas mantém o payload pequeno
         let all = [], from = 0
         while (true) {
@@ -426,7 +436,7 @@ export function useAllEquipamentos(filters = {}) {
     }
     run()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.processo, filters.tipo_safra, JSON.stringify(filters.allowedProcessos)])
+  }, [filters.processo, filters.tipo_safra, JSON.stringify(filters.allowedProcessos), filters.solinftecOnly])
 
   return { equipamentos, loading }
 }
