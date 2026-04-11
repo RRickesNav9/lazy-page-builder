@@ -435,7 +435,8 @@ function CompareTable({ metricasA, metricasB, labelA, labelB }) {
 
 // ─── CABEÇALHO DINÂMICO ───────────────────────────────────────────────────────
 
-function DynamicHeader({ processo, tipoSafra, safra }) {
+// extraFields: [{ label, value }] — campos adicionais por aba, renderizados após os campos base
+function DynamicHeader({ processo, tipoSafra, safra, extraFields = [] }) {
   const fieldStyle  = { display: 'flex', flexDirection: 'column', gap: 2 }
   const labelStyle  = { fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.6)' }
   const valueStyle  = { fontSize: 14, fontWeight: 700, color: '#ffffff' }
@@ -460,6 +461,13 @@ function DynamicHeader({ processo, tipoSafra, safra }) {
         <span style={labelStyle}>Safra</span>
         <span style={valueStyle}>{safra || '—'}</span>
       </div>
+      {extraFields.flatMap(f => [
+        <div key={`div-${f.label}`} style={divStyle} />,
+        <div key={f.label} style={fieldStyle}>
+          <span style={labelStyle}>{f.label}</span>
+          <span style={valueStyle}>{f.value}</span>
+        </div>,
+      ])}
     </div>
   )
 }
@@ -651,12 +659,38 @@ export default function BenchmarkEquipamentoPage() {
 
   // ─────────────────────────────────────────────────────────────────────────
 
+  const headerExtraFields = useMemo(() => {
+    if (activeTab === 'maquina-modelo') {
+      const equipLabel = maqInfo1
+        ? `${maqInfo1.equipamento_cod} — ${maqInfo1.equipamento}`
+        : '—'
+      return [
+        { label: 'Equipamento', value: equipLabel },
+        { label: 'Modelo',      value: maqInfo1?.modelo || '—' },
+      ]
+    }
+    if (activeTab === 'equip-equip') {
+      const labelA = maqInfoA ? `${maqInfoA.equipamento_cod} — ${maqInfoA.equipamento}` : '—'
+      const labelB = maqInfoB ? `${maqInfoB.equipamento_cod} — ${maqInfoB.equipamento}` : '—'
+      return [
+        { label: 'Equip. A', value: labelA },
+        { label: 'Equip. B', value: labelB },
+      ]
+    }
+    // modelo-modelo
+    return [
+      { label: 'Modelo A', value: modeloA || '—' },
+      { label: 'Modelo B', value: modeloB || '—' },
+    ]
+  }, [activeTab, maqInfo1, maqInfoA, maqInfoB, modeloA, modeloB])
+
   return (
     <div style={{ padding: '24px', maxWidth: 1280, margin: '0 auto' }}>
       <DynamicHeader
         processo={processoFiltro}
         tipoSafra={filters.tipo_safra}
         safra={currentSafra}
+        extraFields={headerExtraFields}
       />
       <TabControl tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
