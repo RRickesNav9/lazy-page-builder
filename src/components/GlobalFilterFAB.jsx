@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useFilters } from '../lib/FilterContext'
 import { useFilterOptionsRaw, useStopMotivos } from '../hooks/useData'
+import { exportToPDF } from '../utils/pdfExport'
 
 
 
@@ -45,6 +46,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly
   const [expanded,     setExpanded]     = useState(false)
   const [open,         setOpen]         = useState(false)
   const [pending,      setPending]      = useState(filters)
+  const [exporting,    setExporting]    = useState(false)
   const [motivosOpen,  setMotivosOpen]  = useState(false)
   const [motivoSearch, setMotivoSearch] = useState('')
   const panelRef = useRef(null)
@@ -210,10 +212,23 @@ export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly
       {/* FAB — Exportar PDF (visível quando expandido) */}
       {expanded && (
         <button
-          onClick={() => window.print()}
+          onClick={async () => {
+            setExporting(true)
+            try {
+              const el = document.getElementById('pdf-content')
+              await exportToPDF(el, {
+                cliente:   filters.cliente    || '',
+                processo:  filters.processo   || '',
+                tipoSafra: filters.tipo_safra || '',
+              })
+            } finally {
+              setExporting(false)
+            }
+          }}
+          disabled={exporting}
           data-pdf-exclude="true"
           title="Exportar PDF"
-          style={{ ...fabBase, bottom: 144, background: '#2d5016', color: '#fff' }}
+          style={{ ...fabBase, bottom: 144, background: exporting ? '#6b7280' : '#2d5016', color: '#fff' }}
         >
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a1 1 0 001 1h16a1 1 0 001-1v-3M7 7V4a1 1 0 011-1h8a1 1 0 011 1v3" />
