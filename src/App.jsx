@@ -82,11 +82,11 @@ function AppInner() {
 
       <header className="no-print" style={{
         background: '#2d4a2d', padding: '12px 24px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <img 
-            src={logoPorteira} 
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+          <img
+            src={logoPorteira}
             alt="Porteira Adentro"
             style={{ height: '56px', width: 'auto' }}
           />
