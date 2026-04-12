@@ -81,7 +81,7 @@ function AppInner() {
     <div className="app-root" style={{ minHeight: '100vh', background: '#ffffff', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
 
       <header className="no-print" style={{
-        background: '#2d4a2d', padding: '4px 24px',
+        background: '#2d4a2d', padding: '1px 24px',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
