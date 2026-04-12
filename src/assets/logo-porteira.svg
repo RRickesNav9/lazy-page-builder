@@ -96,17 +96,11 @@
 
   <!-- Texto PORTEIRA ADENTRO -->
 
-  <text x="400" y="320" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="72" fill="#ffffff" text-anchor="middle" letter-spacing="2">
-
+  <text x="400" y="300" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="52" fill="#2D523E" text-anchor="middle" letter-spacing="2">
     PORTEIRA ADENTRO
-
   </text>
 
-
-
-
-  <!-- Linha de Base Marrom -->
-
-  <path d="M 120 335 L 680 335 L 670 345 L 130 345 Z" fill="#603913" />
+  <!-- Linha de Base Marrom (Aumentada para alinhar com as extremidades do texto) -->
+  <path d="M 140 315 L 660 315 L 650 323 L 150 323 Z" fill="#603913" />
 
 </svg>
