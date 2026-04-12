@@ -69,6 +69,14 @@ body {
 @page {
   size: A4 portrait;
   margin: 15mm;
+
+  /* Suprime metadados nativos do browser (data/hora, URL, nº de página) */
+  @top-left    { content: none !important; }
+  @top-center  { content: none !important; }
+  @top-right   { content: none !important; }
+  @bottom-left { content: none !important; }
+  @bottom-center { content: none !important; }
+  @bottom-right  { content: none !important; }
 }
 
 @media print {
