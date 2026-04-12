@@ -675,7 +675,7 @@ export default function AnaliseGeralPage() {
     <div style={{ padding: '24px', maxWidth: 1280, margin: '0 auto' }}>
 
       {/* Cabeçalho verde com contexto dos filtros ativos */}
-      <div data-pdf-exclude="true" style={{
+      <div style={{
         background: '#2d4a2d', borderRadius: 8,
         padding: '14px 20px', marginBottom: 20,
         display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',

@@ -682,17 +682,15 @@ export default function BenchmarkEquipamentoPage() {
             </SectionCard>
           </div>
 
-          <div data-pdf-exclude="true">
-            <DynamicHeader
-              processo={processoFiltro}
-              tipoSafra={filters.tipo_safra}
-              safra={currentSafra}
-              extraFields={[
-                { label: 'Equipamento', value: maqInfo1 ? `${maqInfo1.equipamento_cod} — ${maqInfo1.equipamento}` : '—' },
-                { label: 'Modelo',      value: maqInfo1?.modelo || '—' },
-              ]}
-            />
-          </div>
+          <DynamicHeader
+            processo={processoFiltro}
+            tipoSafra={filters.tipo_safra}
+            safra={currentSafra}
+            extraFields={[
+              { label: 'Equipamento', value: maqInfo1 ? `${maqInfo1.equipamento_cod} — ${maqInfo1.equipamento}` : '—' },
+              { label: 'Modelo',      value: maqInfo1?.modelo || '—' },
+            ]}
+          />
 
           {tab1Cod && (
             <SectionCard
@@ -772,17 +770,15 @@ export default function BenchmarkEquipamentoPage() {
             </SectionCard>
           </div>
 
-          <div data-pdf-exclude="true">
-            <DynamicHeader
-              processo={processoFiltro}
-              tipoSafra={filters.tipo_safra}
-              safra={currentSafra}
-              extraFields={[
-                { label: 'Equip. A', value: maqInfoA ? `${maqInfoA.equipamento_cod} — ${maqInfoA.equipamento}` : '—' },
-                { label: 'Equip. B', value: maqInfoB ? `${maqInfoB.equipamento_cod} — ${maqInfoB.equipamento}` : '—' },
-              ]}
-            />
-          </div>
+          <DynamicHeader
+            processo={processoFiltro}
+            tipoSafra={filters.tipo_safra}
+            safra={currentSafra}
+            extraFields={[
+              { label: 'Equip. A', value: maqInfoA ? `${maqInfoA.equipamento_cod} — ${maqInfoA.equipamento}` : '—' },
+              { label: 'Equip. B', value: maqInfoB ? `${maqInfoB.equipamento_cod} — ${maqInfoB.equipamento}` : '—' },
+            ]}
+          />
 
           {(sideA.cod || sideB.cod) && (
             <SectionCard
@@ -830,17 +826,15 @@ export default function BenchmarkEquipamentoPage() {
             </SectionCard>
           </div>
 
-          <div data-pdf-exclude="true">
-            <DynamicHeader
-              processo={processoFiltro}
-              tipoSafra={filters.tipo_safra}
-              safra={currentSafra}
-              extraFields={[
-                { label: 'Modelo A', value: modeloA || '—' },
-                { label: 'Modelo B', value: modeloB || '—' },
-              ]}
-            />
-          </div>
+          <DynamicHeader
+            processo={processoFiltro}
+            tipoSafra={filters.tipo_safra}
+            safra={currentSafra}
+            extraFields={[
+              { label: 'Modelo A', value: modeloA || '—' },
+              { label: 'Modelo B', value: modeloB || '—' },
+            ]}
+          />
 
           {(modeloA || modeloB) && (
             <SectionCard
