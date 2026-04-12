@@ -353,11 +353,13 @@ export default function BenchmarkClientePage() {
   return (
     <>
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: '20px 24px' }}>
-        <DynamicHeader
-          cliente={cliente}
-          processo={processo}
-          tipoSafra={tipoSafra}
-        />
+        <div data-pdf-exclude="true">
+          <DynamicHeader
+            cliente={cliente}
+            processo={processo}
+            tipoSafra={tipoSafra}
+          />
+        </div>
 
         {filters.metricFilter?.field && filters.metricFilter?.value !== '' && filters.metricFilter?.value != null && (
           <div style={{ background: '#edf5ed', border: '1px solid #4a6741', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#1e4d1e' }}>

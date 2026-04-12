@@ -12,10 +12,9 @@ const A4_W   = 210
 const A4_H   = 297
 const MARGIN = 15   // mm — todos os lados
 const HDR    = 22   // mm — cabeçalho de marca
-const FTR    = 8    // mm — rodapé
 
 const CONTENT_W = A4_W - 2 * MARGIN            // 180 mm
-const CONTENT_H = A4_H - 2 * MARGIN - HDR - FTR  // 237 mm
+const CONTENT_H = A4_H - 2 * MARGIN - HDR      // 245 mm
 
 // Largura de captura = A4 @ 96dpi — garante escala 1:1 com o papel
 // 14px de tela × 4 (scale) / (794×4/180) px·mm⁻¹ ≈ 3,17 mm ≈ 9pt (legível)
@@ -207,7 +206,6 @@ export async function exportToPDF(element, options = {}) {
     if (pg > 0) pdf.addPage()
 
     drawHeader(pdf, { cliente, processo, tipoSafra })
-    drawFooter(pdf, pg + 1, totalPgs)
 
     // Fatia do canvas correspondente a esta página
     const srcY = Math.round(breaks[pg])
