@@ -84,13 +84,13 @@ function AppInner() {
         background: '#2d4a2d', padding: '12px 24px',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <img
             src={logoPorteira}
             alt="Porteira Adentro"
-            style={{ height: '56px', width: 'auto' }}
+            style={{ height: '73px', width: 'auto' }}
           />
-          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>Relatório de Operações Agrícolas</div>
+          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 16 }}>Relatório de Operações Agrícolas</div>
         </div>
       </header>
 
