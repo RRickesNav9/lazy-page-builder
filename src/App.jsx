@@ -88,9 +88,9 @@ function AppInner() {
           <img
             src={logoPorteira}
             alt="Porteira Adentro"
-            style={{ height: '73px', width: 'auto' }}
+            style={{ height: '139px', width: 'auto' }}
           />
-          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 16 }}>Relatório de Operações Agrícolas</div>
+          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 16 }}>Relatório de Operações Agrícolas</div>
         </div>
       </header>
 
