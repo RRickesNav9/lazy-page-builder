@@ -4,7 +4,7 @@
 
 import { useState, useMemo } from 'react'
 import { useFilters } from '../lib/FilterContext'
-import { useClienteBenchmark, useGrupoBenchmark, useEquipamentoBenchmark } from '../hooks/useData'
+import { useClienteBenchmark, useGrupoBenchmark, useAllClientesBenchmark } from '../hooks/useData'
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
 
@@ -120,36 +120,20 @@ function isFavoravel(clienteVal, grupoVal, higherIsBetter) {
   return higherIsBetter ? clienteVal >= grupoVal : clienteVal <= grupoVal
 }
 
-// Calcula limiares de zona ruim e bom a partir dos modelos de equipamento.
-// N = min(3, floor(n/2)): garante que os grupos pior e melhor nunca se sobrepõem
-// e escala com o tamanho da frota (frota pequena → N menor).
-// Retorna { bad, good } ou null se não houver dados suficientes.
-function computeZoneBoundaries(equipRows, metricKey, higherIsBetter) {
-  const vals = equipRows
-    .map(r => r[`${metricKey}_modelo`])
+// Calcula limiares de zona a partir das médias reais dos clientes.
+// bad = pior cliente, good = melhor cliente para a métrica.
+// Retorna null se houver menos de 2 clientes com dados.
+function computeZoneBoundaries(clienteRows, metricKey, higherIsBetter) {
+  const vals = clienteRows
+    .map(r => r[metricKey])
     .filter(v => v != null && v > 0)
 
-  const n = vals.length
-  const N = Math.min(3, Math.floor(n / 2))
-  if (N === 0) return null  // 0 ou 1 equipamento: não há como distinguir zonas
+  if (vals.length < 2) return null
+  const mn = Math.min(...vals)
+  const mx = Math.max(...vals)
+  if (mn === mx) return null
 
-  // Ordena pior → melhor (ascendente para higherIsBetter, descendente para consumo)
-  const sorted = higherIsBetter
-    ? [...vals].sort((a, b) => a - b)
-    : [...vals].sort((a, b) => b - a)
-
-  // Piores N (início) e melhores N (fim) — por construção nunca se sobrepõem
-  const worst = sorted.slice(0, N)
-  const best  = sorted.slice(n - N)
-
-  const bad  = worst.reduce((s, v) => s + v, 0) / N
-  const good = best.reduce((s, v) => s + v, 0) / N
-
-  // Sanidade: se os grupos inverterem (edge case com dados atípicos), descarta
-  if (higherIsBetter  && bad >= good) return null
-  if (!higherIsBetter && bad <= good) return null
-
-  return { bad, good }
+  return higherIsBetter ? { bad: mn, good: mx } : { bad: mx, good: mn }
 }
 
 // ─── COMPONENTES INTERNOS ─────────────────────────────────────────────────────
@@ -219,14 +203,19 @@ function DynamicHeader({ cliente, processo, tipoSafra }) {
 function Legenda({ cliente }) {
   return (
     <div style={{ display: 'flex', gap: 16, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6b6560' }}>
-        <span style={{ width: 3, height: 14, background: '#555', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#6b6560' }}>
+        {/* Círculo + barra vertical — espelha o marcador do cliente na gauge */}
+        <span style={{ position: 'relative', display: 'inline-block', width: 10, height: 18, flexShrink: 0 }}>
+          <span style={{ position: 'absolute', top: 0, left: 1, width: 8, height: 8, background: '#4a3728', borderRadius: '50%', border: '1.5px solid white', boxShadow: '0 0 0 1px #4a3728' }} />
+          <span style={{ position: 'absolute', top: 8, left: 3.5, width: 3, height: 10, background: '#4a3728', borderRadius: 1 }} />
+        </span>
         {cliente || 'Cliente'}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6b6560' }}>
-        <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 1, flexShrink: 0 }}>
-          <span style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '5px solid #c8960c' }} />
-          <span style={{ width: 2, height: 7, background: '#c8960c', borderRadius: 1 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#6b6560' }}>
+        {/* Barra + triângulo apontando para baixo — espelha o marcador do grupo na gauge */}
+        <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+          <span style={{ width: 3, height: 8, background: '#c8960c', borderRadius: 1 }} />
+          <span style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '6px solid #c8960c' }} />
         </span>
         Média do grupo
       </div>
@@ -234,21 +223,21 @@ function Legenda({ cliente }) {
   )
 }
 
-// Linear gauge com zonas de largura fixa (cada uma = 1/3 da barra).
-// Escala piecewise: cada zona mapeia seu intervalo de dados linearmente ao seu terço.
-// Marcadores (cliente e grupo) são posicionados proporcionalmente dentro do terço correspondente.
-// O grupo tende a cair perto do centro (50%) pois os limiares são simétricos em torno da média.
+// Linear gauge com 3 zonas coloridas.
+// Escala 4-pontos: grupoVal ancorando sempre em 50% — bad (pior cliente) em 33%, good (melhor) em 67%.
+// Marcador do cliente: círculo acima + barra vertical + valor acima.
+// Marcador do grupo: barra âmbar + triângulo abaixo — separados verticalmente, sem sobreposição.
+// Labels de zona apenas no centro das zonas ruim e boa (não há label mediano).
 function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
-  // Fallback sem zonas: gauge linear simples
   if (!zones) {
-    const scaleMax  = Math.max(clienteVal, grupoVal, 0.001) * 1.1
+    const scaleMax   = Math.max(clienteVal, grupoVal, 0.001) * 1.1
     const clientePct = Math.min((clienteVal / scaleMax) * 100, 100)
     const grupoPct   = Math.min((grupoVal   / scaleMax) * 100, 100)
     return (
       <div style={{ minWidth: 180, paddingTop: 6 }}>
         <div style={{ height: 10, borderRadius: 5, background: '#f0ede8', position: 'relative', overflow: 'visible' }}>
-          <div style={{ position: 'absolute', left: `${grupoPct}%`, top: -7, transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '5px solid #c8960c', zIndex: 4 }} />
-          <div style={{ position: 'absolute', left: `${grupoPct}%`, top: -1, bottom: -1, width: 2, background: '#c8960c', transform: 'translateX(-50%)', borderRadius: 1, zIndex: 3 }} />
+          <div style={{ position: 'absolute', left: `${grupoPct}%`, top: 0, bottom: 0, width: 3, background: '#c8960c', transform: 'translateX(-50%)', borderRadius: 1, zIndex: 3 }} />
+          <div style={{ position: 'absolute', left: `${grupoPct}%`, bottom: -7, transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '6px solid #c8960c', zIndex: 4 }} />
           <div style={{ position: 'absolute', left: `${clientePct}%`, top: -3, bottom: -3, width: 3, background: barColor, transform: 'translateX(-50%)', borderRadius: 2, zIndex: 5 }} />
         </div>
       </div>
@@ -256,29 +245,46 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
   }
 
   const { bad, good, higherIsBetter } = zones
-  const Z = 100 / 3  // largura de cada terço
+  const Z = 100 / 3
 
-  // Valor máximo da escala: garante que o marcador do cliente nunca sai da barra
-  const maxVal = Math.max(clienteVal, grupoVal, higherIsBetter ? good : bad, 0.001) * 1.15
+  // Escala 4-pontos com grupoVal sempre em 50%.
+  // Se grupoVal não estiver entre bad e good, cai para escala 3-pontos simples.
+  const validScale = higherIsBetter
+    ? (bad > 0 && grupoVal > bad && good > grupoVal)
+    : (good > 0 && grupoVal > good && bad > grupoVal)
 
-  // Escala piecewise: [zona1_min, zona1_max] → [0, Z], [zona2_min, zona2_max] → [Z, 2Z], [zona3_min, +∞] → [2Z, 3Z]
+  const maxBound = higherIsBetter ? good : bad
+  const maxVal   = Math.max(clienteVal, grupoVal, maxBound > 0 ? maxBound : 0, 0.001) * 1.2
+
   function toPct(v) {
-    if (higherIsBetter) {
-      if (v <= 0)    return 0
-      if (v <= bad)  return (v / bad) * Z
-      if (v <= good) return Z + ((v - bad) / (good - bad)) * Z
-      return Math.min(2 * Z + ((v - good) / (maxVal - good)) * Z, 100)
+    if (v <= 0) return 0
+    if (validScale) {
+      if (higherIsBetter) {
+        if (v <= bad)      return (v / bad) * Z
+        if (v <= grupoVal) return Z + ((v - bad) / (grupoVal - bad)) * (Z / 2)
+        if (v <= good)     return Z * 1.5 + ((v - grupoVal) / (good - grupoVal)) * (Z / 2)
+        return Math.min(Z * 2 + ((v - good) / (maxVal - good)) * Z, 100)
+      } else {
+        if (v <= good)     return (v / good) * Z
+        if (v <= grupoVal) return Z + ((v - good) / (grupoVal - good)) * (Z / 2)
+        if (v <= bad)      return Z * 1.5 + ((v - grupoVal) / (bad - grupoVal)) * (Z / 2)
+        return Math.min(Z * 2 + ((v - bad) / (maxVal - bad)) * Z, 100)
+      }
     } else {
-      // Menor é melhor: zona verde [0→good] à esquerda, vermelha [bad→max] à direita
-      if (v <= 0)    return 0
-      if (v <= good) return (v / good) * Z
-      if (v <= bad)  return Z + ((v - good) / (bad - good)) * Z
-      return Math.min(2 * Z + ((v - bad) / (maxVal - bad)) * Z, 100)
+      if (higherIsBetter) {
+        if (v <= bad)  return (v / bad) * Z
+        if (v <= good) return Z + ((v - bad) / (good - bad)) * Z
+        return Math.min(2 * Z + ((v - good) / (maxVal - good)) * Z, 100)
+      } else {
+        if (v <= good) return (v / good) * Z
+        if (v <= bad)  return Z + ((v - good) / (bad - good)) * Z
+        return Math.min(2 * Z + ((v - bad) / (maxVal - bad)) * Z, 100)
+      }
     }
   }
 
   const clientePct = toPct(clienteVal)
-  const grupoPct   = toPct(grupoVal)
+  const grupoPct   = validScale ? 50 : toPct(grupoVal)
 
   const zoneSegs = higherIsBetter
     ? [
@@ -292,25 +298,14 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
         { left: 2 * Z, color: '#c0392b', r: '0 5px 5px 0' },
       ]
 
-  // Labels sempre nos centros fixos dos terços (independem dos valores)
-  const centers = [Z / 2, Z * 1.5, Z * 2.5]
-  const zoneLabels = higherIsBetter
-    ? [
-        { pos: centers[0], val: bad,              color: '#a02d20' },
-        { pos: centers[1], val: (bad + good) / 2, color: '#7a5c00' },
-        { pos: centers[2], val: good,             color: '#2a5c2a' },
-      ]
-    : [
-        { pos: centers[0], val: good,             color: '#2a5c2a' },
-        { pos: centers[1], val: (good + bad) / 2, color: '#7a5c00' },
-        { pos: centers[2], val: bad,              color: '#a02d20' },
-      ]
+  const badColor  = higherIsBetter ? '#a02d20' : '#2a5c2a'
+  const goodColor = higherIsBetter ? '#2a5c2a' : '#a02d20'
 
   return (
-    <div style={{ minWidth: 180, paddingTop: 6 }}>
+    <div style={{ minWidth: 180, paddingTop: 24 }}>
       <div style={{ height: 10, borderRadius: 5, position: 'relative', overflow: 'visible' }}>
 
-        {/* Terços de largura fixa */}
+        {/* Zonas coloridas */}
         {zoneSegs.map((z, i) => (
           <div key={i} style={{
             position: 'absolute', left: `${z.left}%`, width: `${Z}%`,
@@ -318,21 +313,26 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
           }} />
         ))}
 
-        {/* Marcador do grupo: triângulo + linha âmbar */}
-        <div style={{ position: 'absolute', left: `${grupoPct}%`, top: -7, transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '5px solid #c8960c', zIndex: 4 }} />
-        <div style={{ position: 'absolute', left: `${grupoPct}%`, top: -1, bottom: -1, width: 2, background: '#c8960c', transform: 'translateX(-50%)', borderRadius: 1, zIndex: 3 }} />
+        {/* Marcador do grupo: barra âmbar + triângulo apontando para baixo */}
+        <div style={{ position: 'absolute', left: `${grupoPct}%`, top: 0, bottom: 0, width: 3, background: '#c8960c', transform: 'translateX(-50%)', borderRadius: 1, zIndex: 3 }} />
+        <div style={{ position: 'absolute', left: `${grupoPct}%`, bottom: -7, transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '6px solid #c8960c', zIndex: 4 }} />
 
-        {/* Marcador do cliente */}
-        <div style={{ position: 'absolute', left: `${clientePct}%`, top: -3, bottom: -3, width: 3, background: barColor, transform: 'translateX(-50%)', borderRadius: 2, zIndex: 5 }} />
+        {/* Marcador do cliente: valor acima + círculo no topo + barra */}
+        <span style={{ position: 'absolute', left: `${clientePct}%`, top: -21, transform: 'translateX(-50%)', fontSize: 7, fontWeight: 700, color: barColor, whiteSpace: 'nowrap', background: 'rgba(255,255,255,0.92)', padding: '0 2px', borderRadius: 2, zIndex: 8, lineHeight: '10px' }}>
+          {fmt(clienteVal)}
+        </span>
+        <div style={{ position: 'absolute', left: `${clientePct}%`, top: -8, width: 8, height: 8, background: barColor, borderRadius: '50%', border: '1.5px solid white', transform: 'translateX(-50%)', zIndex: 6 }} />
+        <div style={{ position: 'absolute', left: `${clientePct}%`, top: 0, bottom: 0, width: 3, background: barColor, transform: 'translateX(-50%)', borderRadius: 2, zIndex: 5 }} />
       </div>
 
-      {/* Labels nos centros fixos de cada terço */}
-      <div style={{ position: 'relative', height: 13, marginTop: 3 }}>
-        {zoneLabels.map(({ pos, val, color }, i) => (
-          <span key={i} style={{ position: 'absolute', left: `${pos}%`, transform: 'translateX(-50%)', fontSize: 7, fontWeight: 600, color, whiteSpace: 'nowrap' }}>
-            {fmt(val)}
-          </span>
-        ))}
+      {/* Labels: apenas pior cliente (zona ruim) e melhor cliente (zona boa) */}
+      <div style={{ position: 'relative', height: 14, marginTop: 10 }}>
+        <span style={{ position: 'absolute', left: `${Z / 2}%`, transform: 'translateX(-50%)', fontSize: 7, fontWeight: 600, color: badColor, whiteSpace: 'nowrap' }}>
+          {fmt(bad)}
+        </span>
+        <span style={{ position: 'absolute', left: `${Z * 2.5}%`, transform: 'translateX(-50%)', fontSize: 7, fontWeight: 600, color: goodColor, whiteSpace: 'nowrap' }}>
+          {fmt(good)}
+        </span>
       </div>
     </div>
   )
@@ -501,8 +501,8 @@ export default function BenchmarkClientePage() {
   const { data: grupoData, loading: loadingGrupo } =
     useGrupoBenchmark(grupoFilters)
 
-  // Busca todos os modelos de equipamento do mesmo processo/safra para calcular limiares de zona
-  const { data: equipData } = useEquipamentoBenchmark(grupoFilters)
+  // Busca médias de todos os clientes para definir limiares de zona (pior e melhor cliente)
+  const { data: equipData } = useAllClientesBenchmark(grupoFilters)
 
   // Limiares de zona: ruim = avg dos N piores, bom = avg dos N melhores (N = min(3, floor(n/2)))
   const zoneThresholds = useMemo(() => {

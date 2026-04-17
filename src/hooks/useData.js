@@ -308,6 +308,86 @@ export function useClienteBenchmark(filters = {}) {
   return { metricas, loading, error }
 }
 
+// Agrega métricas de todos os clientes via média ponderada — fornece pior/melhor para limiares de zona.
+// Sem filtro de cliente; agrupa em memória por cliente após a query.
+export function useAllClientesBenchmark(filters = {}) {
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const JD_ID = '6731a094-8f65-472f-95f5-655d1303a72f'
+
+  useEffect(() => {
+    async function fetch() {
+      setLoading(true)
+      try {
+        let query = supabase
+          .from('dashboard_operational_view')
+          .select([
+            'cliente',
+            'rendimento_operacional_hah', 'eficiencia_geral_pct',
+            'eficiencia_operacional_pct', 'consumo_medio_efetivo_lha',
+            'consumo_medio_lh', 'disponibilidade_mecanica_pct', 'velocidade_media_kmh',
+            'tempo_produtivo_h', 'tempo_total_h', 'area_ha',
+          ].join(','))
+          .neq('cliente', 'Média Porteira')
+          .neq('data_provider_id', JD_ID)
+
+        if (filters.processo)   query = query.eq('processo',   filters.processo)
+        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
+        if (filters.safra)      query = query.eq('safra',      filters.safra)
+
+        let all = [], from = 0
+        while (true) {
+          const { data: page, error } = await query.range(from, from + 999)
+          if (error) throw error
+          all = all.concat(page)
+          if (page.length < 1000) break
+          from += 1000
+        }
+
+        const PESO = {
+          rendimento_operacional_hah:   'tempo_produtivo_h',
+          eficiencia_geral_pct:         'tempo_total_h',
+          eficiencia_operacional_pct:   'tempo_total_h',
+          consumo_medio_efetivo_lha:    'area_ha',
+          consumo_medio_lh:             'tempo_total_h',
+          disponibilidade_mecanica_pct: 'tempo_total_h',
+          velocidade_media_kmh:         'tempo_produtivo_h',
+        }
+
+        const byCliente = new Map()
+        for (const row of all) {
+          if (!row.cliente) continue
+          if (!byCliente.has(row.cliente)) byCliente.set(row.cliente, [])
+          byCliente.get(row.cliente).push(row)
+        }
+
+        const result = []
+        for (const [cliente, rows] of byCliente) {
+          const entry = { cliente }
+          for (const [metrica, peso] of Object.entries(PESO)) {
+            let sumProd = 0, sumPeso = 0
+            for (const row of rows) {
+              const v = row[metrica]; const w = row[peso]
+              if (v != null && w != null && w > 0) { sumProd += v * w; sumPeso += w }
+            }
+            entry[metrica] = sumPeso > 0 ? sumProd / sumPeso : null
+          }
+          result.push(entry)
+        }
+        setData(result)
+      } catch {
+        setData([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetch()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.processo, filters.tipo_safra, filters.safra])
+
+  return { data, loading }
+}
+
 // Mapa métrica → denominador correto para média ponderada (espelho de compute-performance-stats)
 const METRIC_WEIGHT_MAP = {
   rendimento_operacional_hah:   'tempo_produtivo_h',
