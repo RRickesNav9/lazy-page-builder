@@ -4,7 +4,7 @@
 
 import { useState, useMemo } from 'react'
 import { useFilters } from '../lib/FilterContext'
-import { useClienteBenchmark, useGrupoBenchmark, useAllClientesBenchmark } from '../hooks/useData'
+import { useClienteBenchmark, useAllClientesBenchmark } from '../hooks/useData'
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
 
@@ -498,33 +498,33 @@ export default function BenchmarkClientePage() {
   const { metricas: clienteMetricas, loading: loadingCliente, error: errorCliente } =
     useClienteBenchmark(benchFilters)
 
-  const { data: grupoData, loading: loadingGrupo } =
-    useGrupoBenchmark(grupoFilters)
+  // Busca médias de todos os clientes — fonte única para grupo, bad e good.
+  // Usar a mesma fonte garante que grupoVal sempre caia entre bad e good,
+  // evitando inconsistências com o benchmark pré-computado (media_grupo_porteira).
+  const { data: allClientesData, loading: loadingAllClientes } = useAllClientesBenchmark(grupoFilters)
 
-  // Busca médias de todos os clientes para definir limiares de zona (pior e melhor cliente)
-  const { data: equipData } = useAllClientesBenchmark(grupoFilters)
-
-  // Limiares de zona: ruim = avg dos N piores, bom = avg dos N melhores (N = min(3, floor(n/2)))
-  const zoneThresholds = useMemo(() => {
-    if (!equipData || equipData.length === 0) return {}
-    const result = {}
+  // Deriva grupo (média simples dos clientes), bad (pior) e good (melhor) da mesma fonte
+  const { grupoMetricas, zoneThresholds } = useMemo(() => {
+    if (!allClientesData || allClientesData.length === 0) return { grupoMetricas: null, zoneThresholds: {} }
+    const grupoM = {}
+    const zones  = {}
     for (const cfg of METRICAS_CONFIG) {
-      const boundaries = computeZoneBoundaries(equipData, cfg.key, cfg.higherIsBetter)
-      if (boundaries) result[cfg.key] = boundaries
+      const vals = allClientesData.map(r => r[cfg.key]).filter(v => v != null && v > 0)
+      if (vals.length === 0) continue
+      grupoM[cfg.key] = vals.reduce((s, v) => s + v, 0) / vals.length
+      const boundaries = computeZoneBoundaries(allClientesData, cfg.key, cfg.higherIsBetter)
+      if (boundaries) zones[cfg.key] = boundaries
     }
-    return result
-  }, [equipData])
-
-  // Pega a linha do grupo correspondente (processo + tipo_safra + safra)
-  const grupoRow = grupoData[0] ?? null
+    return { grupoMetricas: grupoM, zoneThresholds: zones }
+  }, [allClientesData])
 
   // Monta o array de pares { clienteVal, grupoVal } na ordem de METRICAS_CONFIG
   const metricas = METRICAS_CONFIG.map(cfg => ({
     clienteVal: clienteMetricas?.[cfg.key] ?? 0,
-    grupoVal:   grupoRow ? (grupoRow[`${cfg.key}_grupo`] ?? 0) : 0,
+    grupoVal:   grupoMetricas?.[cfg.key]   ?? 0,
   }))
 
-  const loading = loadingCliente || loadingGrupo
+  const loading = loadingCliente || loadingAllClientes
   const semDados = !loading && !clienteMetricas
 
   return (
