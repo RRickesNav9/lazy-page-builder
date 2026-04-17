@@ -183,12 +183,12 @@ function DynamicHeader({ cliente, processo, tipoSafra }) {
 }
 
 // Legenda de marcadores
-function Legenda() {
+function Legenda({ cliente }) {
   return (
     <div style={{ display: 'flex', gap: 16, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6b6560' }}>
         <span style={{ width: 3, height: 14, background: '#555', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
-        Este cliente
+        {cliente || 'Cliente'}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6b6560' }}>
         <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 1, flexShrink: 0 }}>
@@ -541,7 +541,7 @@ export default function BenchmarkClientePage() {
             <SectionCard
               title="MÉTRICAS COMPARÁVEIS — CLIENTE VS. GRUPO PORTEIRA"
             >
-              <Legenda />
+              <Legenda cliente={cliente} />
               <MetricasTable metricas={metricas} zoneThresholds={zoneThresholds} />
             </SectionCard>
           </div>
