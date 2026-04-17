@@ -204,18 +204,19 @@ function Legenda({ cliente }) {
   return (
     <div style={{ display: 'flex', gap: 16, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#6b6560' }}>
-        {/* Círculo + barra vertical — espelha o marcador do cliente na gauge */}
-        <span style={{ position: 'relative', display: 'inline-block', width: 10, height: 18, flexShrink: 0 }}>
-          <span style={{ position: 'absolute', top: 0, left: 1, width: 8, height: 8, background: '#4a3728', borderRadius: '50%', border: '1.5px solid white', boxShadow: '0 0 0 1px #4a3728' }} />
-          <span style={{ position: 'absolute', top: 8, left: 3.5, width: 3, height: 10, background: '#4a3728', borderRadius: 1 }} />
+        {/* Triângulo ▲ + linha — espelha o marcador do cliente */}
+        <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 0, flexShrink: 0 }}>
+          <span style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '8px solid #4a3728' }} />
+          <span style={{ width: 2, height: 5, background: '#4a3728', borderRadius: 1 }} />
         </span>
         {cliente || 'Cliente'}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#6b6560' }}>
-        {/* Barra + triângulo apontando para baixo — espelha o marcador do grupo na gauge */}
-        <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-          <span style={{ width: 3, height: 8, background: '#c8960c', borderRadius: 1 }} />
-          <span style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '6px solid #c8960c' }} />
+        {/* Linha + círculo — espelha o marcador do grupo */}
+        <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 0, flexShrink: 0 }}>
+          <span style={{ width: 3, height: 3, background: '#c8960c', borderRadius: 1 }} />
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#c8960c', border: '2px solid white', boxShadow: '0 0 0 1.5px #c8960c' }} />
+          <span style={{ width: 3, height: 3, background: '#c8960c', borderRadius: 1 }} />
         </span>
         Média do grupo
       </div>
@@ -234,11 +235,12 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
     const clientePct = Math.min((clienteVal / scaleMax) * 100, 100)
     const grupoPct   = Math.min((grupoVal   / scaleMax) * 100, 100)
     return (
-      <div style={{ minWidth: 180, paddingTop: 6 }}>
+      <div style={{ minWidth: 180, paddingTop: 26 }}>
         <div style={{ height: 10, borderRadius: 5, background: '#f0ede8', position: 'relative', overflow: 'visible' }}>
-          <div style={{ position: 'absolute', left: `${grupoPct}%`, top: 0, bottom: 0, width: 3, background: '#c8960c', transform: 'translateX(-50%)', borderRadius: 1, zIndex: 3 }} />
-          <div style={{ position: 'absolute', left: `${grupoPct}%`, bottom: -7, transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '6px solid #c8960c', zIndex: 4 }} />
-          <div style={{ position: 'absolute', left: `${clientePct}%`, top: -3, bottom: -3, width: 3, background: barColor, transform: 'translateX(-50%)', borderRadius: 2, zIndex: 5 }} />
+          <div style={{ position: 'absolute', left: `${grupoPct}%`, top: -5, bottom: -5, width: 3, background: '#c8960c', transform: 'translateX(-50%)', zIndex: 3 }} />
+          <div style={{ position: 'absolute', left: `${grupoPct}%`, top: '50%', width: 12, height: 12, borderRadius: '50%', background: '#c8960c', border: '2.5px solid white', transform: 'translate(-50%, -50%)', zIndex: 5 }} />
+          <div style={{ position: 'absolute', left: `${clientePct}%`, top: -12, width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderBottom: `12px solid ${barColor}`, transform: 'translateX(-50%)', zIndex: 7 }} />
+          <div style={{ position: 'absolute', left: `${clientePct}%`, top: 0, bottom: 0, width: 2, background: barColor, opacity: 0.6, transform: 'translateX(-50%)', zIndex: 4 }} />
         </div>
       </div>
     )
@@ -302,7 +304,7 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
   const goodColor = higherIsBetter ? '#2a5c2a' : '#a02d20'
 
   return (
-    <div style={{ minWidth: 180, paddingTop: 24 }}>
+    <div style={{ minWidth: 180, paddingTop: 26 }}>
       <div style={{ height: 10, borderRadius: 5, position: 'relative', overflow: 'visible' }}>
 
         {/* Zonas coloridas */}
@@ -313,20 +315,20 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
           }} />
         ))}
 
-        {/* Marcador do grupo: barra âmbar + triângulo apontando para baixo */}
-        <div style={{ position: 'absolute', left: `${grupoPct}%`, top: 0, bottom: 0, width: 3, background: '#c8960c', transform: 'translateX(-50%)', borderRadius: 1, zIndex: 3 }} />
-        <div style={{ position: 'absolute', left: `${grupoPct}%`, bottom: -7, transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '6px solid #c8960c', zIndex: 4 }} />
+        {/* Grupo: linha âmbar que perfura a barra + círculo branco-contornado centrado */}
+        <div style={{ position: 'absolute', left: `${grupoPct}%`, top: -5, bottom: -5, width: 3, background: '#c8960c', transform: 'translateX(-50%)', zIndex: 3 }} />
+        <div style={{ position: 'absolute', left: `${grupoPct}%`, top: '50%', width: 12, height: 12, borderRadius: '50%', background: '#c8960c', border: '2.5px solid white', transform: 'translate(-50%, -50%)', zIndex: 5 }} />
 
-        {/* Marcador do cliente: valor acima + círculo no topo + barra */}
-        <span style={{ position: 'absolute', left: `${clientePct}%`, top: -21, transform: 'translateX(-50%)', fontSize: 7, fontWeight: 700, color: barColor, whiteSpace: 'nowrap', background: 'rgba(255,255,255,0.92)', padding: '0 2px', borderRadius: 2, zIndex: 8, lineHeight: '10px' }}>
+        {/* Cliente: valor + triângulo ▲ sobreposto à barra + linha fina */}
+        <span style={{ position: 'absolute', left: `${clientePct}%`, top: -25, transform: 'translateX(-50%)', fontSize: 7, fontWeight: 700, color: barColor, whiteSpace: 'nowrap', background: 'rgba(255,255,255,0.95)', padding: '0 3px', borderRadius: 2, zIndex: 8, lineHeight: '11px' }}>
           {fmt(clienteVal)}
         </span>
-        <div style={{ position: 'absolute', left: `${clientePct}%`, top: -8, width: 8, height: 8, background: barColor, borderRadius: '50%', border: '1.5px solid white', transform: 'translateX(-50%)', zIndex: 6 }} />
-        <div style={{ position: 'absolute', left: `${clientePct}%`, top: 0, bottom: 0, width: 3, background: barColor, transform: 'translateX(-50%)', borderRadius: 2, zIndex: 5 }} />
+        <div style={{ position: 'absolute', left: `${clientePct}%`, top: -12, width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderBottom: `12px solid ${barColor}`, transform: 'translateX(-50%)', zIndex: 7 }} />
+        <div style={{ position: 'absolute', left: `${clientePct}%`, top: 0, bottom: 0, width: 2, background: barColor, opacity: 0.6, transform: 'translateX(-50%)', zIndex: 4 }} />
       </div>
 
-      {/* Labels: apenas pior cliente (zona ruim) e melhor cliente (zona boa) */}
-      <div style={{ position: 'relative', height: 14, marginTop: 10 }}>
+      {/* Labels: pior cliente (zona ruim) e melhor cliente (zona boa) */}
+      <div style={{ position: 'relative', height: 14, marginTop: 8 }}>
         <span style={{ position: 'absolute', left: `${Z / 2}%`, transform: 'translateX(-50%)', fontSize: 7, fontWeight: 600, color: badColor, whiteSpace: 'nowrap' }}>
           {fmt(bad)}
         </span>
