@@ -165,7 +165,7 @@ function DynamicHeader({ cliente, processo, tipoSafra }) {
   )
 }
 
-// Legenda de marcadores e zonas
+// Legenda de marcadores
 function Legenda() {
   return (
     <div style={{ display: 'flex', gap: 16, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -178,19 +178,8 @@ function Legenda() {
           <span style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '5px solid #c8960c' }} />
           <span style={{ width: 2, height: 7, background: '#c8960c', borderRadius: 1 }} />
         </span>
-        Média do grupo
+        Média do grupo (limiar bom/mediano)
       </div>
-      <div style={{ width: 1, height: 14, background: '#ddd', flexShrink: 0 }} />
-      {[
-        { color: '#fde8e8', border: '#e8c0c0', label: 'Ruim (média 5 piores máquinas)' },
-        { color: '#fdf6e3', border: '#e8d8a0', label: 'Mediano'                        },
-        { color: '#edf5ed', border: '#a0c8a0', label: 'Bom'                            },
-      ].map(({ color, border, label }) => (
-        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6b6560' }}>
-          <span style={{ width: 14, height: 8, background: color, border: `1px solid ${border}`, borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
-          {label}
-        </div>
-      ))}
     </div>
   )
 }
@@ -218,16 +207,16 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
     if (higherIsBetter) {
       // ruim → mediano → bom (esquerda para direita)
       zoneSegs = [
-        { left: 0,        width: badPct,             color: '#fde8e8', r: '5px 0 0 5px' },
-        { left: badPct,   width: goodPct - badPct,   color: '#fdf6e3', r: '0'            },
-        { left: goodPct,  width: 100 - goodPct,      color: '#edf5ed', r: '0 5px 5px 0' },
+        { left: 0,        width: badPct,             color: '#c0392b', r: '5px 0 0 5px' },
+        { left: badPct,   width: goodPct - badPct,   color: '#e8a200', r: '0'            },
+        { left: goodPct,  width: 100 - goodPct,      color: '#3a7d3a', r: '0 5px 5px 0' },
       ]
     } else {
       // bom → mediano → ruim (esquerda para direita, menor é melhor)
       zoneSegs = [
-        { left: 0,        width: goodPct,             color: '#edf5ed', r: '5px 0 0 5px' },
-        { left: goodPct,  width: badPct - goodPct,    color: '#fdf6e3', r: '0'            },
-        { left: badPct,   width: 100 - badPct,        color: '#fde8e8', r: '0 5px 5px 0' },
+        { left: 0,        width: goodPct,             color: '#3a7d3a', r: '5px 0 0 5px' },
+        { left: goodPct,  width: badPct - goodPct,    color: '#e8a200', r: '0'            },
+        { left: badPct,   width: 100 - badPct,        color: '#c0392b', r: '0 5px 5px 0' },
       ]
     }
   }
