@@ -221,20 +221,23 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
     }
   }
 
-  // Labels centrados em cada zona: valor do limiar que inicia a zona seguinte,
-  // posicionado no meio do intervalo para associação visual clara.
+  // Labels centrados em cada zona — todas as 3 zonas recebem um valor de referência.
+  // Zonas 1 e 2: valor do limiar superior (onde a zona termina).
+  // Zona 3 (aberta): valor do limiar inferior (onde a zona começa), mesma lógica.
   const zoneLabels = (() => {
     if (!zones || badPct == null || goodPct == null) return []
     const { bad, good, higherIsBetter } = zones
     if (higherIsBetter) {
       return [
-        { pos: badPct / 2,                val: bad,  color: '#a02d20' },  // centro da zona ruim
-        { pos: (badPct + goodPct) / 2,    val: good, color: '#7a5c00' },  // centro da zona mediana
+        { pos: badPct / 2,              val: bad,  color: '#a02d20' },  // centro ruim
+        { pos: (badPct + goodPct) / 2,  val: good, color: '#7a5c00' },  // centro mediano
+        { pos: (goodPct + 100) / 2,     val: good, color: '#2a5c2a' },  // centro bom
       ]
     }
     return [
-      { pos: goodPct / 2,                 val: good, color: '#2a5c2a' },  // centro da zona boa
-      { pos: (goodPct + badPct) / 2,      val: bad,  color: '#7a5c00' },  // centro da zona mediana
+      { pos: goodPct / 2,              val: good, color: '#2a5c2a' },  // centro bom
+      { pos: (goodPct + badPct) / 2,   val: bad,  color: '#7a5c00' },  // centro mediano
+      { pos: (badPct + 100) / 2,       val: bad,  color: '#a02d20' },  // centro ruim
     ]
   })()
 
