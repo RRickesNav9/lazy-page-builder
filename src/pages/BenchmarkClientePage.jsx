@@ -2,7 +2,7 @@
 // Compara métricas de um cliente específico contra a média do grupo Porteira.
 // Seleção de cliente via filtro global. Export via window.print() (FAB global).
 
-import { useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useFilters } from '../lib/FilterContext'
 import { useClienteBenchmark, useGrupoBenchmark, useEquipamentoBenchmark } from '../hooks/useData'
 
@@ -66,6 +66,18 @@ const METRICAS_CONFIG = [
     isPct: false,
   },
 ]
+
+const TABS = [
+  { id: 'colheita', label: 'Colheita' },
+  { id: 'plantio',  label: 'Plantio'  },
+  { id: 'geral',    label: 'Geral'    },
+]
+
+const TAB_PROCESSO = {
+  colheita: 'Colheita',
+  plantio:  'Plantio',
+  geral:    'Aplicação',
+}
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -141,6 +153,27 @@ function computeZoneBoundaries(equipRows, metricKey, higherIsBetter) {
 }
 
 // ─── COMPONENTES INTERNOS ─────────────────────────────────────────────────────
+
+function TabControl({ tabs, active, onChange }) {
+  return (
+    <div style={{
+      display: 'flex', background: '#f7f5f2', border: '1px solid #e0dbd4',
+      borderRadius: 6, overflow: 'hidden', marginBottom: 20,
+    }}>
+      {tabs.map((tab, i) => (
+        <button key={tab.id} onClick={() => onChange(tab.id)} style={{
+          flex: 1, padding: '8px 12px', fontSize: 13, fontWeight: 500,
+          border: 'none', cursor: 'pointer',
+          borderRight: i < tabs.length - 1 ? '1px solid #e0dbd4' : 'none',
+          background: active === tab.id ? '#2d4a2d' : '#f7f5f2',
+          color: active === tab.id ? '#ffffff' : '#6b6560',
+        }}>
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 // Cabeçalho dinâmico com cliente, processo e tipo de cultura
 function DynamicHeader({ cliente, processo, tipoSafra }) {
@@ -440,15 +473,16 @@ function MetricasTable({ metricas, zoneThresholds }) {
 
 export default function BenchmarkClientePage() {
   const { filters, queryFilters, currentSafra } = useFilters()
+  const [activeTab, setActiveTab] = useState('colheita')
 
   const cliente   = filters.cliente    || ''
-  const processo  = filters.processo   || ''
+  const processo  = TAB_PROCESSO[activeTab]
   const tipoSafra = filters.tipo_safra || ''
 
-  // Filtros para os hooks — sempre inclui safra corrente para parear cliente vs grupo
+  // Filtros para os hooks — processo sempre vem do tab ativo, não do filtro global
   const benchFilters = {
     ...(cliente   && { cliente }),
-    ...(processo  && { processo }),
+    processo,
     ...(tipoSafra && { tipo_safra: tipoSafra }),
     safra: currentSafra,
     ...(queryFilters.dataInicio && { dataInicio: queryFilters.dataInicio }),
@@ -456,7 +490,7 @@ export default function BenchmarkClientePage() {
   }
 
   const grupoFilters = {
-    ...(processo  && { processo }),
+    processo,
     ...(tipoSafra && { tipo_safra: tipoSafra }),
     safra: currentSafra,
   }
@@ -501,6 +535,8 @@ export default function BenchmarkClientePage() {
           processo={processo}
           tipoSafra={tipoSafra}
         />
+
+        <TabControl tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
         {filters.metricFilter?.field && filters.metricFilter?.value !== '' && filters.metricFilter?.value != null && (
           <div style={{ background: '#edf5ed', border: '1px solid #4a6741', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#1e4d1e' }}>
