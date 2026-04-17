@@ -152,38 +152,53 @@ function DynamicHeader({ cliente, processo, tipoSafra }) {
 // Legenda de cores
 function Legenda() {
   return (
-    <div style={{ display: 'flex', gap: 16, marginBottom: 10 }}>
-      {[
-        { color: '#2d4a2d', label: 'Este cliente'   },
-        { color: '#c8960c', label: 'Média do grupo' },
-      ].map(({ color, label }) => (
-        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6b6560' }}>
-          <span style={{ width: 10, height: 10, background: color, borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
-          {label}
-        </div>
-      ))}
+    <div style={{ display: 'flex', gap: 20, marginBottom: 10, alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#6b6560' }}>
+        <span style={{ width: 24, height: 8, background: '#2d4a2d', borderRadius: 3, display: 'inline-block', flexShrink: 0, opacity: 0.85 }} />
+        Este cliente
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#6b6560' }}>
+        <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+          <span style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '5px solid #c8960c' }} />
+          <span style={{ width: 2, height: 8, background: '#c8960c', borderRadius: 1 }} />
+        </span>
+        Média do grupo
+      </div>
     </div>
   )
 }
 
-// Barras duplas sobrepostas
-function BarrasDuplas({ clienteVal, grupoVal, barColor }) {
-  const maxVal = Math.max(clienteVal, grupoVal, 0.001)
+// Linear gauge: barra do cliente + linha de referência do grupo
+function LinearGauge({ clienteVal, grupoVal, barColor }) {
+  const maxVal = Math.max(clienteVal, grupoVal, 0.001) * 1.1
+  const clientePct = Math.min((clienteVal / maxVal) * 100, 100)
+  const grupoPct   = Math.min((grupoVal   / maxVal) * 100, 100)
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      {[
-        { label: 'Cliente', width: (clienteVal / maxVal) * 100, color: barColor },
-        { label: 'Grupo',   width: (grupoVal   / maxVal) * 100, color: '#c8960c' },
-      ].map(({ label, width, color }) => (
-        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ width: 46, flexShrink: 0, fontSize: 7, color: '#6b6560', textAlign: 'right' }}>
-            {label}
-          </span>
-          <div style={{ flex: 1, height: 7, background: '#f0ede8', borderRadius: 2, overflow: 'hidden', minWidth: 100 }}>
-            <div style={{ height: '100%', width: `${width}%`, background: color, borderRadius: 2 }} />
-          </div>
-        </div>
-      ))}
+    <div style={{ minWidth: 160, paddingTop: 8 }}>
+      <div style={{ height: 10, background: '#f0ede8', borderRadius: 5, position: 'relative', overflow: 'visible' }}>
+        {/* preenchimento cliente */}
+        <div style={{
+          position: 'absolute', left: 0, top: 0,
+          height: '100%', width: `${clientePct}%`,
+          background: barColor, borderRadius: 5, opacity: 0.85,
+        }} />
+        {/* triângulo marcador grupo */}
+        <div style={{
+          position: 'absolute', left: `${grupoPct}%`, top: -7,
+          transform: 'translateX(-50%)',
+          width: 0, height: 0,
+          borderLeft: '4px solid transparent',
+          borderRight: '4px solid transparent',
+          borderTop: '5px solid #c8960c',
+        }} />
+        {/* linha de referência grupo */}
+        <div style={{
+          position: 'absolute', left: `${grupoPct}%`, top: -2, bottom: -2,
+          width: 2, background: '#c8960c',
+          transform: 'translateX(-50%)', borderRadius: 1,
+        }} />
+      </div>
     </div>
   )
 }
@@ -268,7 +283,7 @@ function MetricaRow({ cfg, clienteVal, grupoVal, isEven }) {
         <span style={{ fontSize: 11, color: '#6b6560' }}>{cfg.fmt(grupoVal)}</span>
       </td>
       <td style={{ padding: '9px 10px', minWidth: 200 }}>
-        <BarrasDuplas clienteVal={clienteVal} grupoVal={grupoVal} barColor={barColor} />
+        <LinearGauge clienteVal={clienteVal} grupoVal={grupoVal} barColor={barColor} />
       </td>
       <td style={{ padding: '9px 10px', width: 80, textAlign: 'center' }}>
         <span style={{ fontSize: 11, fontWeight: 600, color: diffColor }}>{diffStr}</span>
