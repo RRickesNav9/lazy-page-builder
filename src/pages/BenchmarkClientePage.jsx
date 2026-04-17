@@ -246,15 +246,15 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
     const { bad, good, higherIsBetter } = zones
     if (higherIsBetter) {
       return [
-        { pos: badPct / 2,              val: bad,  color: '#a02d20' },  // centro ruim
-        { pos: (badPct + goodPct) / 2,  val: good, color: '#7a5c00' },  // centro mediano
-        { pos: (goodPct + 100) / 2,     val: good, color: '#2a5c2a' },  // centro bom
+        { pos: badPct / 2,              val: bad,              color: '#a02d20' },  // centro ruim: limiar superior
+        { pos: (badPct + goodPct) / 2,  val: (bad + good) / 2, color: '#7a5c00' },  // centro mediano: ponto médio do intervalo
+        { pos: (goodPct + 100) / 2,     val: good,             color: '#2a5c2a' },  // centro bom: limiar inferior
       ]
     }
     return [
-      { pos: goodPct / 2,              val: good, color: '#2a5c2a' },  // centro bom
-      { pos: (goodPct + badPct) / 2,   val: bad,  color: '#7a5c00' },  // centro mediano
-      { pos: (badPct + 100) / 2,       val: bad,  color: '#a02d20' },  // centro ruim
+      { pos: goodPct / 2,              val: good,             color: '#2a5c2a' },  // centro bom: limiar superior (menor é melhor)
+      { pos: (goodPct + badPct) / 2,   val: (good + bad) / 2, color: '#7a5c00' },  // centro mediano: ponto médio
+      { pos: (badPct + 100) / 2,       val: bad,              color: '#a02d20' },  // centro ruim: limiar inferior
     ]
   })()
 
