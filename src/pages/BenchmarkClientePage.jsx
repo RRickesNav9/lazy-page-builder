@@ -186,6 +186,7 @@ function Legenda() {
 
 // Linear gauge com zonas ruim/mediano/bom derivadas dos dados reais de equipamentos.
 // zones: { bad, good, higherIsBetter } — bad = limiar da zona ruim, good = média do grupo.
+// Labels posicionados no centro de cada zona com a cor da própria zona.
 // Sem zones: gauge simples com marcadores apenas.
 function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
   const scaleMax = zones
@@ -197,22 +198,21 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
   const grupoPct   = toPct(grupoVal)
 
   let zoneSegs = null
-  let badPct = null
+  let badPct   = null
+  let goodPct  = null
 
   if (zones) {
     const { bad, good, higherIsBetter } = zones
     badPct  = toPct(bad)
-    const goodPct = toPct(good)
+    goodPct = toPct(good)
 
     if (higherIsBetter) {
-      // ruim → mediano → bom (esquerda para direita)
       zoneSegs = [
         { left: 0,        width: badPct,             color: '#c0392b', r: '5px 0 0 5px' },
         { left: badPct,   width: goodPct - badPct,   color: '#e8a200', r: '0'            },
         { left: goodPct,  width: 100 - goodPct,      color: '#3a7d3a', r: '0 5px 5px 0' },
       ]
     } else {
-      // bom → mediano → ruim (esquerda para direita, menor é melhor)
       zoneSegs = [
         { left: 0,        width: goodPct,             color: '#3a7d3a', r: '5px 0 0 5px' },
         { left: goodPct,  width: badPct - goodPct,    color: '#e8a200', r: '0'            },
@@ -220,6 +220,23 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
       ]
     }
   }
+
+  // Labels centrados em cada zona: valor do limiar que inicia a zona seguinte,
+  // posicionado no meio do intervalo para associação visual clara.
+  const zoneLabels = (() => {
+    if (!zones || badPct == null || goodPct == null) return []
+    const { bad, good, higherIsBetter } = zones
+    if (higherIsBetter) {
+      return [
+        { pos: badPct / 2,                val: bad,  color: '#a02d20' },  // centro da zona ruim
+        { pos: (badPct + goodPct) / 2,    val: good, color: '#7a5c00' },  // centro da zona mediana
+      ]
+    }
+    return [
+      { pos: goodPct / 2,                 val: good, color: '#2a5c2a' },  // centro da zona boa
+      { pos: (goodPct + badPct) / 2,      val: bad,  color: '#7a5c00' },  // centro da zona mediana
+    ]
+  })()
 
   return (
     <div style={{ minWidth: 180, paddingTop: 6 }}>
@@ -238,14 +255,6 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
             background: z.color, borderRadius: z.r,
           }} />
         ))}
-
-        {/* Divisória no limiar ruim */}
-        {badPct != null && (
-          <div style={{
-            position: 'absolute', left: `${badPct}%`, top: 0, bottom: 0,
-            width: 1, background: 'rgba(0,0,0,0.15)', zIndex: 1,
-          }} />
-        )}
 
         {/* Marcador do grupo: triângulo + linha âmbar */}
         <div style={{
@@ -272,16 +281,18 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
         }} />
       </div>
 
-      {/* Label do limiar ruim abaixo da trilha */}
-      {badPct != null && (
+      {/* Labels centrados em cada zona */}
+      {zoneLabels.length > 0 && (
         <div style={{ position: 'relative', height: 13, marginTop: 3 }}>
-          <span style={{
-            position: 'absolute', left: `${badPct}%`,
-            transform: 'translateX(-50%)',
-            fontSize: 7, color: '#8b7d75', whiteSpace: 'nowrap',
-          }}>
-            {fmt(zones.bad)}
-          </span>
+          {zoneLabels.map(({ pos, val, color }, i) => (
+            <span key={i} style={{
+              position: 'absolute', left: `${pos}%`,
+              transform: 'translateX(-50%)',
+              fontSize: 7, fontWeight: 600, color, whiteSpace: 'nowrap',
+            }}>
+              {fmt(val)}
+            </span>
+          ))}
         </div>
       )}
     </div>
