@@ -108,19 +108,36 @@ function isFavoravel(clienteVal, grupoVal, higherIsBetter) {
   return higherIsBetter ? clienteVal >= grupoVal : clienteVal <= grupoVal
 }
 
-// Média dos N piores valores de uma métrica entre os modelos de equipamento.
-// "Pior" = menor para higherIsBetter, maior para !higherIsBetter.
-// Usado como limiar inferior da zona "ruim" no gauge.
-function computeBadThreshold(equipRows, metricKey, higherIsBetter, n = 5) {
+// Calcula limiares de zona ruim e bom a partir dos modelos de equipamento.
+// N = min(3, floor(n/2)): garante que os grupos pior e melhor nunca se sobrepõem
+// e escala com o tamanho da frota (frota pequena → N menor).
+// Retorna { bad, good } ou null se não houver dados suficientes.
+function computeZoneBoundaries(equipRows, metricKey, higherIsBetter) {
   const vals = equipRows
     .map(r => r[`${metricKey}_modelo`])
     .filter(v => v != null && v > 0)
-  if (vals.length === 0) return null
+
+  const n = vals.length
+  const N = Math.min(3, Math.floor(n / 2))
+  if (N === 0) return null  // 0 ou 1 equipamento: não há como distinguir zonas
+
+  // Ordena pior → melhor (ascendente para higherIsBetter, descendente para consumo)
   const sorted = higherIsBetter
-    ? [...vals].sort((a, b) => a - b)   // crescente: piores (menores) primeiro
-    : [...vals].sort((a, b) => b - a)   // decrescente: piores (maiores) primeiro
-  const worst = sorted.slice(0, Math.min(n, sorted.length))
-  return worst.reduce((s, v) => s + v, 0) / worst.length
+    ? [...vals].sort((a, b) => a - b)
+    : [...vals].sort((a, b) => b - a)
+
+  // Piores N (início) e melhores N (fim) — por construção nunca se sobrepõem
+  const worst = sorted.slice(0, N)
+  const best  = sorted.slice(n - N)
+
+  const bad  = worst.reduce((s, v) => s + v, 0) / N
+  const good = best.reduce((s, v) => s + v, 0) / N
+
+  // Sanidade: se os grupos inverterem (edge case com dados atípicos), descarta
+  if (higherIsBetter  && bad >= good) return null
+  if (!higherIsBetter && bad <= good) return null
+
+  return { bad, good }
 }
 
 // ─── COMPONENTES INTERNOS ─────────────────────────────────────────────────────
@@ -178,7 +195,7 @@ function Legenda() {
           <span style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '5px solid #c8960c' }} />
           <span style={{ width: 2, height: 7, background: '#c8960c', borderRadius: 1 }} />
         </span>
-        Média do grupo (limiar bom/mediano)
+        Média do grupo
       </div>
     </div>
   )
@@ -190,7 +207,7 @@ function Legenda() {
 // Sem zones: gauge simples com marcadores apenas.
 function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
   const scaleMax = zones
-    ? Math.max(clienteVal, grupoVal, zones.bad, 0.001) * 1.1
+    ? Math.max(clienteVal, grupoVal, zones.bad, zones.good, 0.001) * 1.1
     : Math.max(clienteVal, grupoVal, 0.001) * 1.1
 
   const toPct = (v) => Math.min(Math.max((v / scaleMax) * 100, 0), 100)
@@ -358,7 +375,7 @@ function MetricasHeader() {
   )
 }
 
-function MetricaRow({ cfg, clienteVal, grupoVal, isEven, badThreshold }) {
+function MetricaRow({ cfg, clienteVal, grupoVal, isEven, zoneInfo }) {
   const status   = computeStatus(clienteVal, grupoVal, cfg.higherIsBetter)
   const barColor = clienteBarColor(status)
   const badge    = statusBadgeProps(status)
@@ -367,14 +384,10 @@ function MetricaRow({ cfg, clienteVal, grupoVal, isEven, badThreshold }) {
     ? '#1e4d1e'
     : '#8b2020'
 
-  // Zonas só fazem sentido se bad está do lado correto em relação a grupo
-  const zones = (() => {
-    if (badThreshold == null || grupoVal <= 0) return null
-    const { higherIsBetter } = cfg
-    if (higherIsBetter  && badThreshold >= grupoVal) return null
-    if (!higherIsBetter && badThreshold <= grupoVal) return null
-    return { bad: badThreshold, good: grupoVal, higherIsBetter }
-  })()
+  // computeZoneBoundaries já valida sanidade; aqui apenas empacota para o gauge
+  const zones = zoneInfo
+    ? { bad: zoneInfo.bad, good: zoneInfo.good, higherIsBetter: cfg.higherIsBetter }
+    : null
 
   return (
     <tr style={{ background: isEven ? '#ffffff' : '#fafaf8' }}>
@@ -428,7 +441,7 @@ function MetricasTable({ metricas, zoneThresholds }) {
               clienteVal={metricas[i].clienteVal}
               grupoVal={metricas[i].grupoVal}
               isEven={i % 2 === 0}
-              badThreshold={zoneThresholds?.[cfg.key]}
+              zoneInfo={zoneThresholds?.[cfg.key]}
             />
           ))}
         </tbody>
@@ -471,13 +484,13 @@ export default function BenchmarkClientePage() {
   // Busca todos os modelos de equipamento do mesmo processo/safra para calcular limiares de zona
   const { data: equipData } = useEquipamentoBenchmark(grupoFilters)
 
-  // Para cada métrica: média das 5 piores máquinas do grupo = limiar da zona ruim
+  // Limiares de zona: ruim = avg dos N piores, bom = avg dos N melhores (N = min(3, floor(n/2)))
   const zoneThresholds = useMemo(() => {
     if (!equipData || equipData.length === 0) return {}
     const result = {}
     for (const cfg of METRICAS_CONFIG) {
-      const threshold = computeBadThreshold(equipData, cfg.key, cfg.higherIsBetter)
-      if (threshold != null) result[cfg.key] = threshold
+      const boundaries = computeZoneBoundaries(equipData, cfg.key, cfg.higherIsBetter)
+      if (boundaries) result[cfg.key] = boundaries
     }
     return result
   }, [equipData])
