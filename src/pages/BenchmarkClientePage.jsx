@@ -2,8 +2,9 @@
 // Compara métricas de um cliente específico contra a média do grupo Porteira.
 // Seleção de cliente via filtro global. Export via window.print() (FAB global).
 
+import { useMemo } from 'react'
 import { useFilters } from '../lib/FilterContext'
-import { useClienteBenchmark, useGrupoBenchmark } from '../hooks/useData'
+import { useClienteBenchmark, useGrupoBenchmark, useEquipamentoBenchmark } from '../hooks/useData'
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
 
@@ -107,6 +108,21 @@ function isFavoravel(clienteVal, grupoVal, higherIsBetter) {
   return higherIsBetter ? clienteVal >= grupoVal : clienteVal <= grupoVal
 }
 
+// Média dos N piores valores de uma métrica entre os modelos de equipamento.
+// "Pior" = menor para higherIsBetter, maior para !higherIsBetter.
+// Usado como limiar inferior da zona "ruim" no gauge.
+function computeBadThreshold(equipRows, metricKey, higherIsBetter, n = 5) {
+  const vals = equipRows
+    .map(r => r[`${metricKey}_modelo`])
+    .filter(v => v != null && v > 0)
+  if (vals.length === 0) return null
+  const sorted = higherIsBetter
+    ? [...vals].sort((a, b) => a - b)   // crescente: piores (menores) primeiro
+    : [...vals].sort((a, b) => b - a)   // decrescente: piores (maiores) primeiro
+  const worst = sorted.slice(0, Math.min(n, sorted.length))
+  return worst.reduce((s, v) => s + v, 0) / worst.length
+}
+
 // ─── COMPONENTES INTERNOS ─────────────────────────────────────────────────────
 
 // Cabeçalho dinâmico com cliente, processo e tipo de cultura
@@ -149,41 +165,100 @@ function DynamicHeader({ cliente, processo, tipoSafra }) {
   )
 }
 
-// Legenda de cores
+// Legenda de marcadores e zonas
 function Legenda() {
   return (
-    <div style={{ display: 'flex', gap: 20, marginBottom: 10, alignItems: 'center' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#6b6560' }}>
-        <span style={{ width: 24, height: 8, background: '#2d4a2d', borderRadius: 3, display: 'inline-block', flexShrink: 0, opacity: 0.85 }} />
+    <div style={{ display: 'flex', gap: 16, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6b6560' }}>
+        <span style={{ width: 3, height: 14, background: '#555', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
         Este cliente
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#6b6560' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6b6560' }}>
         <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 1, flexShrink: 0 }}>
           <span style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '5px solid #c8960c' }} />
-          <span style={{ width: 2, height: 8, background: '#c8960c', borderRadius: 1 }} />
+          <span style={{ width: 2, height: 7, background: '#c8960c', borderRadius: 1 }} />
         </span>
         Média do grupo
       </div>
+      <div style={{ width: 1, height: 14, background: '#ddd', flexShrink: 0 }} />
+      {[
+        { color: '#fde8e8', border: '#e8c0c0', label: 'Ruim (média 5 piores máquinas)' },
+        { color: '#fdf6e3', border: '#e8d8a0', label: 'Mediano'                        },
+        { color: '#edf5ed', border: '#a0c8a0', label: 'Bom'                            },
+      ].map(({ color, border, label }) => (
+        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6b6560' }}>
+          <span style={{ width: 14, height: 8, background: color, border: `1px solid ${border}`, borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
+          {label}
+        </div>
+      ))}
     </div>
   )
 }
 
-// Linear gauge: barra do cliente + linha de referência do grupo
-function LinearGauge({ clienteVal, grupoVal, barColor }) {
-  const maxVal = Math.max(clienteVal, grupoVal, 0.001) * 1.1
-  const clientePct = Math.min((clienteVal / maxVal) * 100, 100)
-  const grupoPct   = Math.min((grupoVal   / maxVal) * 100, 100)
+// Linear gauge com zonas ruim/mediano/bom derivadas dos dados reais de equipamentos.
+// zones: { bad, good, higherIsBetter } — bad = limiar da zona ruim, good = média do grupo.
+// Sem zones: gauge simples com marcadores apenas.
+function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
+  const scaleMax = zones
+    ? Math.max(clienteVal, grupoVal, zones.bad, 0.001) * 1.1
+    : Math.max(clienteVal, grupoVal, 0.001) * 1.1
+
+  const toPct = (v) => Math.min(Math.max((v / scaleMax) * 100, 0), 100)
+  const clientePct = toPct(clienteVal)
+  const grupoPct   = toPct(grupoVal)
+
+  let zoneSegs = null
+  let badPct = null
+
+  if (zones) {
+    const { bad, good, higherIsBetter } = zones
+    badPct  = toPct(bad)
+    const goodPct = toPct(good)
+
+    if (higherIsBetter) {
+      // ruim → mediano → bom (esquerda para direita)
+      zoneSegs = [
+        { left: 0,        width: badPct,             color: '#fde8e8', r: '5px 0 0 5px' },
+        { left: badPct,   width: goodPct - badPct,   color: '#fdf6e3', r: '0'            },
+        { left: goodPct,  width: 100 - goodPct,      color: '#edf5ed', r: '0 5px 5px 0' },
+      ]
+    } else {
+      // bom → mediano → ruim (esquerda para direita, menor é melhor)
+      zoneSegs = [
+        { left: 0,        width: goodPct,             color: '#edf5ed', r: '5px 0 0 5px' },
+        { left: goodPct,  width: badPct - goodPct,    color: '#fdf6e3', r: '0'            },
+        { left: badPct,   width: 100 - badPct,        color: '#fde8e8', r: '0 5px 5px 0' },
+      ]
+    }
+  }
 
   return (
-    <div style={{ minWidth: 160, paddingTop: 8 }}>
-      <div style={{ height: 10, background: '#f0ede8', borderRadius: 5, position: 'relative', overflow: 'visible' }}>
-        {/* preenchimento cliente */}
-        <div style={{
-          position: 'absolute', left: 0, top: 0,
-          height: '100%', width: `${clientePct}%`,
-          background: barColor, borderRadius: 5, opacity: 0.85,
-        }} />
-        {/* triângulo marcador grupo */}
+    <div style={{ minWidth: 180, paddingTop: 6 }}>
+      {/* Trilha */}
+      <div style={{
+        height: 10, borderRadius: 5, position: 'relative', overflow: 'visible',
+        background: zoneSegs ? 'transparent' : '#f0ede8',
+      }}>
+
+        {/* Zonas coloridas */}
+        {zoneSegs && zoneSegs.map((z, i) => (
+          <div key={i} style={{
+            position: 'absolute',
+            left: `${z.left}%`, width: `${Math.max(z.width, 0)}%`,
+            top: 0, height: '100%',
+            background: z.color, borderRadius: z.r,
+          }} />
+        ))}
+
+        {/* Divisória no limiar ruim */}
+        {badPct != null && (
+          <div style={{
+            position: 'absolute', left: `${badPct}%`, top: 0, bottom: 0,
+            width: 1, background: 'rgba(0,0,0,0.15)', zIndex: 1,
+          }} />
+        )}
+
+        {/* Marcador do grupo: triângulo + linha âmbar */}
         <div style={{
           position: 'absolute', left: `${grupoPct}%`, top: -7,
           transform: 'translateX(-50%)',
@@ -191,14 +266,35 @@ function LinearGauge({ clienteVal, grupoVal, barColor }) {
           borderLeft: '4px solid transparent',
           borderRight: '4px solid transparent',
           borderTop: '5px solid #c8960c',
+          zIndex: 4,
         }} />
-        {/* linha de referência grupo */}
         <div style={{
-          position: 'absolute', left: `${grupoPct}%`, top: -2, bottom: -2,
+          position: 'absolute', left: `${grupoPct}%`, top: -1, bottom: -1,
           width: 2, background: '#c8960c',
-          transform: 'translateX(-50%)', borderRadius: 1,
+          transform: 'translateX(-50%)', borderRadius: 1, zIndex: 3,
+        }} />
+
+        {/* Marcador do cliente: barra vertical colorida */}
+        <div style={{
+          position: 'absolute', left: `${clientePct}%`,
+          top: -3, bottom: -3, width: 3,
+          background: barColor,
+          transform: 'translateX(-50%)', borderRadius: 2, zIndex: 5,
         }} />
       </div>
+
+      {/* Label do limiar ruim abaixo da trilha */}
+      {badPct != null && (
+        <div style={{ position: 'relative', height: 13, marginTop: 3 }}>
+          <span style={{
+            position: 'absolute', left: `${badPct}%`,
+            transform: 'translateX(-50%)',
+            fontSize: 7, color: '#8b7d75', whiteSpace: 'nowrap',
+          }}>
+            {fmt(zones.bad)}
+          </span>
+        </div>
+      )}
     </div>
   )
 }
@@ -235,7 +331,7 @@ function MetricasHeader() {
     { label: 'MÉTRICA',            width: 160                    },
     { label: 'CLIENTE',            width: 80,  align: 'center'  },
     { label: 'GRUPO',              width: 80,  align: 'center'  },
-    { label: 'COMPARATIVO VISUAL', minWidth: 200                 },
+    { label: 'COMPARATIVO VISUAL', minWidth: 220                 },
     { label: 'DIFERENÇA',          width: 80,  align: 'center'  },
     { label: 'STATUS',             width: 70,  align: 'center'  },
   ]
@@ -259,7 +355,7 @@ function MetricasHeader() {
   )
 }
 
-function MetricaRow({ cfg, clienteVal, grupoVal, isEven }) {
+function MetricaRow({ cfg, clienteVal, grupoVal, isEven, badThreshold }) {
   const status   = computeStatus(clienteVal, grupoVal, cfg.higherIsBetter)
   const barColor = clienteBarColor(status)
   const badge    = statusBadgeProps(status)
@@ -267,6 +363,15 @@ function MetricaRow({ cfg, clienteVal, grupoVal, isEven }) {
   const diffColor = isFavoravel(clienteVal, grupoVal, cfg.higherIsBetter)
     ? '#1e4d1e'
     : '#8b2020'
+
+  // Zonas só fazem sentido se bad está do lado correto em relação a grupo
+  const zones = (() => {
+    if (badThreshold == null || grupoVal <= 0) return null
+    const { higherIsBetter } = cfg
+    if (higherIsBetter  && badThreshold >= grupoVal) return null
+    if (!higherIsBetter && badThreshold <= grupoVal) return null
+    return { bad: badThreshold, good: grupoVal, higherIsBetter }
+  })()
 
   return (
     <tr style={{ background: isEven ? '#ffffff' : '#fafaf8' }}>
@@ -282,8 +387,14 @@ function MetricaRow({ cfg, clienteVal, grupoVal, isEven }) {
       <td style={{ padding: '9px 10px', width: 80, textAlign: 'center' }}>
         <span style={{ fontSize: 11, color: '#6b6560' }}>{cfg.fmt(grupoVal)}</span>
       </td>
-      <td style={{ padding: '9px 10px', minWidth: 200 }}>
-        <LinearGauge clienteVal={clienteVal} grupoVal={grupoVal} barColor={barColor} />
+      <td style={{ padding: '9px 10px', minWidth: 220 }}>
+        <LinearGauge
+          clienteVal={clienteVal}
+          grupoVal={grupoVal}
+          barColor={barColor}
+          zones={zones}
+          fmt={cfg.fmt}
+        />
       </td>
       <td style={{ padding: '9px 10px', width: 80, textAlign: 'center' }}>
         <span style={{ fontSize: 11, fontWeight: 600, color: diffColor }}>{diffStr}</span>
@@ -301,7 +412,7 @@ function MetricaRow({ cfg, clienteVal, grupoVal, isEven }) {
   )
 }
 
-function MetricasTable({ metricas }) {
+function MetricasTable({ metricas, zoneThresholds }) {
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -314,6 +425,7 @@ function MetricasTable({ metricas }) {
               clienteVal={metricas[i].clienteVal}
               grupoVal={metricas[i].grupoVal}
               isEven={i % 2 === 0}
+              badThreshold={zoneThresholds?.[cfg.key]}
             />
           ))}
         </tbody>
@@ -352,6 +464,20 @@ export default function BenchmarkClientePage() {
 
   const { data: grupoData, loading: loadingGrupo } =
     useGrupoBenchmark(grupoFilters)
+
+  // Busca todos os modelos de equipamento do mesmo processo/safra para calcular limiares de zona
+  const { data: equipData } = useEquipamentoBenchmark(grupoFilters)
+
+  // Para cada métrica: média das 5 piores máquinas do grupo = limiar da zona ruim
+  const zoneThresholds = useMemo(() => {
+    if (!equipData || equipData.length === 0) return {}
+    const result = {}
+    for (const cfg of METRICAS_CONFIG) {
+      const threshold = computeBadThreshold(equipData, cfg.key, cfg.higherIsBetter)
+      if (threshold != null) result[cfg.key] = threshold
+    }
+    return result
+  }, [equipData])
 
   // Pega a linha do grupo correspondente (processo + tipo_safra + safra)
   const grupoRow = grupoData[0] ?? null
@@ -400,7 +526,7 @@ export default function BenchmarkClientePage() {
               title="MÉTRICAS COMPARÁVEIS — CLIENTE VS. GRUPO PORTEIRA"
             >
               <Legenda />
-              <MetricasTable metricas={metricas} />
+              <MetricasTable metricas={metricas} zoneThresholds={zoneThresholds} />
             </SectionCard>
           </div>
         )}
