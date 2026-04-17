@@ -201,120 +201,106 @@ function Legenda({ cliente }) {
   )
 }
 
-// Linear gauge com zonas ruim/mediano/bom derivadas dos dados reais de equipamentos.
-// zones: { bad, good, higherIsBetter } — bad = limiar da zona ruim, good = média do grupo.
-// Labels posicionados no centro de cada zona com a cor da própria zona.
-// Sem zones: gauge simples com marcadores apenas.
+// Linear gauge com zonas de largura fixa (cada uma = 1/3 da barra).
+// Escala piecewise: cada zona mapeia seu intervalo de dados linearmente ao seu terço.
+// Marcadores (cliente e grupo) são posicionados proporcionalmente dentro do terço correspondente.
+// O grupo tende a cair perto do centro (50%) pois os limiares são simétricos em torno da média.
 function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
-  const scaleMax = zones
-    ? Math.max(clienteVal, grupoVal, zones.bad, zones.good, 0.001) * 1.1
-    : Math.max(clienteVal, grupoVal, 0.001) * 1.1
+  // Fallback sem zonas: gauge linear simples
+  if (!zones) {
+    const scaleMax  = Math.max(clienteVal, grupoVal, 0.001) * 1.1
+    const clientePct = Math.min((clienteVal / scaleMax) * 100, 100)
+    const grupoPct   = Math.min((grupoVal   / scaleMax) * 100, 100)
+    return (
+      <div style={{ minWidth: 180, paddingTop: 6 }}>
+        <div style={{ height: 10, borderRadius: 5, background: '#f0ede8', position: 'relative', overflow: 'visible' }}>
+          <div style={{ position: 'absolute', left: `${grupoPct}%`, top: -7, transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '5px solid #c8960c', zIndex: 4 }} />
+          <div style={{ position: 'absolute', left: `${grupoPct}%`, top: -1, bottom: -1, width: 2, background: '#c8960c', transform: 'translateX(-50%)', borderRadius: 1, zIndex: 3 }} />
+          <div style={{ position: 'absolute', left: `${clientePct}%`, top: -3, bottom: -3, width: 3, background: barColor, transform: 'translateX(-50%)', borderRadius: 2, zIndex: 5 }} />
+        </div>
+      </div>
+    )
+  }
 
-  const toPct = (v) => Math.min(Math.max((v / scaleMax) * 100, 0), 100)
-  const clientePct = toPct(clienteVal)
-  const grupoPct   = toPct(grupoVal)
+  const { bad, good, higherIsBetter } = zones
+  const Z = 100 / 3  // largura de cada terço
 
-  let zoneSegs = null
-  let badPct   = null
-  let goodPct  = null
+  // Valor máximo da escala: garante que o marcador do cliente nunca sai da barra
+  const maxVal = Math.max(clienteVal, grupoVal, higherIsBetter ? good : bad, 0.001) * 1.15
 
-  if (zones) {
-    const { bad, good, higherIsBetter } = zones
-    badPct  = toPct(bad)
-    goodPct = toPct(good)
-
+  // Escala piecewise: [zona1_min, zona1_max] → [0, Z], [zona2_min, zona2_max] → [Z, 2Z], [zona3_min, +∞] → [2Z, 3Z]
+  function toPct(v) {
     if (higherIsBetter) {
-      zoneSegs = [
-        { left: 0,        width: badPct,             color: '#c0392b', r: '5px 0 0 5px' },
-        { left: badPct,   width: goodPct - badPct,   color: '#e8a200', r: '0'            },
-        { left: goodPct,  width: 100 - goodPct,      color: '#3a7d3a', r: '0 5px 5px 0' },
-      ]
+      if (v <= 0)    return 0
+      if (v <= bad)  return (v / bad) * Z
+      if (v <= good) return Z + ((v - bad) / (good - bad)) * Z
+      return Math.min(2 * Z + ((v - good) / (maxVal - good)) * Z, 100)
     } else {
-      zoneSegs = [
-        { left: 0,        width: goodPct,             color: '#3a7d3a', r: '5px 0 0 5px' },
-        { left: goodPct,  width: badPct - goodPct,    color: '#e8a200', r: '0'            },
-        { left: badPct,   width: 100 - badPct,        color: '#c0392b', r: '0 5px 5px 0' },
-      ]
+      // Menor é melhor: zona verde [0→good] à esquerda, vermelha [bad→max] à direita
+      if (v <= 0)    return 0
+      if (v <= good) return (v / good) * Z
+      if (v <= bad)  return Z + ((v - good) / (bad - good)) * Z
+      return Math.min(2 * Z + ((v - bad) / (maxVal - bad)) * Z, 100)
     }
   }
 
-  // Labels centrados em cada zona — todas as 3 zonas recebem um valor de referência.
-  // Zonas 1 e 2: valor do limiar superior (onde a zona termina).
-  // Zona 3 (aberta): valor do limiar inferior (onde a zona começa), mesma lógica.
-  const zoneLabels = (() => {
-    if (!zones || badPct == null || goodPct == null) return []
-    const { bad, good, higherIsBetter } = zones
-    if (higherIsBetter) {
-      return [
-        { pos: badPct / 2,              val: bad,              color: '#a02d20' },  // centro ruim: limiar superior
-        { pos: (badPct + goodPct) / 2,  val: (bad + good) / 2, color: '#7a5c00' },  // centro mediano: ponto médio do intervalo
-        { pos: (goodPct + 100) / 2,     val: good,             color: '#2a5c2a' },  // centro bom: limiar inferior
+  const clientePct = toPct(clienteVal)
+  const grupoPct   = toPct(grupoVal)
+
+  const zoneSegs = higherIsBetter
+    ? [
+        { left: 0,     color: '#c0392b', r: '5px 0 0 5px' },
+        { left: Z,     color: '#e8a200', r: '0'            },
+        { left: 2 * Z, color: '#3a7d3a', r: '0 5px 5px 0' },
       ]
-    }
-    return [
-      { pos: goodPct / 2,              val: good,             color: '#2a5c2a' },  // centro bom: limiar superior (menor é melhor)
-      { pos: (goodPct + badPct) / 2,   val: (good + bad) / 2, color: '#7a5c00' },  // centro mediano: ponto médio
-      { pos: (badPct + 100) / 2,       val: bad,              color: '#a02d20' },  // centro ruim: limiar inferior
-    ]
-  })()
+    : [
+        { left: 0,     color: '#3a7d3a', r: '5px 0 0 5px' },
+        { left: Z,     color: '#e8a200', r: '0'            },
+        { left: 2 * Z, color: '#c0392b', r: '0 5px 5px 0' },
+      ]
+
+  // Labels sempre nos centros fixos dos terços (independem dos valores)
+  const centers = [Z / 2, Z * 1.5, Z * 2.5]
+  const zoneLabels = higherIsBetter
+    ? [
+        { pos: centers[0], val: bad,              color: '#a02d20' },
+        { pos: centers[1], val: (bad + good) / 2, color: '#7a5c00' },
+        { pos: centers[2], val: good,             color: '#2a5c2a' },
+      ]
+    : [
+        { pos: centers[0], val: good,             color: '#2a5c2a' },
+        { pos: centers[1], val: (good + bad) / 2, color: '#7a5c00' },
+        { pos: centers[2], val: bad,              color: '#a02d20' },
+      ]
 
   return (
     <div style={{ minWidth: 180, paddingTop: 6 }}>
-      {/* Trilha */}
-      <div style={{
-        height: 10, borderRadius: 5, position: 'relative', overflow: 'visible',
-        background: zoneSegs ? 'transparent' : '#f0ede8',
-      }}>
+      <div style={{ height: 10, borderRadius: 5, position: 'relative', overflow: 'visible' }}>
 
-        {/* Zonas coloridas */}
-        {zoneSegs && zoneSegs.map((z, i) => (
+        {/* Terços de largura fixa */}
+        {zoneSegs.map((z, i) => (
           <div key={i} style={{
-            position: 'absolute',
-            left: `${z.left}%`, width: `${Math.max(z.width, 0)}%`,
-            top: 0, height: '100%',
-            background: z.color, borderRadius: z.r,
+            position: 'absolute', left: `${z.left}%`, width: `${Z}%`,
+            top: 0, height: '100%', background: z.color, borderRadius: z.r,
           }} />
         ))}
 
         {/* Marcador do grupo: triângulo + linha âmbar */}
-        <div style={{
-          position: 'absolute', left: `${grupoPct}%`, top: -7,
-          transform: 'translateX(-50%)',
-          width: 0, height: 0,
-          borderLeft: '4px solid transparent',
-          borderRight: '4px solid transparent',
-          borderTop: '5px solid #c8960c',
-          zIndex: 4,
-        }} />
-        <div style={{
-          position: 'absolute', left: `${grupoPct}%`, top: -1, bottom: -1,
-          width: 2, background: '#c8960c',
-          transform: 'translateX(-50%)', borderRadius: 1, zIndex: 3,
-        }} />
+        <div style={{ position: 'absolute', left: `${grupoPct}%`, top: -7, transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '5px solid #c8960c', zIndex: 4 }} />
+        <div style={{ position: 'absolute', left: `${grupoPct}%`, top: -1, bottom: -1, width: 2, background: '#c8960c', transform: 'translateX(-50%)', borderRadius: 1, zIndex: 3 }} />
 
-        {/* Marcador do cliente: barra vertical colorida */}
-        <div style={{
-          position: 'absolute', left: `${clientePct}%`,
-          top: -3, bottom: -3, width: 3,
-          background: barColor,
-          transform: 'translateX(-50%)', borderRadius: 2, zIndex: 5,
-        }} />
+        {/* Marcador do cliente */}
+        <div style={{ position: 'absolute', left: `${clientePct}%`, top: -3, bottom: -3, width: 3, background: barColor, transform: 'translateX(-50%)', borderRadius: 2, zIndex: 5 }} />
       </div>
 
-      {/* Labels centrados em cada zona */}
-      {zoneLabels.length > 0 && (
-        <div style={{ position: 'relative', height: 13, marginTop: 3 }}>
-          {zoneLabels.map(({ pos, val, color }, i) => (
-            <span key={i} style={{
-              position: 'absolute', left: `${pos}%`,
-              transform: 'translateX(-50%)',
-              fontSize: 7, fontWeight: 600, color, whiteSpace: 'nowrap',
-            }}>
-              {fmt(val)}
-            </span>
-          ))}
-        </div>
-      )}
+      {/* Labels nos centros fixos de cada terço */}
+      <div style={{ position: 'relative', height: 13, marginTop: 3 }}>
+        {zoneLabels.map(({ pos, val, color }, i) => (
+          <span key={i} style={{ position: 'absolute', left: `${pos}%`, transform: 'translateX(-50%)', fontSize: 7, fontWeight: 600, color, whiteSpace: 'nowrap' }}>
+            {fmt(val)}
+          </span>
+        ))}
+      </div>
     </div>
   )
 }
