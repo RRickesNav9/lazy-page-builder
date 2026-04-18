@@ -316,24 +316,21 @@ function DynamicHeader({ cliente, processo, tipoSafra }) {
   )
 }
 
-// Legenda de marcadores
+// Legenda de marcadores — espelha os símbolos do LinearGauge
 function Legenda({ cliente }) {
   return (
-    <div style={{ display: 'flex', gap: 16, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#6b6560' }}>
-        {/* Triângulo ▲ + linha — espelha o marcador do cliente */}
-        <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 0, flexShrink: 0 }}>
-          <span style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '8px solid #4a3728' }} />
-          <span style={{ width: 2, height: 5, background: '#4a3728', borderRadius: 1 }} />
+    <div style={{ display: 'flex', gap: 18, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10, color: '#6b6560' }}>
+        {/* Diamante — espelha o marcador do cliente */}
+        <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18 }}>
+          <span style={{ display: 'block', width: 11, height: 11, background: '#4a3728', transform: 'rotate(45deg)', boxShadow: '0 0 0 2px white, 0 1px 4px rgba(0,0,0,0.3)' }} />
         </span>
         {cliente || 'Cliente'}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#6b6560' }}>
-        {/* Linha + círculo — espelha o marcador do grupo */}
-        <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 0, flexShrink: 0 }}>
-          <span style={{ width: 3, height: 3, background: '#c8960c', borderRadius: 1 }} />
-          <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#c8960c', border: '2px solid white', boxShadow: '0 0 0 1.5px #c8960c' }} />
-          <span style={{ width: 3, height: 3, background: '#c8960c', borderRadius: 1 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10, color: '#6b6560' }}>
+        {/* Círculo âmbar — espelha o marcador do grupo */}
+        <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18 }}>
+          <span style={{ display: 'block', width: 14, height: 14, borderRadius: '50%', background: '#c8960c', border: '3px solid white', boxShadow: '0 1px 5px rgba(0,0,0,0.25)' }} />
         </span>
         Média do grupo
       </div>
@@ -342,11 +339,55 @@ function Legenda({ cliente }) {
 }
 
 // Linear gauge com 3 zonas coloridas.
-// Escala 4-pontos: grupoVal ancorando sempre em 50% — bad (pior cliente) em 33%, good (melhor) em 67%.
-// Marcador do cliente: círculo acima + barra vertical + valor acima.
-// Marcador do grupo: barra âmbar + triângulo abaixo — separados verticalmente, sem sobreposição.
-// Labels de zona apenas no centro das zonas ruim e boa (não há label mediano).
+// Escala 4-pontos: grupoVal âncora em 50%, bad em ~33%, good em ~67%.
+// Cliente: diamante rotacionado centrado na barra (sobrepõe) + label acima.
+// Grupo  : círculo âmbar grande centrado na barra (sobrepõe) + label abaixo.
+// Labels bad/good posicionadas via toPct() — alinhadas com os valores reais na escala.
 function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
+  // Marcadores compartilhados entre as duas variantes (sem/com zonas)
+  function ClientMarker({ pct }) {
+    return (
+      <>
+        <span style={{
+          position: 'absolute', left: `${pct}%`, top: -22,
+          transform: 'translateX(-50%)',
+          fontSize: 8, fontWeight: 700, color: barColor, whiteSpace: 'nowrap',
+          background: 'rgba(255,255,255,0.95)', padding: '1px 3px', borderRadius: 2,
+          zIndex: 9, lineHeight: '12px',
+        }}>
+          {fmt(clienteVal)}
+        </span>
+        {/* Diamante centrado na barra — sobrepõe a linha */}
+        <div style={{
+          position: 'absolute', left: `${pct}%`, top: '50%',
+          width: 13, height: 13, background: barColor,
+          transform: 'translate(-50%, -50%) rotate(45deg)',
+          zIndex: 8, boxShadow: '0 0 0 2.5px white, 0 1px 5px rgba(0,0,0,0.3)',
+        }} />
+      </>
+    )
+  }
+
+  function GrupoMarker({ pct }) {
+    return (
+      <>
+        {/* Linha fina na altura da barra como guia de posição */}
+        <div style={{
+          position: 'absolute', left: `${pct}%`, top: 0, height: 10,
+          width: 3, background: '#c8960c', transform: 'translateX(-50%)', zIndex: 3,
+        }} />
+        {/* Círculo grande centrado na barra — sobrepõe a linha */}
+        <div style={{
+          position: 'absolute', left: `${pct}%`, top: '50%',
+          width: 18, height: 18, borderRadius: '50%',
+          background: '#c8960c', border: '3px solid white',
+          boxShadow: '0 1px 5px rgba(0,0,0,0.3)',
+          transform: 'translate(-50%, -50%)', zIndex: 6,
+        }} />
+      </>
+    )
+  }
+
   if (!zones) {
     const scaleMax   = Math.max(clienteVal, grupoVal, 0.001) * 1.1
     const clientePct = Math.min((clienteVal / scaleMax) * 100, 100)
@@ -354,10 +395,14 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
     return (
       <div style={{ minWidth: 180, paddingTop: 26 }}>
         <div style={{ height: 10, borderRadius: 5, background: '#f0ede8', position: 'relative', overflow: 'visible' }}>
-          <div style={{ position: 'absolute', left: `${grupoPct}%`, top: -5, bottom: -5, width: 3, background: '#c8960c', transform: 'translateX(-50%)', zIndex: 3 }} />
-          <div style={{ position: 'absolute', left: `${grupoPct}%`, top: '50%', width: 12, height: 12, borderRadius: '50%', background: '#c8960c', border: '2.5px solid white', transform: 'translate(-50%, -50%)', zIndex: 5 }} />
-          <div style={{ position: 'absolute', left: `${clientePct}%`, top: -12, width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderBottom: `12px solid ${barColor}`, transform: 'translateX(-50%)', zIndex: 7 }} />
-          <div style={{ position: 'absolute', left: `${clientePct}%`, top: 0, bottom: 0, width: 2, background: barColor, opacity: 0.6, transform: 'translateX(-50%)', zIndex: 4 }} />
+          <GrupoMarker pct={grupoPct} />
+          <ClientMarker pct={clientePct} />
+        </div>
+        {/* Label do grupo abaixo da barra */}
+        <div style={{ position: 'relative', height: 16, marginTop: 6 }}>
+          <span style={{ position: 'absolute', left: `${grupoPct}%`, top: 0, transform: 'translateX(-50%)', fontSize: 7, fontWeight: 700, color: '#c8960c', whiteSpace: 'nowrap' }}>
+            {fmt(grupoVal)}
+          </span>
         </div>
       </div>
     )
@@ -404,6 +449,10 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
 
   const clientePct = toPct(clienteVal)
   const grupoPct   = validScale ? 50 : toPct(grupoVal)
+  // Labels bad/good posicionadas no mesmo ponto que seus valores na escala — corrige
+  // o bug onde cliente com valor igual ao limite "good" aparecia em posição diferente da label.
+  const badLabelPct  = toPct(bad)
+  const goodLabelPct = toPct(good)
 
   const zoneSegs = higherIsBetter
     ? [
@@ -432,24 +481,19 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
           }} />
         ))}
 
-        {/* Grupo: linha âmbar que perfura a barra + círculo branco-contornado centrado */}
-        <div style={{ position: 'absolute', left: `${grupoPct}%`, top: -5, bottom: -5, width: 3, background: '#c8960c', transform: 'translateX(-50%)', zIndex: 3 }} />
-        <div style={{ position: 'absolute', left: `${grupoPct}%`, top: '50%', width: 12, height: 12, borderRadius: '50%', background: '#c8960c', border: '2.5px solid white', transform: 'translate(-50%, -50%)', zIndex: 5 }} />
-
-        {/* Cliente: valor + triângulo ▲ sobreposto à barra + linha fina */}
-        <span style={{ position: 'absolute', left: `${clientePct}%`, top: -25, transform: 'translateX(-50%)', fontSize: 7, fontWeight: 700, color: barColor, whiteSpace: 'nowrap', background: 'rgba(255,255,255,0.95)', padding: '0 3px', borderRadius: 2, zIndex: 8, lineHeight: '11px' }}>
-          {fmt(clienteVal)}
-        </span>
-        <div style={{ position: 'absolute', left: `${clientePct}%`, top: -12, width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderBottom: `12px solid ${barColor}`, transform: 'translateX(-50%)', zIndex: 7 }} />
-        <div style={{ position: 'absolute', left: `${clientePct}%`, top: 0, bottom: 0, width: 2, background: barColor, opacity: 0.6, transform: 'translateX(-50%)', zIndex: 4 }} />
+        <GrupoMarker pct={grupoPct} />
+        <ClientMarker pct={clientePct} />
       </div>
 
-      {/* Labels: pior cliente (zona ruim) e melhor cliente (zona boa) */}
-      <div style={{ position: 'relative', height: 14, marginTop: 8 }}>
-        <span style={{ position: 'absolute', left: `${Z / 2}%`, transform: 'translateX(-50%)', fontSize: 7, fontWeight: 600, color: badColor, whiteSpace: 'nowrap' }}>
+      {/* Abaixo da barra: label do grupo (linha 1) + labels bad/good (linha 2) */}
+      <div style={{ position: 'relative', height: 28, marginTop: 5 }}>
+        <span style={{ position: 'absolute', left: `${grupoPct}%`, top: 0, transform: 'translateX(-50%)', fontSize: 7, fontWeight: 700, color: '#c8960c', whiteSpace: 'nowrap' }}>
+          {fmt(grupoVal)}
+        </span>
+        <span style={{ position: 'absolute', left: `${badLabelPct}%`, top: 14, transform: 'translateX(-50%)', fontSize: 7, fontWeight: 600, color: badColor, whiteSpace: 'nowrap' }}>
           {fmt(bad)}
         </span>
-        <span style={{ position: 'absolute', left: `${Z * 2.5}%`, transform: 'translateX(-50%)', fontSize: 7, fontWeight: 600, color: goodColor, whiteSpace: 'nowrap' }}>
+        <span style={{ position: 'absolute', left: `${goodLabelPct}%`, top: 14, transform: 'translateX(-50%)', fontSize: 7, fontWeight: 600, color: goodColor, whiteSpace: 'nowrap' }}>
           {fmt(good)}
         </span>
       </div>
