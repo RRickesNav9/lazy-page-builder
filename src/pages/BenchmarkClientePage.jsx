@@ -5,6 +5,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useFilters } from '../lib/FilterContext'
 import { useClienteBenchmark, useAllClientesBenchmark, useDistinctProcessos } from '../hooks/useData'
+import MetricSelectorFAB from '../components/MetricSelectorFAB'
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
 
@@ -217,46 +218,6 @@ function computeZoneBoundaries(clienteRows, metricKey, higherIsBetter) {
 
 // ─── COMPONENTES INTERNOS ─────────────────────────────────────────────────────
 
-// Painel de seleção de métricas — chips toggle por chave.
-// Impede desselecionar a última métrica ativa.
-function MetricSelector({ selected, onToggle }) {
-  return (
-    <div style={{
-      background: '#fafaf8', border: '1px solid #e0dbd4',
-      borderRadius: 6, padding: '12px 14px', marginBottom: 16,
-    }}>
-      <div style={{
-        fontSize: 10, fontWeight: 600, color: '#6b6560',
-        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10,
-      }}>
-        Selecione as métricas para comparação
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {ALL_METRICAS_CONFIG.map(cfg => {
-          const isActive = selected.has(cfg.key)
-          return (
-            <button
-              key={cfg.key}
-              onClick={() => onToggle(cfg.key)}
-              style={{
-                padding: '4px 10px', fontSize: 11, fontWeight: 500,
-                borderRadius: 4, cursor: 'pointer',
-                border: isActive ? '1px solid #2d4a2d' : '1px solid #d0cac4',
-                background: isActive ? '#2d4a2d' : '#ffffff',
-                color: isActive ? '#ffffff' : '#6b6560',
-              }}
-            >
-              {cfg.label}
-              <span style={{ fontSize: 9, marginLeft: 4, opacity: 0.7 }}>
-                {cfg.isPct ? '%' : cfg.sub.split('·')[0].trim()}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
 
 function TabControl({ tabs, active, onChange }) {
   return (
@@ -712,7 +673,6 @@ export default function BenchmarkClientePage() {
   const { filters, queryFilters, currentSafra } = useFilters()
   const [activeTab, setActiveTab]             = useState('colheita')
   const [selectedMetrics, setSelectedMetrics] = useState(DEFAULT_SELECTED_METRICS)
-  const [showSelector, setShowSelector]       = useState(false)
   // Processo selecionado na aba Geral — inicializado quando processos são carregados
   const [geralProcesso, setGeralProcesso]     = useState(null)
 
@@ -797,22 +757,6 @@ export default function BenchmarkClientePage() {
   const loading  = cliente ? (loadingCliente || loadingAllClientes) : loadingAllClientes
   const semDados = !loading && cliente && !clienteMetricas
 
-  // Botão reutilizável de configuração de métricas
-  const configBtn = (
-    <button
-      onClick={() => setShowSelector(s => !s)}
-      style={{
-        fontSize: 10, fontWeight: 600, cursor: 'pointer',
-        color: showSelector ? '#ffffff' : '#4a3728',
-        background: showSelector ? '#2d4a2d' : 'none',
-        border: '1px solid ' + (showSelector ? '#2d4a2d' : '#d0cac4'),
-        borderRadius: 4, padding: '3px 9px',
-        textTransform: 'uppercase', letterSpacing: '0.06em',
-      }}
-    >
-      {showSelector ? 'Fechar ▴' : 'Configurar métricas ▾'}
-    </button>
-  )
 
   return (
     <>
@@ -848,8 +792,7 @@ export default function BenchmarkClientePage() {
 
         {/* Nenhum cliente selecionado: exibe médias do grupo sem comparação */}
         {!loading && !cliente && (
-          <SectionCard title="MÉDIAS DO GRUPO PORTEIRA" headerAction={configBtn}>
-            {showSelector && <MetricSelector selected={selectedMetrics} onToggle={toggleMetric} />}
+          <SectionCard title="MÉDIAS DO GRUPO PORTEIRA">
             {grupoMetricas
               ? <GrupoOnlyTable grupoMetricas={grupoMetricas} activeConfig={activeConfig} />
               : <div style={{ padding: '20px 0', color: '#6b6560', fontSize: 13 }}>Sem dados para o período selecionado.</div>
@@ -871,11 +814,7 @@ export default function BenchmarkClientePage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <SectionCard
               title="MÉTRICAS COMPARÁVEIS — CLIENTE VS. GRUPO PORTEIRA"
-              headerAction={configBtn}
             >
-              {showSelector && (
-                <MetricSelector selected={selectedMetrics} onToggle={toggleMetric} />
-              )}
               <Legenda cliente={cliente} />
               <MetricasTable
                 metricas={metricas}
@@ -886,6 +825,7 @@ export default function BenchmarkClientePage() {
           </div>
         )}
       </div>
+      <MetricSelectorFAB config={ALL_METRICAS_CONFIG} selected={selectedMetrics} onToggle={toggleMetric} />
     </>
   )
 }

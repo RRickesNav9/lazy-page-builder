@@ -9,6 +9,7 @@ import {
   useMaquinaMetricas, computeWeightedAvg,
   useAllEquipamentos, useModeloStats,
 } from '../hooks/useData'
+import MetricSelectorFAB from '../components/MetricSelectorFAB'
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
 
@@ -492,38 +493,6 @@ function DynamicHeader({ processo, tipoSafra, safra, extraFields = [] }) {
 
 // ─── TAB 3: SELETOR DE MÉTRICAS + BARRAS MODELO VS MODELO ────────────────────
 
-function MetricaSelector({ selected, onToggle }) {
-  return (
-    <div style={{
-      background: '#fafaf8', border: '1px solid #e0dbd4',
-      borderRadius: 6, padding: '12px 14px', marginBottom: 16,
-    }}>
-      <div style={{
-        fontSize: 10, fontWeight: 600, color: '#6b6560',
-        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10,
-      }}>
-        Selecione as métricas para comparação
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {METRICAS_CONFIG.map(m => {
-          const ativo = selected.has(m.key)
-          return (
-            <button key={m.key} onClick={() => onToggle(m.key)} style={{
-              padding: '4px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer',
-              background: ativo ? '#2d4a2d' : '#ffffff',
-              color: ativo ? '#ffffff' : '#6b6560',
-              border: ativo ? '1px solid #2d4a2d' : '1px solid #d0cac4',
-              fontWeight: 500,
-            }}>
-              {m.label}
-              <span style={{ fontSize: 9, marginLeft: 4, opacity: 0.7 }}>{m.unit}</span>
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
 
 // statsA/statsB: { min, max, n } para a métrica, vindos de useModeloStats
 function ModeloMetricBar({ cfg, valA, valB, labelA, labelB, statsA, statsB }) {
@@ -727,9 +696,6 @@ export default function BenchmarkEquipamentoPage() {
             <SectionCard
               title="Máquina vs. Média do Modelo"
             >
-              <div data-pdf-exclude="true">
-                <MetricaSelector selected={selectedMetrics} onToggle={toggleMetric} />
-              </div>
               <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
                 {[
                   { color: '#2d4a2d', label: maqInfo1 ? `${maqInfo1.equipamento_cod} — ${maqInfo1.equipamento}` : 'Esta máquina' },
@@ -820,9 +786,6 @@ export default function BenchmarkEquipamentoPage() {
               title="Comparativo de Métricas"
               subtitle="Equipamento A vs. Equipamento B"
             >
-              <div data-pdf-exclude="true">
-                <MetricaSelector selected={selectedMetrics} onToggle={toggleMetric} />
-              </div>
               <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
                 {[{ color: '#2d4a2d', label: labelEquipA }, { color: '#c8960c', label: labelEquipB }].map(({ color, label }) => (
                   <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6b6560' }}>
@@ -880,11 +843,6 @@ export default function BenchmarkEquipamentoPage() {
               title="Comparativo de Modelos"
               subtitle={`${modeloA || '—'} vs. ${modeloB || '—'}`}
             >
-              <div style={{ marginBottom: 16 }}>
-                <FieldLabel>Métricas exibidas</FieldLabel>
-                <MetricaSelector selected={selectedMetrics} onToggle={toggleMetric} />
-              </div>
-
               <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
                 {[
                   { color: '#2d4a2d', label: modeloA || 'Modelo A' },
@@ -919,7 +877,7 @@ export default function BenchmarkEquipamentoPage() {
                   ))}
                   {selectedMetrics.size === 0 && (
                     <div style={{ color: '#6b6560', fontSize: 12 }}>
-                      Selecione ao menos uma métrica acima.
+                      Selecione ao menos uma métrica no botão flutuante.
                     </div>
                   )}
                 </div>
@@ -928,6 +886,7 @@ export default function BenchmarkEquipamentoPage() {
           )}
         </div>
       )}
+      <MetricSelectorFAB config={METRICAS_CONFIG} selected={selectedMetrics} onToggle={toggleMetric} />
     </div>
   )
 }

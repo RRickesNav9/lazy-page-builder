@@ -6,6 +6,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { useEquipamentoComparativo, useEquipamentoBenchmark, useEquipamentoOptions, useFilterOptions } from '../hooks/useData'
 import { KPICard, HBarChart, PageLoader, FetchingBar, semaphoreRatio } from '../components/UI'
 import { aggregateRows, defaultSafra, fmtHah, fmtPct, fmtLh, fmtKmh, fmtHa, fmt } from '../lib/utils'
+import MetricSelectorFAB from '../components/MetricSelectorFAB'
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
 
@@ -40,46 +41,6 @@ const DEFAULT_SELECTED_METRICS = new Set([
 
 // ─── COMPONENTES INTERNOS ─────────────────────────────────────────────────────
 
-// Painel de seleção de métricas — chips toggle por chave.
-// Impede desselecionar a última métrica ativa.
-function MetricSelector({ selected, onToggle }) {
-  return (
-    <div style={{
-      background: '#fafaf8', border: '1px solid #e0dbd4',
-      borderRadius: 6, padding: '12px 14px',
-    }}>
-      <div style={{
-        fontSize: 10, fontWeight: 600, color: '#6b6560',
-        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10,
-      }}>
-        Selecione as métricas para comparação
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {ALL_METRICAS_CONFIG.map(cfg => {
-          const isActive = selected.has(cfg.key)
-          return (
-            <button
-              key={cfg.key}
-              onClick={() => onToggle(cfg.key)}
-              style={{
-                padding: '4px 10px', fontSize: 11, fontWeight: 500,
-                borderRadius: 4, cursor: 'pointer',
-                border: isActive ? '1px solid #2d4a2d' : '1px solid #d0cac4',
-                background: isActive ? '#2d4a2d' : '#ffffff',
-                color: isActive ? '#ffffff' : '#6b6560',
-              }}
-            >
-              {cfg.label}
-              <span style={{ fontSize: 9, marginLeft: 4, opacity: 0.7 }}>
-                {cfg.isPct ? '%' : cfg.sub.split('·')[0].trim()}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
 
 function EquipSelector({ label, filter, onChange, options, equipamentos }) {
   const inputCls = "w-full bg-pa-surface-2 border border-pa-border rounded-lg px-2.5 py-1.5 text-xs text-pa-text focus:outline-none focus:border-pa-green transition-colors"
@@ -207,9 +168,6 @@ export default function BenchmarkEquipamentosPage() {
         <EquipSelector label="Equipamento B" filter={filterB} onChange={setFilterB} options={options} equipamentos={equipamentosB} />
       </div>
 
-      {/* Seleção de métricas */}
-      <MetricSelector selected={selectedMetrics} onToggle={toggleMetric} />
-
       {error && <div className="text-pa-red text-sm">Erro: {error}</div>}
 
       {!hasData && !loading && (
@@ -303,6 +261,7 @@ export default function BenchmarkEquipamentosPage() {
           )}
         </div>
       )}
+      <MetricSelectorFAB config={ALL_METRICAS_CONFIG} selected={selectedMetrics} onToggle={toggleMetric} />
     </div>
   )
 }
