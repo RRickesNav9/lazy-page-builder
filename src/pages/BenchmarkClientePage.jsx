@@ -2,17 +2,35 @@
 // Compara métricas de um cliente específico contra a média do grupo Porteira.
 // Seleção de cliente via filtro global. Export via window.print() (FAB global).
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useFilters } from '../lib/FilterContext'
 import { useClienteBenchmark, useAllClientesBenchmark } from '../hooks/useData'
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
 
-const METRICAS_CONFIG = [
+// Todas as métricas não-absolutas disponíveis para comparação benchmark.
+// Métricas absolutas (area_ha, tempo_total_h, etc.) são excluídas por não serem comparáveis entre clientes.
+const ALL_METRICAS_CONFIG = [
   {
     key: 'rendimento_operacional_hah',
     label: 'Rendimento Operacional',
     sub: 'ha/h · maior é melhor',
+    fmt: (v) => v.toFixed(2),
+    higherIsBetter: true,
+    isPct: false,
+  },
+  {
+    key: 'rendimento_real_hah',
+    label: 'Rendimento Real',
+    sub: 'ha/h · maior é melhor',
+    fmt: (v) => v.toFixed(2),
+    higherIsBetter: true,
+    isPct: false,
+  },
+  {
+    key: 'velocidade_media_kmh',
+    label: 'Velocidade Média Op.',
+    sub: 'km/h · maior é melhor',
     fmt: (v) => v.toFixed(2),
     higherIsBetter: true,
     isPct: false,
@@ -34,8 +52,24 @@ const METRICAS_CONFIG = [
     isPct: true,
   },
   {
+    key: 'disponibilidade_mecanica_pct',
+    label: 'Disponibilidade Mecânica',
+    sub: '% · maior é melhor',
+    fmt: (v) => v.toFixed(2) + '%',
+    higherIsBetter: true,
+    isPct: true,
+  },
+  {
     key: 'consumo_medio_efetivo_lha',
     label: 'Consumo Efetivo Médio',
+    sub: 'L/ha · menor é melhor',
+    fmt: (v) => v.toFixed(2),
+    higherIsBetter: false,
+    isPct: false,
+  },
+  {
+    key: 'consumo_medio_lha',
+    label: 'Consumo Médio',
     sub: 'L/ha · menor é melhor',
     fmt: (v) => v.toFixed(2),
     higherIsBetter: false,
@@ -50,22 +84,64 @@ const METRICAS_CONFIG = [
     isPct: false,
   },
   {
-    key: 'disponibilidade_mecanica_pct',
-    label: 'Disponibilidade Mecânica',
-    sub: '% · maior é melhor',
+    key: 'consumo_medio_efetivo_lh',
+    label: 'Consumo Efetivo',
+    sub: 'L/h · menor é melhor',
+    fmt: (v) => v.toFixed(2),
+    higherIsBetter: false,
+    isPct: false,
+  },
+  {
+    key: 'motor_ligado_pct',
+    label: 'Motor Ligado',
+    sub: '% do total · maior é melhor',
     fmt: (v) => v.toFixed(2) + '%',
     higherIsBetter: true,
     isPct: true,
   },
   {
-    key: 'velocidade_media_kmh',
-    label: 'Velocidade Média Op.',
-    sub: 'km/h · maior é melhor',
-    fmt: (v) => v.toFixed(2),
+    key: 'motor_ocioso_pct',
+    label: 'Motor Ocioso',
+    sub: '% do motor ligado · menor é melhor',
+    fmt: (v) => v.toFixed(2) + '%',
+    higherIsBetter: false,
+    isPct: true,
+  },
+  {
+    key: 'sem_apontamento_pct',
+    label: 'Sem Apontamento',
+    sub: '% da parada · menor é melhor',
+    fmt: (v) => v.toFixed(2) + '%',
+    higherIsBetter: false,
+    isPct: true,
+  },
+  {
+    key: 'rpm_medio',
+    label: 'RPM Médio',
+    sub: 'RPM · referência por processo',
+    fmt: (v) => v.toFixed(0),
+    higherIsBetter: true,
+    isPct: false,
+  },
+  {
+    key: 'area_por_linha_ha',
+    label: 'Área por Linha',
+    sub: 'ha · plantio · maior é melhor',
+    fmt: (v) => v.toFixed(4),
     higherIsBetter: true,
     isPct: false,
   },
 ]
+
+const DEFAULT_SELECTED_METRICS = new Set([
+  'rendimento_operacional_hah',
+  'eficiencia_geral_pct',
+  'eficiencia_operacional_pct',
+  'consumo_medio_efetivo_lha',
+  'consumo_medio_lh',
+  'disponibilidade_mecanica_pct',
+  'velocidade_media_kmh',
+])
 
 const TABS = [
   { id: 'colheita', label: 'Colheita' },
@@ -137,6 +213,47 @@ function computeZoneBoundaries(clienteRows, metricKey, higherIsBetter) {
 }
 
 // ─── COMPONENTES INTERNOS ─────────────────────────────────────────────────────
+
+// Painel de seleção de métricas — chips toggle por chave.
+// Impede desselecionar a última métrica ativa.
+function MetricSelector({ selected, onToggle }) {
+  return (
+    <div style={{
+      background: '#fafaf8', border: '1px solid #e0dbd4',
+      borderRadius: 6, padding: '12px 14px', marginBottom: 16,
+    }}>
+      <div style={{
+        fontSize: 10, fontWeight: 600, color: '#6b6560',
+        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10,
+      }}>
+        Selecione as métricas para comparação
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {ALL_METRICAS_CONFIG.map(cfg => {
+          const isActive = selected.has(cfg.key)
+          return (
+            <button
+              key={cfg.key}
+              onClick={() => onToggle(cfg.key)}
+              style={{
+                padding: '4px 10px', fontSize: 11, fontWeight: 500,
+                borderRadius: 4, cursor: 'pointer',
+                border: isActive ? '1px solid #2d4a2d' : '1px solid #d0cac4',
+                background: isActive ? '#2d4a2d' : '#ffffff',
+                color: isActive ? '#ffffff' : '#6b6560',
+              }}
+            >
+              {cfg.label}
+              <span style={{ fontSize: 9, marginLeft: 4, opacity: 0.7 }}>
+                {cfg.isPct ? '%' : cfg.sub.split('·')[0].trim()}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 function TabControl({ tabs, active, onChange }) {
   return (
@@ -341,19 +458,22 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
 }
 
 // Card branco de seção
-function SectionCard({ title, subtitle, footnote, children }) {
+function SectionCard({ title, subtitle, footnote, headerAction, children }) {
   return (
     <div style={{ background: '#ffffff', border: '1px solid #e0dbd4', borderRadius: 6, padding: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
-        <span style={{
-          fontSize: 11, fontWeight: 600, color: '#4a3728',
-          textTransform: 'uppercase', letterSpacing: '0.08em',
-        }}>
-          {title}
-        </span>
-        {subtitle && (
-          <span style={{ fontSize: 8, color: '#6b6560' }}>{subtitle}</span>
-        )}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <span style={{
+            fontSize: 11, fontWeight: 600, color: '#4a3728',
+            textTransform: 'uppercase', letterSpacing: '0.08em',
+          }}>
+            {title}
+          </span>
+          {subtitle && (
+            <span style={{ fontSize: 8, color: '#6b6560' }}>{subtitle}</span>
+          )}
+        </div>
+        {headerAction}
       </div>
       {children}
       {footnote && (
@@ -449,18 +569,18 @@ function MetricaRow({ cfg, clienteVal, grupoVal, isEven, zoneInfo }) {
   )
 }
 
-function MetricasTable({ metricas, zoneThresholds }) {
+function MetricasTable({ metricas, zoneThresholds, activeConfig }) {
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead><MetricasHeader /></thead>
         <tbody>
-          {METRICAS_CONFIG.map((cfg, i) => (
+          {activeConfig.map((cfg, i) => (
             <MetricaRow
               key={cfg.key}
               cfg={cfg}
-              clienteVal={metricas[i].clienteVal}
-              grupoVal={metricas[i].grupoVal}
+              clienteVal={metricas[cfg.key]?.clienteVal ?? 0}
+              grupoVal={metricas[cfg.key]?.grupoVal ?? 0}
               isEven={i % 2 === 0}
               zoneInfo={zoneThresholds?.[cfg.key]}
             />
@@ -475,7 +595,18 @@ function MetricasTable({ metricas, zoneThresholds }) {
 
 export default function BenchmarkClientePage() {
   const { filters, queryFilters, currentSafra } = useFilters()
-  const [activeTab, setActiveTab] = useState('colheita')
+  const [activeTab, setActiveTab]           = useState('colheita')
+  const [selectedMetrics, setSelectedMetrics] = useState(DEFAULT_SELECTED_METRICS)
+  const [showSelector, setShowSelector]     = useState(false)
+
+  const toggleMetric = useCallback((key) => {
+    setSelectedMetrics(prev => {
+      if (prev.has(key) && prev.size <= 1) return prev
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }, [])
 
   const cliente   = filters.cliente    || ''
   const processo  = TAB_PROCESSO[activeTab]
@@ -505,12 +636,13 @@ export default function BenchmarkClientePage() {
   // evitando inconsistências com o benchmark pré-computado (media_grupo_porteira).
   const { data: allClientesData, loading: loadingAllClientes } = useAllClientesBenchmark(grupoFilters)
 
-  // Deriva grupo (média simples dos clientes), bad (pior) e good (melhor) da mesma fonte
+  // Deriva grupo (média simples dos clientes), bad (pior) e good (melhor) da mesma fonte.
+  // Itera sobre ALL_METRICAS_CONFIG para cobrir todas as métricas, mesmo as não selecionadas.
   const { grupoMetricas, zoneThresholds } = useMemo(() => {
     if (!allClientesData || allClientesData.length === 0) return { grupoMetricas: null, zoneThresholds: {} }
     const grupoM = {}
     const zones  = {}
-    for (const cfg of METRICAS_CONFIG) {
+    for (const cfg of ALL_METRICAS_CONFIG) {
       const vals = allClientesData.map(r => r[cfg.key]).filter(v => v != null && v > 0)
       if (vals.length === 0) continue
       grupoM[cfg.key] = vals.reduce((s, v) => s + v, 0) / vals.length
@@ -520,13 +652,21 @@ export default function BenchmarkClientePage() {
     return { grupoMetricas: grupoM, zoneThresholds: zones }
   }, [allClientesData])
 
-  // Monta o array de pares { clienteVal, grupoVal } na ordem de METRICAS_CONFIG
-  const metricas = METRICAS_CONFIG.map(cfg => ({
-    clienteVal: clienteMetricas?.[cfg.key] ?? 0,
-    grupoVal:   grupoMetricas?.[cfg.key]   ?? 0,
-  }))
+  // Mapa key → { clienteVal, grupoVal } para todas as métricas
+  const metricas = useMemo(() => {
+    const m = {}
+    for (const cfg of ALL_METRICAS_CONFIG) {
+      m[cfg.key] = {
+        clienteVal: clienteMetricas?.[cfg.key] ?? 0,
+        grupoVal:   grupoMetricas?.[cfg.key]   ?? 0,
+      }
+    }
+    return m
+  }, [clienteMetricas, grupoMetricas])
 
-  const loading = loadingCliente || loadingAllClientes
+  const activeConfig = ALL_METRICAS_CONFIG.filter(cfg => selectedMetrics.has(cfg.key))
+
+  const loading  = loadingCliente || loadingAllClientes
   const semDados = !loading && !clienteMetricas
 
   return (
@@ -564,9 +704,31 @@ export default function BenchmarkClientePage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <SectionCard
               title="MÉTRICAS COMPARÁVEIS — CLIENTE VS. GRUPO PORTEIRA"
+              headerAction={
+                <button
+                  onClick={() => setShowSelector(s => !s)}
+                  style={{
+                    fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                    color: showSelector ? '#ffffff' : '#4a3728',
+                    background: showSelector ? '#2d4a2d' : 'none',
+                    border: '1px solid ' + (showSelector ? '#2d4a2d' : '#d0cac4'),
+                    borderRadius: 4, padding: '3px 9px',
+                    textTransform: 'uppercase', letterSpacing: '0.06em',
+                  }}
+                >
+                  {showSelector ? 'Fechar ▴' : 'Configurar métricas ▾'}
+                </button>
+              }
             >
+              {showSelector && (
+                <MetricSelector selected={selectedMetrics} onToggle={toggleMetric} />
+              )}
               <Legenda cliente={cliente} />
-              <MetricasTable metricas={metricas} zoneThresholds={zoneThresholds} />
+              <MetricasTable
+                metricas={metricas}
+                zoneThresholds={zoneThresholds}
+                activeConfig={activeConfig}
+              />
             </SectionCard>
           </div>
         )}

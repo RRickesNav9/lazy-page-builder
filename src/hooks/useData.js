@@ -247,7 +247,9 @@ export function useClienteBenchmark(filters = {}) {
             'rendimento_operacional_hah', 'eficiencia_geral_pct',
             'eficiencia_operacional_pct', 'consumo_medio_efetivo_lha',
             'consumo_medio_lh', 'disponibilidade_mecanica_pct', 'velocidade_media_kmh',
-            'tempo_produtivo_h', 'tempo_total_h', 'area_ha',
+            'rendimento_real_hah', 'consumo_medio_lha', 'consumo_medio_efetivo_lh',
+            'sem_apontamento_pct', 'motor_ocioso_pct', 'motor_ligado_pct', 'rpm_medio', 'area_por_linha_ha',
+            'tempo_produtivo_h', 'tempo_total_h', 'area_ha', 'tempo_motor_ligado_h', 'tempo_parada_h',
           ].join(','))
           .neq('cliente', 'Média Porteira')
           .neq('data_provider_id', JD_ID)
@@ -279,6 +281,14 @@ export function useClienteBenchmark(filters = {}) {
           consumo_medio_lh:             'tempo_total_h',
           disponibilidade_mecanica_pct: 'tempo_total_h',
           velocidade_media_kmh:         'tempo_produtivo_h',
+          rendimento_real_hah:          'tempo_motor_ligado_h',
+          consumo_medio_lha:            'area_ha',
+          consumo_medio_efetivo_lh:     'tempo_produtivo_h',
+          sem_apontamento_pct:          'tempo_parada_h',
+          motor_ocioso_pct:             'tempo_motor_ligado_h',
+          motor_ligado_pct:             'tempo_total_h',
+          rpm_medio:                    'tempo_total_h',
+          area_por_linha_ha:            'area_ha',
         }
 
         const result = {}
@@ -326,7 +336,9 @@ export function useAllClientesBenchmark(filters = {}) {
             'rendimento_operacional_hah', 'eficiencia_geral_pct',
             'eficiencia_operacional_pct', 'consumo_medio_efetivo_lha',
             'consumo_medio_lh', 'disponibilidade_mecanica_pct', 'velocidade_media_kmh',
-            'tempo_produtivo_h', 'tempo_total_h', 'area_ha',
+            'rendimento_real_hah', 'consumo_medio_lha', 'consumo_medio_efetivo_lh',
+            'sem_apontamento_pct', 'motor_ocioso_pct', 'motor_ligado_pct', 'rpm_medio', 'area_por_linha_ha',
+            'tempo_produtivo_h', 'tempo_total_h', 'area_ha', 'tempo_motor_ligado_h', 'tempo_parada_h',
           ].join(','))
           .neq('cliente', 'Média Porteira')
           .neq('data_provider_id', JD_ID)
@@ -352,6 +364,14 @@ export function useAllClientesBenchmark(filters = {}) {
           consumo_medio_lh:             'tempo_total_h',
           disponibilidade_mecanica_pct: 'tempo_total_h',
           velocidade_media_kmh:         'tempo_produtivo_h',
+          rendimento_real_hah:          'tempo_motor_ligado_h',
+          consumo_medio_lha:            'area_ha',
+          consumo_medio_efetivo_lh:     'tempo_produtivo_h',
+          sem_apontamento_pct:          'tempo_parada_h',
+          motor_ocioso_pct:             'tempo_motor_ligado_h',
+          motor_ligado_pct:             'tempo_total_h',
+          rpm_medio:                    'tempo_total_h',
+          area_por_linha_ha:            'area_ha',
         }
 
         const byCliente = new Map()
