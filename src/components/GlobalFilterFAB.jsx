@@ -37,7 +37,7 @@ const TIPO_PARADA_COLOR = {
   SEM_APONTAMENTO: '#6b7280',
 }
 
-export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly = false }) {
+export default function GlobalFilterFAB({ allowedProcessos = null, excludedProcessos = null, solinftecOnly = false }) {
   const { filters, applyFilters, activeCount } = useFilters()
   const { rawRows } = useFilterOptionsRaw(solinftecOnly)
   const motivos     = useStopMotivos()
@@ -62,11 +62,12 @@ export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly
 
   // Linhas restritas ao escopo da página (null = irrestrito)
   const pageRows = useMemo(() => {
-    if (!allowedProcessos || rawRows.length === 0) return rawRows
-    return rawRows.filter(r =>
-      allowedProcessos.some(p => p.toLowerCase() === (r.processo || '').toLowerCase())
-    )
-  }, [rawRows, allowedProcessos])
+    if (rawRows.length === 0) return rawRows
+    let rows = rawRows
+    if (allowedProcessos)  rows = rows.filter(r =>  allowedProcessos.some(p => p.toLowerCase() === (r.processo || '').toLowerCase()))
+    if (excludedProcessos) rows = rows.filter(r => !excludedProcessos.some(p => p.toLowerCase() === (r.processo || '').toLowerCase()))
+    return rows
+  }, [rawRows, allowedProcessos, excludedProcessos])
 
   // Opções cascateadas: cada dimensão mostra só valores que existem nas linhas
   // compatíveis com todas as OUTRAS dimensões já selecionadas no painel.

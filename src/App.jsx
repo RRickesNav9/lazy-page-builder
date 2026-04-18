@@ -66,23 +66,28 @@ function AppInner() {
   const { filters, applyFilters } = useFilters()
   const solinftecOnly = PAGE_SOLINFTEC[activePage] ?? false
 
-  // Para benchmark, restringe processo à aba ativa (colheita/plantio); geral = ambos
+  // Para benchmark: colheita/plantio restringem por aba; geral exclui colheita e plantio
   const allowedProcessos = useMemo(() => {
     if (activePage === 'benchmark') {
       if (benchTab === 'colheita') return ['Colheita']
       if (benchTab === 'plantio')  return ['Plantio']
-      return ['Colheita', 'Plantio']
+      return null  // geral: sem lista de permitidos — usa excludedProcessos
     }
     return PAGE_PROCESSOS[activePage] ?? null
   }, [activePage, benchTab])
 
-  // Ao trocar página ou aba, limpa processo se ele não for permitido
+  const excludedProcessos = useMemo(() => {
+    if (activePage === 'benchmark' && benchTab === 'geral') return ['Colheita', 'Plantio']
+    return null
+  }, [activePage, benchTab])
+
+  // Ao trocar página ou aba, limpa processo se ele não for permitido (ou for excluído)
   useEffect(() => {
-    if (!allowedProcessos) return
-    const valid = allowedProcessos.some(
-      p => p.toLowerCase() === (filters.processo || '').toLowerCase()
-    )
-    if (!valid && filters.processo) {
+    if (!filters.processo) return
+    const proc = filters.processo.toLowerCase()
+    const blockedByAllowed  = allowedProcessos  && !allowedProcessos.some(p => p.toLowerCase() === proc)
+    const blockedByExcluded = excludedProcessos &&  excludedProcessos.some(p => p.toLowerCase() === proc)
+    if (blockedByAllowed || blockedByExcluded) {
       applyFilters({ ...filters, processo: '' })
     }
   }, [activePage, benchTab]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -131,7 +136,7 @@ function AppInner() {
         }
       </div>
 
-      <GlobalFilterFAB allowedProcessos={allowedProcessos} solinftecOnly={solinftecOnly} />
+      <GlobalFilterFAB allowedProcessos={allowedProcessos} excludedProcessos={excludedProcessos} solinftecOnly={solinftecOnly} />
     </div>
   )
 }
