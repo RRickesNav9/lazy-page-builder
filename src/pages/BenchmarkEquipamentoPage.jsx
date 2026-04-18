@@ -12,17 +12,34 @@ import {
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
 
-// modeloKey: sufixo _modelo usado em media_equipamentos_porteira
+// Todas as métricas não-absolutas disponíveis — modeloKey é o sufixo em media_equipamentos_porteira
 const METRICAS_CONFIG = [
   { key: 'rendimento_operacional_hah',   modeloKey: 'rendimento_operacional_hah_modelo',   label: 'Rendimento Operacional',   unit: 'ha/h', d: 2, higherIsBetter: true  },
+  { key: 'rendimento_real_hah',          modeloKey: 'rendimento_real_hah_modelo',          label: 'Rendimento Real',          unit: 'ha/h', d: 2, higherIsBetter: true  },
+  { key: 'velocidade_media_kmh',         modeloKey: 'velocidade_media_kmh_modelo',         label: 'Velocidade Média Op.',     unit: 'km/h', d: 2, higherIsBetter: true  },
   { key: 'eficiencia_geral_pct',         modeloKey: 'eficiencia_geral_pct_modelo',         label: 'Eficiência Geral',         unit: '%',    d: 2, higherIsBetter: true  },
   { key: 'eficiencia_operacional_pct',   modeloKey: 'eficiencia_operacional_pct_modelo',   label: 'Eficiência Operacional',   unit: '%',    d: 2, higherIsBetter: true  },
-  { key: 'consumo_medio_efetivo_lha',    modeloKey: 'consumo_medio_efetivo_lha_modelo',    label: 'Consumo Efetivo Médio',    unit: 'L/ha', d: 2, higherIsBetter: false },
-  { key: 'consumo_medio_lh',             modeloKey: 'consumo_medio_lh_modelo',             label: 'Consumo Médio',            unit: 'L/h',  d: 2, higherIsBetter: false },
   { key: 'disponibilidade_mecanica_pct', modeloKey: 'disponibilidade_mecanica_pct_modelo', label: 'Disponibilidade Mecânica', unit: '%',    d: 2, higherIsBetter: true  },
-  { key: 'velocidade_media_kmh',         modeloKey: 'velocidade_media_kmh_modelo',         label: 'Velocidade Média Op.',     unit: 'km/h', d: 2, higherIsBetter: true  },
+  { key: 'consumo_medio_lha',            modeloKey: 'consumo_medio_lha_modelo',            label: 'Consumo Médio',            unit: 'L/ha', d: 2, higherIsBetter: false },
+  { key: 'consumo_medio_lh',             modeloKey: 'consumo_medio_lh_modelo',             label: 'Consumo Médio',            unit: 'L/h',  d: 2, higherIsBetter: false },
+  { key: 'consumo_medio_efetivo_lha',    modeloKey: 'consumo_medio_efetivo_lha_modelo',    label: 'Consumo Efetivo Médio',    unit: 'L/ha', d: 2, higherIsBetter: false },
+  { key: 'consumo_medio_efetivo_lh',     modeloKey: 'consumo_medio_efetivo_lh_modelo',     label: 'Consumo Efetivo',          unit: 'L/h',  d: 2, higherIsBetter: false },
+  { key: 'motor_ligado_pct',             modeloKey: 'motor_ligado_pct_modelo',             label: 'Motor Ligado',             unit: '%',    d: 2, higherIsBetter: true  },
+  { key: 'motor_ocioso_pct',             modeloKey: 'motor_ocioso_pct_modelo',             label: 'Motor Ocioso',             unit: '%',    d: 2, higherIsBetter: false },
+  { key: 'sem_apontamento_pct',          modeloKey: 'sem_apontamento_pct_modelo',          label: 'Sem Apontamento',          unit: '%',    d: 2, higherIsBetter: false },
   { key: 'rpm_medio',                    modeloKey: 'rpm_medio_modelo',                    label: 'RPM Médio',                unit: 'RPM',  d: 0, higherIsBetter: null  },
+  { key: 'area_por_linha_ha',            modeloKey: 'area_por_linha_ha_modelo',            label: 'Área por Linha',           unit: 'ha',   d: 4, higherIsBetter: true  },
 ]
+
+const DEFAULT_SELECTED_METRICS = new Set([
+  'rendimento_operacional_hah',
+  'velocidade_media_kmh',
+  'eficiencia_geral_pct',
+  'disponibilidade_mecanica_pct',
+  'consumo_medio_efetivo_lha',
+  'consumo_medio_lh',
+  'rpm_medio',
+])
 
 const TABS = [
   { id: 'maquina-modelo', label: 'Máquina vs. Modelo'        },
@@ -397,7 +414,8 @@ function CompareRow({ cfg, valA, valB, labelA, labelB, isEven }) {
   )
 }
 
-function CompareTable({ metricasA, metricasB, labelA, labelB }) {
+function CompareTable({ metricasA, metricasB, labelA, labelB, config }) {
+  const activeConfig = config ?? METRICAS_CONFIG
   const thStyle = {
     background: '#2d4a2d', color: '#fff', fontSize: 11, fontWeight: 600,
     textTransform: 'uppercase', letterSpacing: '0.04em', padding: '6px 10px',
@@ -416,7 +434,7 @@ function CompareTable({ metricasA, metricasB, labelA, labelB }) {
           </tr>
         </thead>
         <tbody>
-          {METRICAS_CONFIG.map((cfg, i) => (
+          {activeConfig.map((cfg, i) => (
             <CompareRow
               key={cfg.key}
               cfg={cfg}
@@ -476,21 +494,33 @@ function DynamicHeader({ processo, tipoSafra, safra, extraFields = [] }) {
 
 function MetricaSelector({ selected, onToggle }) {
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-      {METRICAS_CONFIG.map(m => {
-        const ativo = selected.has(m.key)
-        return (
-          <button key={m.key} onClick={() => onToggle(m.key)} style={{
-            padding: '4px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer',
-            background: ativo ? '#2d4a2d' : '#f7f5f2',
-            color: ativo ? '#fff' : '#4a3728',
-            border: ativo ? 'none' : '1px solid #e0dbd4',
-            fontWeight: ativo ? 600 : 400,
-          }}>
-            {m.label}
-          </button>
-        )
-      })}
+    <div style={{
+      background: '#fafaf8', border: '1px solid #e0dbd4',
+      borderRadius: 6, padding: '12px 14px', marginBottom: 16,
+    }}>
+      <div style={{
+        fontSize: 10, fontWeight: 600, color: '#6b6560',
+        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10,
+      }}>
+        Selecione as métricas para comparação
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {METRICAS_CONFIG.map(m => {
+          const ativo = selected.has(m.key)
+          return (
+            <button key={m.key} onClick={() => onToggle(m.key)} style={{
+              padding: '4px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer',
+              background: ativo ? '#2d4a2d' : '#ffffff',
+              color: ativo ? '#ffffff' : '#6b6560',
+              border: ativo ? '1px solid #2d4a2d' : '1px solid #d0cac4',
+              fontWeight: 500,
+            }}>
+              {m.label}
+              <span style={{ fontSize: 9, marginLeft: 4, opacity: 0.7 }}>{m.unit}</span>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -562,7 +592,7 @@ export default function BenchmarkEquipamentoPage() {
   const [sideB, setSideB]         = useState({ cod: '', dataInicio: '', dataFim: '' })
   const [modeloA, setModeloA]     = useState('')
   const [modeloB, setModeloB]     = useState('')
-  const [selectedMetrics, setSelectedMetrics] = useState(() => new Set(METRICAS_CONFIG.map(m => m.key)))
+  const [selectedMetrics, setSelectedMetrics] = useState(DEFAULT_SELECTED_METRICS)
 
   // O filtro global já garante que processo é Colheita ou Plantio nesta página (via App.jsx + cascade do FAB).
   // processoFiltro é apenas o valor normalizado para passar aos hooks.
@@ -570,6 +600,7 @@ export default function BenchmarkEquipamentoPage() {
 
   function toggleMetric(key) {
     setSelectedMetrics(prev => {
+      if (prev.has(key) && prev.size <= 1) return prev
       const next = new Set(prev)
       next.has(key) ? next.delete(key) : next.add(key)
       return next
@@ -696,6 +727,9 @@ export default function BenchmarkEquipamentoPage() {
             <SectionCard
               title="Máquina vs. Média do Modelo"
             >
+              <div data-pdf-exclude="true">
+                <MetricaSelector selected={selectedMetrics} onToggle={toggleMetric} />
+              </div>
               <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
                 {[
                   { color: '#2d4a2d', label: maqInfo1 ? `${maqInfo1.equipamento_cod} — ${maqInfo1.equipamento}` : 'Esta máquina' },
@@ -718,6 +752,7 @@ export default function BenchmarkEquipamentoPage() {
                   metricasB={modeloNorm1}
                   labelA={maqInfo1 ? `${maqInfo1.equipamento_cod} — ${maqInfo1.equipamento}` : tab1Cod}
                   labelB={maqInfo1?.modelo ? `${maqInfo1.modelo} — Porteira` : 'Média modelo'}
+                  config={METRICAS_CONFIG.filter(m => selectedMetrics.has(m.key))}
                 />
               )}
             </SectionCard>
@@ -785,6 +820,9 @@ export default function BenchmarkEquipamentoPage() {
               title="Comparativo de Métricas"
               subtitle="Equipamento A vs. Equipamento B"
             >
+              <div data-pdf-exclude="true">
+                <MetricaSelector selected={selectedMetrics} onToggle={toggleMetric} />
+              </div>
               <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
                 {[{ color: '#2d4a2d', label: labelEquipA }, { color: '#c8960c', label: labelEquipB }].map(({ color, label }) => (
                   <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6b6560' }}>
@@ -804,6 +842,7 @@ export default function BenchmarkEquipamentoPage() {
                   metricasB={metricasEquipB ?? {}}
                   labelA={labelEquipA}
                   labelB={labelEquipB}
+                  config={METRICAS_CONFIG.filter(m => selectedMetrics.has(m.key))}
                 />
               )}
             </SectionCard>

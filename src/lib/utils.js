@@ -50,6 +50,8 @@ export function aggregateRows(rows) {
     return rows.reduce((a, r) => a + (parseFloat(r[valKey]) || 0) * (parseFloat(r[weightKey]) || 0), 0) / totalWeight
   }
 
+  const tempo_motor_ligado_h = sum('tempo_motor_ligado_h')
+
   // quando stop exclusions foram aplicadas, os tempos já foram ajustados —
   // recalcular eficiência e disponibilidade diretamente das fórmulas base
   const hasExclusions = rows.some(r => r._hasStopExclusions)
@@ -75,9 +77,15 @@ export function aggregateRows(rows) {
     consumo_medio_efetivo_lh: tempo_produtivo_h > 0 ? consumo_efetivo_l / tempo_produtivo_h : 0,
     consumo_medio_efetivo_lha: area_ha > 0 ? consumo_efetivo_l / area_ha : 0,
     consumo_medio_lh: tempo_total_h > 0 ? consumo_total_l / tempo_total_h : 0,
+    consumo_medio_lha: area_ha > 0 ? consumo_total_l / area_ha : 0,
     velocidade_media_kmh: weightedAvg('velocidade_media_kmh', 'tempo_produtivo_h'),
     sem_apontamento_pct: weightedAvg('sem_apontamento_pct', 'tempo_parada_h'),
     eficiencia_operacional_pct: weightedAvg('eficiencia_operacional_pct', 'tempo_total_h'),
+    motor_ligado_pct: weightedAvg('motor_ligado_pct', 'tempo_total_h'),
+    // motor_ocioso_pct: % do tempo de motor ligado — peso correto é tempo_motor_ligado_h
+    motor_ocioso_pct: weightedAvg('motor_ocioso_pct', tempo_motor_ligado_h > 0 ? 'tempo_motor_ligado_h' : 'tempo_total_h'),
+    rpm_medio: weightedAvg('rpm_medio', 'tempo_total_h'),
+    area_por_linha_ha: weightedAvg('area_por_linha_ha', 'area_ha'),
   }
 }
 

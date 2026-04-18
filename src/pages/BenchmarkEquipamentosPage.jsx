@@ -1,18 +1,85 @@
-import { useState, useMemo } from 'react'
+// BenchmarkEquipamentosPage.jsx
+// Compara dois equipamentos lado a lado, com referência da média do modelo.
+// Seleção de métricas não-absolutas via chips toggle.
+
+import { useState, useMemo, useCallback } from 'react'
 import { useEquipamentoComparativo, useEquipamentoBenchmark, useEquipamentoOptions, useFilterOptions } from '../hooks/useData'
 import { KPICard, HBarChart, PageLoader, FetchingBar, semaphoreRatio } from '../components/UI'
-import { aggregateRows, defaultSafra, fmtHah, fmtPct, fmtLh, fmtKmh, fmtHa, fmtH, fmt } from '../lib/utils'
+import { aggregateRows, defaultSafra, fmtHah, fmtPct, fmtLh, fmtKmh, fmtHa, fmt } from '../lib/utils'
 
-const COMPARE_METRICAS = [
-  { key: 'rendimento_operacional_hah', label: 'Rend. Operacional (ha/h)', fmtFn: fmtHah, modeloKey: 'rendimento_operacional_hah_modelo', higherIsBetter: true },
-  { key: 'eficiencia_geral_pct',       label: 'Efic. Geral (%)',          fmtFn: fmtPct, modeloKey: 'eficiencia_geral_pct_modelo',       higherIsBetter: true },
-  { key: 'disponibilidade_mecanica_pct', label: 'Disp. Mecânica (%)',     fmtFn: fmtPct, modeloKey: 'disponibilidade_mecanica_pct_modelo', higherIsBetter: true },
-  { key: 'velocidade_media_kmh',       label: 'Velocidade Média (km/h)',  fmtFn: fmtKmh, modeloKey: 'velocidade_media_kmh_modelo' },
-  { key: 'consumo_medio_lha',          label: 'Consumo Médio (l/ha)',     fmtFn: (v) => fmt(v, 1, ' l/ha'), modeloKey: 'consumo_medio_lha_modelo', higherIsBetter: false },
-  { key: 'consumo_medio_lh',           label: 'Consumo Médio (l/h)',      fmtFn: fmtLh, modeloKey: 'consumo_medio_lh_modelo', higherIsBetter: false },
-  { key: 'area_ha',                    label: 'Área Total (ha)',          fmtFn: fmtHa },
-  { key: 'tempo_produtivo_h',          label: 'Tempo Efetivo (h)',        fmtFn: fmtH },
+// ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
+
+// Apenas métricas não-absolutas — comparáveis entre equipamentos e contextos distintos.
+// Métricas absolutas (area_ha, tempo_total_h, etc.) são excluídas por não serem comparáveis.
+const ALL_METRICAS_CONFIG = [
+  { key: 'rendimento_operacional_hah',   label: 'Rendimento Operacional',   sub: 'ha/h · maior é melhor',              fmtFn: fmtHah,                    modeloKey: 'rendimento_operacional_hah_modelo',   higherIsBetter: true,  isPct: false },
+  { key: 'rendimento_real_hah',          label: 'Rendimento Real',          sub: 'ha/h · maior é melhor',              fmtFn: fmtHah,                    modeloKey: 'rendimento_real_hah_modelo',          higherIsBetter: true,  isPct: false },
+  { key: 'velocidade_media_kmh',         label: 'Velocidade Média',         sub: 'km/h · maior é melhor',              fmtFn: fmtKmh,                    modeloKey: 'velocidade_media_kmh_modelo',         higherIsBetter: true,  isPct: false },
+  { key: 'eficiencia_geral_pct',         label: 'Eficiência Geral',         sub: '% · maior é melhor',                 fmtFn: fmtPct,                    modeloKey: 'eficiencia_geral_pct_modelo',         higherIsBetter: true,  isPct: true  },
+  { key: 'eficiencia_operacional_pct',   label: 'Eficiência Operacional',   sub: '% · maior é melhor',                 fmtFn: fmtPct,                    modeloKey: 'eficiencia_operacional_pct_modelo',   higherIsBetter: true,  isPct: true  },
+  { key: 'disponibilidade_mecanica_pct', label: 'Disponibilidade Mecânica', sub: '% · maior é melhor',                 fmtFn: fmtPct,                    modeloKey: 'disponibilidade_mecanica_pct_modelo', higherIsBetter: true,  isPct: true  },
+  { key: 'consumo_medio_lha',            label: 'Consumo Médio',            sub: 'L/ha · menor é melhor',              fmtFn: (v) => fmt(v, 1, ' L/ha'), modeloKey: 'consumo_medio_lha_modelo',            higherIsBetter: false, isPct: false },
+  { key: 'consumo_medio_lh',             label: 'Consumo Médio',            sub: 'L/h · menor é melhor',               fmtFn: fmtLh,                     modeloKey: 'consumo_medio_lh_modelo',             higherIsBetter: false, isPct: false },
+  { key: 'consumo_medio_efetivo_lha',    label: 'Consumo Efetivo Médio',    sub: 'L/ha · menor é melhor',              fmtFn: (v) => fmt(v, 1, ' L/ha'), modeloKey: 'consumo_medio_efetivo_lha_modelo',    higherIsBetter: false, isPct: false },
+  { key: 'consumo_medio_efetivo_lh',     label: 'Consumo Efetivo',          sub: 'L/h · menor é melhor',               fmtFn: (v) => fmt(v, 1, ' L/h'),  modeloKey: 'consumo_medio_efetivo_lh_modelo',     higherIsBetter: false, isPct: false },
+  { key: 'motor_ligado_pct',             label: 'Motor Ligado',             sub: '% do total · maior é melhor',        fmtFn: fmtPct,                    modeloKey: 'motor_ligado_pct_modelo',             higherIsBetter: true,  isPct: true  },
+  { key: 'motor_ocioso_pct',             label: 'Motor Ocioso',             sub: '% do motor ligado · menor é melhor', fmtFn: fmtPct,                    modeloKey: 'motor_ocioso_pct_modelo',             higherIsBetter: false, isPct: true  },
+  { key: 'sem_apontamento_pct',          label: 'Sem Apontamento',          sub: '% da parada · menor é melhor',       fmtFn: fmtPct,                    modeloKey: 'sem_apontamento_pct_modelo',          higherIsBetter: false, isPct: true  },
+  { key: 'rpm_medio',                    label: 'RPM Médio',                sub: 'RPM · referência por processo',      fmtFn: (v) => fmt(v, 0, ' rpm'),  modeloKey: 'rpm_medio_modelo',                   higherIsBetter: null,  isPct: false },
+  { key: 'area_por_linha_ha',            label: 'Área por Linha',           sub: 'ha · plantio · maior é melhor',      fmtFn: (v) => fmt(v, 4, ' ha'),   modeloKey: 'area_por_linha_ha_modelo',            higherIsBetter: true,  isPct: false },
 ]
+
+const DEFAULT_SELECTED_METRICS = new Set([
+  'rendimento_operacional_hah',
+  'velocidade_media_kmh',
+  'eficiencia_geral_pct',
+  'disponibilidade_mecanica_pct',
+  'consumo_medio_lha',
+  'consumo_medio_lh',
+])
+
+// ─── COMPONENTES INTERNOS ─────────────────────────────────────────────────────
+
+// Painel de seleção de métricas — chips toggle por chave.
+// Impede desselecionar a última métrica ativa.
+function MetricSelector({ selected, onToggle }) {
+  return (
+    <div style={{
+      background: '#fafaf8', border: '1px solid #e0dbd4',
+      borderRadius: 6, padding: '12px 14px',
+    }}>
+      <div style={{
+        fontSize: 10, fontWeight: 600, color: '#6b6560',
+        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10,
+      }}>
+        Selecione as métricas para comparação
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {ALL_METRICAS_CONFIG.map(cfg => {
+          const isActive = selected.has(cfg.key)
+          return (
+            <button
+              key={cfg.key}
+              onClick={() => onToggle(cfg.key)}
+              style={{
+                padding: '4px 10px', fontSize: 11, fontWeight: 500,
+                borderRadius: 4, cursor: 'pointer',
+                border: isActive ? '1px solid #2d4a2d' : '1px solid #d0cac4',
+                background: isActive ? '#2d4a2d' : '#ffffff',
+                color: isActive ? '#ffffff' : '#6b6560',
+              }}
+            >
+              {cfg.label}
+              <span style={{ fontSize: 9, marginLeft: 4, opacity: 0.7 }}>
+                {cfg.isPct ? '%' : cfg.sub.split('·')[0].trim()}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 function EquipSelector({ label, filter, onChange, options, equipamentos }) {
   const inputCls = "w-full bg-pa-surface-2 border border-pa-border rounded-lg px-2.5 py-1.5 text-xs text-pa-text focus:outline-none focus:border-pa-green transition-colors"
@@ -79,6 +146,7 @@ function EquipSelector({ label, filter, onChange, options, equipamentos }) {
 export default function BenchmarkEquipamentosPage() {
   const [filterA, setFilterA] = useState({ safra: defaultSafra() })
   const [filterB, setFilterB] = useState({ safra: defaultSafra() })
+  const [selectedMetrics, setSelectedMetrics] = useState(DEFAULT_SELECTED_METRICS)
   const options = useFilterOptions()
 
   const equipamentosA = useEquipamentoOptions(filterA.cliente)
@@ -98,6 +166,18 @@ export default function BenchmarkEquipamentosPage() {
     safra: filterA.safra,
   })
   const benchmarkRow = benchmarkData[0] || null
+
+  const toggleMetric = useCallback((key) => {
+    setSelectedMetrics(prev => {
+      if (prev.has(key) && prev.size <= 1) return prev
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }, [])
+
+  const activeConfig = ALL_METRICAS_CONFIG.filter(cfg => selectedMetrics.has(cfg.key))
+  const primaryMetric = activeConfig[0]
 
   const labelA = filterA.cliente
     ? `${filterA.cliente}${filterA.equipamento_cod ? ` · ${filterA.equipamento_cod}` : ''}`
@@ -126,6 +206,9 @@ export default function BenchmarkEquipamentosPage() {
         </div>
         <EquipSelector label="Equipamento B" filter={filterB} onChange={setFilterB} options={options} equipamentos={equipamentosB} />
       </div>
+
+      {/* Seleção de métricas */}
+      <MetricSelector selected={selectedMetrics} onToggle={toggleMetric} />
 
       {error && <div className="text-pa-red text-sm">Erro: {error}</div>}
 
@@ -172,7 +255,7 @@ export default function BenchmarkEquipamentosPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {COMPARE_METRICAS.map(m => {
+                  {activeConfig.map(m => {
                     const valA = aggA?.[m.key]
                     const valB = aggB?.[m.key]
                     const valMod = benchmarkRow?.[m.modeloKey]
@@ -180,7 +263,10 @@ export default function BenchmarkEquipamentosPage() {
                     const semB = valMod && m.higherIsBetter != null ? semaphoreRatio(valB, valMod, m.higherIsBetter !== false) : null
                     return (
                       <tr key={m.key} className="border-b border-pa-border/50 hover:bg-pa-surface-2 transition-colors">
-                        <td className="px-3 py-2.5 text-xs text-pa-muted">{m.label}</td>
+                        <td className="px-3 py-2.5 text-xs text-pa-muted">
+                          {m.label}
+                          <span className="ml-1.5 text-pa-faint" style={{ fontSize: 10 }}>({m.sub.split('·')[0].trim()})</span>
+                        </td>
                         <td className={`px-3 py-2.5 tabular-nums font-medium ${semA?.cls || 'text-pa-green'}`}>
                           {valA != null ? m.fmtFn(valA) : '—'}
                         </td>
@@ -200,17 +286,21 @@ export default function BenchmarkEquipamentosPage() {
             </div>
           </div>
 
-          {/* Gráfico de barras horizontal comparativo */}
-          <div className="bg-pa-surface border border-pa-border rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-pa-text mb-4">Comparativo Visual — Rendimento Operacional (ha/h)</h3>
-            <HBarChart
-              data={[
-                aggA && { label: labelA, value: aggA.rendimento_operacional_hah, color: 'var(--pa-green)', benchmark: benchmarkRow?.rendimento_operacional_hah_modelo },
-                aggB && { label: labelB, value: aggB.rendimento_operacional_hah, color: 'var(--pa-amber)' },
-                benchmarkRow && { label: `Modelo: ${modeloRef}`, value: benchmarkRow.rendimento_operacional_hah_modelo, color: 'var(--pa-faint)' },
-              ].filter(Boolean)}
-            />
-          </div>
+          {/* Gráfico de barras horizontal — métrica primária selecionada */}
+          {primaryMetric && (
+            <div className="bg-pa-surface border border-pa-border rounded-xl p-4">
+              <h3 className="text-sm font-semibold text-pa-text mb-4">
+                Comparativo Visual — {primaryMetric.label} ({primaryMetric.sub.split('·')[0].trim()})
+              </h3>
+              <HBarChart
+                data={[
+                  aggA && { label: labelA, value: aggA[primaryMetric.key], color: 'var(--pa-green)', benchmark: benchmarkRow?.[primaryMetric.modeloKey] },
+                  aggB && { label: labelB, value: aggB[primaryMetric.key], color: 'var(--pa-amber)' },
+                  benchmarkRow && { label: `Modelo: ${modeloRef}`, value: benchmarkRow[primaryMetric.modeloKey], color: 'var(--pa-faint)' },
+                ].filter(Boolean)}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

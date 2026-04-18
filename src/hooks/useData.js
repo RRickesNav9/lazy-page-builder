@@ -441,13 +441,20 @@ export function useDistinctProcessos(exclude = []) {
 // Mapa métrica → denominador correto para média ponderada (espelho de compute-performance-stats)
 const METRIC_WEIGHT_MAP = {
   rendimento_operacional_hah:   'tempo_produtivo_h',
+  rendimento_real_hah:          'tempo_motor_ligado_h',
   eficiencia_geral_pct:         'tempo_total_h',
   eficiencia_operacional_pct:   'tempo_total_h',
   consumo_medio_efetivo_lha:    'area_ha',
+  consumo_medio_efetivo_lh:     'tempo_produtivo_h',
   consumo_medio_lh:             'tempo_total_h',
+  consumo_medio_lha:            'area_ha',
   disponibilidade_mecanica_pct: 'tempo_total_h',
   velocidade_media_kmh:         'tempo_produtivo_h',
   rpm_medio:                    'tempo_total_h',
+  motor_ligado_pct:             'tempo_total_h',
+  motor_ocioso_pct:             'tempo_motor_ligado_h',
+  sem_apontamento_pct:          'tempo_parada_h',
+  area_por_linha_ha:            'area_ha',
 }
 
 // Calcula média ponderada das métricas a partir de rows brutas de dashboard_operational_view
@@ -482,7 +489,7 @@ export function useMaquinaMetricas(filters = {}) {
       try {
         let query = supabase
           .from('dashboard_operational_view')
-          .select('rendimento_operacional_hah,eficiencia_geral_pct,eficiencia_operacional_pct,consumo_medio_efetivo_lha,consumo_medio_lh,disponibilidade_mecanica_pct,velocidade_media_kmh,rpm_medio,tempo_produtivo_h,tempo_total_h,area_ha')
+          .select('rendimento_operacional_hah,rendimento_real_hah,eficiencia_geral_pct,eficiencia_operacional_pct,consumo_medio_efetivo_lha,consumo_medio_efetivo_lh,consumo_medio_lh,consumo_medio_lha,disponibilidade_mecanica_pct,velocidade_media_kmh,rpm_medio,motor_ligado_pct,motor_ocioso_pct,sem_apontamento_pct,area_por_linha_ha,tempo_produtivo_h,tempo_total_h,area_ha,tempo_motor_ligado_h,tempo_parada_h')
           .eq('equipamento_cod', filters.equipamento_cod)
         if (filters.processo)   query = query.eq('processo',   filters.processo)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
@@ -584,7 +591,7 @@ export function useModeloStats(filters = {}) {
       try {
         let query = supabase
           .from('dashboard_operational_view')
-          .select('equipamento_cod,rendimento_operacional_hah,eficiencia_geral_pct,eficiencia_operacional_pct,consumo_medio_efetivo_lha,consumo_medio_lh,disponibilidade_mecanica_pct,velocidade_media_kmh,rpm_medio,tempo_produtivo_h,tempo_total_h,area_ha')
+          .select('equipamento_cod,rendimento_operacional_hah,rendimento_real_hah,eficiencia_geral_pct,eficiencia_operacional_pct,consumo_medio_efetivo_lha,consumo_medio_efetivo_lh,consumo_medio_lh,consumo_medio_lha,disponibilidade_mecanica_pct,velocidade_media_kmh,rpm_medio,motor_ligado_pct,motor_ocioso_pct,sem_apontamento_pct,area_por_linha_ha,tempo_produtivo_h,tempo_total_h,area_ha,tempo_motor_ligado_h,tempo_parada_h')
           .eq('modelo_equipamento', filters.modelo_equipamento)
         if (filters.processo)   query = query.eq('processo',   filters.processo)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
