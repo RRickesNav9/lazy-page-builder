@@ -4,7 +4,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { useFilters } from '../lib/FilterContext'
-import { useClienteBenchmark, useAllClientesBenchmark, useDistinctProcessos } from '../hooks/useData'
+import { useClienteBenchmark, useAllClientesBenchmark } from '../hooks/useData'
 import MetricSelectorFAB from '../components/MetricSelectorFAB'
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
@@ -153,11 +153,8 @@ const TABS = [
 const TAB_PROCESSO = {
   colheita: 'Colheita',
   plantio:  'Plantio',
-  // 'geral' usa geralProcesso (estado dinâmico) — não consta aqui
+  // 'geral' usa filters.processo do filtro global
 }
-
-// Processos excluídos da aba Geral (têm abas próprias)
-const GERAL_EXCLUDE = ['Colheita', 'Plantio']
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -538,28 +535,6 @@ function GrupoOnlyTable({ grupoMetricas, activeConfig }) {
   )
 }
 
-// Seletor de processo para a aba Geral — exibe os processos disponíveis excluindo Colheita e Plantio.
-function ProcessoGeralSelector({ processos, selected, onSelect }) {
-  if (!processos || processos.length === 0) return null
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-      <span style={{ fontSize: 10, fontWeight: 600, color: '#6b6560', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        Processo
-      </span>
-      {processos.map(p => (
-        <button key={p} onClick={() => onSelect(p)} style={{
-          padding: '4px 14px', fontSize: 11, fontWeight: 500,
-          borderRadius: 4, cursor: 'pointer',
-          border: selected === p ? '1px solid #2d4a2d' : '1px solid #d0cac4',
-          background: selected === p ? '#2d4a2d' : '#ffffff',
-          color: selected === p ? '#ffffff' : '#6b6560',
-        }}>
-          {p}
-        </button>
-      ))}
-    </div>
-  )
-}
 
 // ─── TABELA DE MÉTRICAS ───────────────────────────────────────────────────────
 
@@ -673,16 +648,6 @@ export default function BenchmarkClientePage() {
   const { filters, queryFilters, currentSafra } = useFilters()
   const [activeTab, setActiveTab]             = useState('colheita')
   const [selectedMetrics, setSelectedMetrics] = useState(DEFAULT_SELECTED_METRICS)
-  // Processo selecionado na aba Geral — inicializado quando processos são carregados
-  const [geralProcesso, setGeralProcesso]     = useState(null)
-
-  const geralProcessos = useDistinctProcessos(GERAL_EXCLUDE)
-
-  // Auto-seleciona o primeiro processo disponível na aba Geral quando carregado
-  const effectGeralProcesso = useMemo(
-    () => geralProcesso || geralProcessos[0] || 'Aplicação',
-    [geralProcesso, geralProcessos]
-  )
 
   const toggleMetric = useCallback((key) => {
     setSelectedMetrics(prev => {
@@ -695,8 +660,8 @@ export default function BenchmarkClientePage() {
 
   const cliente   = filters.cliente    || ''
   const tipoSafra = filters.tipo_safra || ''
-  // Processo: abas Colheita/Plantio são fixas; Geral usa seleção dinâmica
-  const processo  = activeTab === 'geral' ? effectGeralProcesso : TAB_PROCESSO[activeTab]
+  // Colheita/Plantio são fixos por aba; Geral usa o processo do filtro global
+  const processo  = activeTab === 'geral' ? (filters.processo || null) : TAB_PROCESSO[activeTab]
 
   // Filtros para os hooks — processo sempre vem do tab ativo, não do filtro global
   const benchFilters = {
@@ -768,15 +733,6 @@ export default function BenchmarkClientePage() {
         />
 
         <TabControl tabs={TABS} active={activeTab} onChange={setActiveTab} />
-
-        {/* Seletor de processo visível apenas na aba Geral */}
-        {activeTab === 'geral' && (
-          <ProcessoGeralSelector
-            processos={geralProcessos}
-            selected={effectGeralProcesso}
-            onSelect={setGeralProcesso}
-          />
-        )}
 
         {filters.metricFilter?.field && filters.metricFilter?.value !== '' && filters.metricFilter?.value != null && (
           <div style={{ background: '#edf5ed', border: '1px solid #4a6741', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#1e4d1e' }}>
