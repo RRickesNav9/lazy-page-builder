@@ -244,6 +244,7 @@ export function useClienteBenchmark(filters = {}) {
         let query = supabase
           .from('dashboard_operational_view')
           .select([
+            'equipamento_cod', 'data',
             'rendimento_operacional_hah', 'eficiencia_geral_pct',
             'eficiencia_operacional_pct', 'consumo_medio_efetivo_lha',
             'consumo_medio_lh', 'disponibilidade_mecanica_pct', 'velocidade_media_kmh',
@@ -304,6 +305,13 @@ export function useClienteBenchmark(filters = {}) {
           }
           result[metrica] = sumPeso > 0 ? sumProd / sumPeso : 0
         }
+
+        // tempo_medio_turno_h = SUM(tempo_total_h) / COUNT(DISTINCT (data, equipamento_cod))
+        const equipDays = new Set(all.map(r => `${r.data}|||${r.equipamento_cod}`))
+        result['tempo_medio_turno_h'] = equipDays.size > 0
+          ? all.reduce((s, r) => s + (r.tempo_total_h ?? 0), 0) / equipDays.size
+          : 0
+
         setMetricas(result)
       } catch (err) {
         setError(err.message)
@@ -332,7 +340,7 @@ export function useAllClientesBenchmark(filters = {}) {
         let query = supabase
           .from('dashboard_operational_view')
           .select([
-            'cliente',
+            'cliente', 'equipamento_cod', 'data',
             'rendimento_operacional_hah', 'eficiencia_geral_pct',
             'eficiencia_operacional_pct', 'consumo_medio_efetivo_lha',
             'consumo_medio_lh', 'disponibilidade_mecanica_pct', 'velocidade_media_kmh',
@@ -392,6 +400,11 @@ export function useAllClientesBenchmark(filters = {}) {
             }
             entry[metrica] = sumPeso > 0 ? sumProd / sumPeso : null
           }
+          // tempo_medio_turno_h = SUM(tempo_total_h) / COUNT(DISTINCT (data, equipamento_cod))
+          const equipDays = new Set(rows.map(r => `${r.data}|||${r.equipamento_cod}`))
+          entry['tempo_medio_turno_h'] = equipDays.size > 0
+            ? rows.reduce((s, r) => s + (r.tempo_total_h ?? 0), 0) / equipDays.size
+            : null
           result.push(entry)
         }
         setData(result)

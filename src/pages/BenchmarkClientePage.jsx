@@ -132,6 +132,14 @@ const ALL_METRICAS_CONFIG = [
     higherIsBetter: true,
     isPct: false,
   },
+  {
+    key: 'tempo_medio_turno_h',
+    label: 'Tempo Médio de Turno',
+    sub: 'h/equip/dia · maior é melhor',
+    fmt: (v) => v.toFixed(1) + 'h',
+    higherIsBetter: true,
+    isPct: false,
+  },
 ]
 
 const DEFAULT_SELECTED_METRICS = new Set([
@@ -142,6 +150,7 @@ const DEFAULT_SELECTED_METRICS = new Set([
   'consumo_medio_lh',
   'disponibilidade_mecanica_pct',
   'velocidade_media_kmh',
+  'tempo_medio_turno_h',
 ])
 
 const TABS = [
