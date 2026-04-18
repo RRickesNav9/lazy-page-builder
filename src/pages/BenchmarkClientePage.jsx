@@ -4,7 +4,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { useFilters } from '../lib/FilterContext'
-import { useClienteBenchmark, useAllClientesBenchmark } from '../hooks/useData'
+import { useClienteBenchmark, useAllClientesBenchmark, useDistinctProcessos } from '../hooks/useData'
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
 
@@ -152,8 +152,11 @@ const TABS = [
 const TAB_PROCESSO = {
   colheita: 'Colheita',
   plantio:  'Plantio',
-  geral:    'Aplicação',
+  // 'geral' usa geralProcesso (estado dinâmico) — não consta aqui
 }
+
+// Processos excluídos da aba Geral (têm abas próprias)
+const GERAL_EXCLUDE = ['Colheita', 'Plantio']
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -420,29 +423,35 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
   const maxBound = higherIsBetter ? good : bad
   const maxVal   = Math.max(clienteVal, grupoVal, maxBound > 0 ? maxBound : 0, 0.001) * 1.2
 
+  // Escala de 5 pontos (validScale) ou 3 pontos (!validScale).
+  // Âncoras: bad → centro zona 1 (Z/2=16.7%), grupoVal → centro zona 2 (50%), good → centro zona 3 (Z*2.5=83.3%).
+  // Garante que toPct(bad)=badLabelPct e toPct(good)=goodLabelPct — cliente com valor
+  // igual a um extremo aparece exatamente sobre a label correspondente.
   function toPct(v) {
     if (v <= 0) return 0
+    const half = Z / 2        // 16.67  — centro zona 1 / zona 3 início
+    const gCtr = Z * 2.5      // 83.33  — centro zona 3
     if (validScale) {
       if (higherIsBetter) {
-        if (v <= bad)      return (v / bad) * Z
-        if (v <= grupoVal) return Z + ((v - bad) / (grupoVal - bad)) * (Z / 2)
-        if (v <= good)     return Z * 1.5 + ((v - grupoVal) / (good - grupoVal)) * (Z / 2)
-        return Math.min(Z * 2 + ((v - good) / (maxVal - good)) * Z, 100)
+        if (v <= bad)      return (v / bad) * half
+        if (v <= grupoVal) return half + ((v - bad)      / (grupoVal - bad))      * (50 - half)
+        if (v <= good)     return 50   + ((v - grupoVal) / (good - grupoVal))     * (gCtr - 50)
+        return Math.min(gCtr + ((v - good) / (maxVal - good)) * (100 - gCtr), 100)
       } else {
-        if (v <= good)     return (v / good) * Z
-        if (v <= grupoVal) return Z + ((v - good) / (grupoVal - good)) * (Z / 2)
-        if (v <= bad)      return Z * 1.5 + ((v - grupoVal) / (bad - grupoVal)) * (Z / 2)
-        return Math.min(Z * 2 + ((v - bad) / (maxVal - bad)) * Z, 100)
+        if (v <= good)     return (v / good) * half
+        if (v <= grupoVal) return half + ((v - good)     / (grupoVal - good))     * (50 - half)
+        if (v <= bad)      return 50   + ((v - grupoVal) / (bad - grupoVal))      * (gCtr - 50)
+        return Math.min(gCtr + ((v - bad) / (maxVal - bad)) * (100 - gCtr), 100)
       }
     } else {
       if (higherIsBetter) {
-        if (v <= bad)  return (v / bad) * Z
-        if (v <= good) return Z + ((v - bad) / (good - bad)) * Z
-        return Math.min(2 * Z + ((v - good) / (maxVal - good)) * Z, 100)
+        if (v <= bad)  return (v / bad)  * half
+        if (v <= good) return half + ((v - bad)  / (good - bad))  * (gCtr - half)
+        return Math.min(gCtr + ((v - good) / (maxVal - good)) * (100 - gCtr), 100)
       } else {
-        if (v <= good) return (v / good) * Z
-        if (v <= bad)  return Z + ((v - good) / (bad - good)) * Z
-        return Math.min(2 * Z + ((v - bad) / (maxVal - bad)) * Z, 100)
+        if (v <= good) return (v / good) * half
+        if (v <= bad)  return half + ((v - good) / (bad - good))  * (gCtr - half)
+        return Math.min(gCtr + ((v - bad) / (maxVal - bad)) * (100 - gCtr), 100)
       }
     }
   }
@@ -525,6 +534,68 @@ function SectionCard({ title, subtitle, footnote, headerAction, children }) {
           {footnote}
         </div>
       )}
+    </div>
+  )
+}
+
+// Tabela simplificada usada quando nenhum cliente está selecionado:
+// exibe apenas as médias do grupo Porteira, sem comparação nem gauge.
+function GrupoOnlyTable({ grupoMetricas, activeConfig }) {
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={{ background: '#2d4a2d', color: '#fff', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '6px 10px', fontWeight: 600, width: 200, textAlign: 'left' }}>
+              Métrica
+            </th>
+            <th style={{ background: '#2d4a2d', color: '#fff', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '6px 10px', fontWeight: 600, textAlign: 'center', width: 160 }}>
+              Média Porteira
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {activeConfig.map((cfg, i) => (
+            <tr key={cfg.key} style={{ background: i % 2 === 0 ? '#ffffff' : '#fafaf8' }}>
+              <td style={{ padding: '9px 10px' }}>
+                <div style={{ fontSize: 11, fontWeight: 500, color: '#4a3728' }}>{cfg.label}</div>
+                <div style={{ fontSize: 8, color: '#6b6560', marginTop: 2 }}>{cfg.sub}</div>
+              </td>
+              <td style={{ padding: '9px 10px', textAlign: 'center' }}>
+                <span style={{ fontSize: 16, fontWeight: 700, color: '#4a3728' }}>
+                  {cfg.fmt(grupoMetricas[cfg.key] ?? 0)}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ marginTop: 10, fontSize: 10, color: '#6b6560', fontStyle: 'italic' }}>
+        Selecione um cliente no filtro global para ver a comparação individual com o grupo.
+      </div>
+    </div>
+  )
+}
+
+// Seletor de processo para a aba Geral — exibe os processos disponíveis excluindo Colheita e Plantio.
+function ProcessoGeralSelector({ processos, selected, onSelect }) {
+  if (!processos || processos.length === 0) return null
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+      <span style={{ fontSize: 10, fontWeight: 600, color: '#6b6560', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        Processo
+      </span>
+      {processos.map(p => (
+        <button key={p} onClick={() => onSelect(p)} style={{
+          padding: '4px 14px', fontSize: 11, fontWeight: 500,
+          borderRadius: 4, cursor: 'pointer',
+          border: selected === p ? '1px solid #2d4a2d' : '1px solid #d0cac4',
+          background: selected === p ? '#2d4a2d' : '#ffffff',
+          color: selected === p ? '#ffffff' : '#6b6560',
+        }}>
+          {p}
+        </button>
+      ))}
     </div>
   )
 }
@@ -639,9 +710,19 @@ function MetricasTable({ metricas, zoneThresholds, activeConfig }) {
 
 export default function BenchmarkClientePage() {
   const { filters, queryFilters, currentSafra } = useFilters()
-  const [activeTab, setActiveTab]           = useState('colheita')
+  const [activeTab, setActiveTab]             = useState('colheita')
   const [selectedMetrics, setSelectedMetrics] = useState(DEFAULT_SELECTED_METRICS)
-  const [showSelector, setShowSelector]     = useState(false)
+  const [showSelector, setShowSelector]       = useState(false)
+  // Processo selecionado na aba Geral — inicializado quando processos são carregados
+  const [geralProcesso, setGeralProcesso]     = useState(null)
+
+  const geralProcessos = useDistinctProcessos(GERAL_EXCLUDE)
+
+  // Auto-seleciona o primeiro processo disponível na aba Geral quando carregado
+  const effectGeralProcesso = useMemo(
+    () => geralProcesso || geralProcessos[0] || 'Aplicação',
+    [geralProcesso, geralProcessos]
+  )
 
   const toggleMetric = useCallback((key) => {
     setSelectedMetrics(prev => {
@@ -653,8 +734,9 @@ export default function BenchmarkClientePage() {
   }, [])
 
   const cliente   = filters.cliente    || ''
-  const processo  = TAB_PROCESSO[activeTab]
   const tipoSafra = filters.tipo_safra || ''
+  // Processo: abas Colheita/Plantio são fixas; Geral usa seleção dinâmica
+  const processo  = activeTab === 'geral' ? effectGeralProcesso : TAB_PROCESSO[activeTab]
 
   // Filtros para os hooks — processo sempre vem do tab ativo, não do filtro global
   const benchFilters = {
@@ -672,8 +754,9 @@ export default function BenchmarkClientePage() {
     safra: currentSafra,
   }
 
+  // Dados do cliente — desnecessário quando nenhum cliente está selecionado
   const { metricas: clienteMetricas, loading: loadingCliente, error: errorCliente } =
-    useClienteBenchmark(benchFilters)
+    useClienteBenchmark(cliente ? benchFilters : {})
 
   // Busca médias de todos os clientes — fonte única para grupo, bad e good.
   // Usar a mesma fonte garante que grupoVal sempre caia entre bad e good,
@@ -710,8 +793,26 @@ export default function BenchmarkClientePage() {
 
   const activeConfig = ALL_METRICAS_CONFIG.filter(cfg => selectedMetrics.has(cfg.key))
 
-  const loading  = loadingCliente || loadingAllClientes
-  const semDados = !loading && !clienteMetricas
+  // Quando não há cliente, aguardamos só os dados do grupo
+  const loading  = cliente ? (loadingCliente || loadingAllClientes) : loadingAllClientes
+  const semDados = !loading && cliente && !clienteMetricas
+
+  // Botão reutilizável de configuração de métricas
+  const configBtn = (
+    <button
+      onClick={() => setShowSelector(s => !s)}
+      style={{
+        fontSize: 10, fontWeight: 600, cursor: 'pointer',
+        color: showSelector ? '#ffffff' : '#4a3728',
+        background: showSelector ? '#2d4a2d' : 'none',
+        border: '1px solid ' + (showSelector ? '#2d4a2d' : '#d0cac4'),
+        borderRadius: 4, padding: '3px 9px',
+        textTransform: 'uppercase', letterSpacing: '0.06em',
+      }}
+    >
+      {showSelector ? 'Fechar ▴' : 'Configurar métricas ▾'}
+    </button>
+  )
 
   return (
     <>
@@ -723,6 +824,15 @@ export default function BenchmarkClientePage() {
         />
 
         <TabControl tabs={TABS} active={activeTab} onChange={setActiveTab} />
+
+        {/* Seletor de processo visível apenas na aba Geral */}
+        {activeTab === 'geral' && (
+          <ProcessoGeralSelector
+            processos={geralProcessos}
+            selected={effectGeralProcesso}
+            onSelect={setGeralProcesso}
+          />
+        )}
 
         {filters.metricFilter?.field && filters.metricFilter?.value !== '' && filters.metricFilter?.value != null && (
           <div style={{ background: '#edf5ed', border: '1px solid #4a6741', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#1e4d1e' }}>
@@ -736,33 +846,32 @@ export default function BenchmarkClientePage() {
           </div>
         )}
 
-        {!loading && (errorCliente || semDados) && (
+        {/* Nenhum cliente selecionado: exibe médias do grupo sem comparação */}
+        {!loading && !cliente && (
+          <SectionCard title="MÉDIAS DO GRUPO PORTEIRA" headerAction={configBtn}>
+            {showSelector && <MetricSelector selected={selectedMetrics} onToggle={toggleMetric} />}
+            {grupoMetricas
+              ? <GrupoOnlyTable grupoMetricas={grupoMetricas} activeConfig={activeConfig} />
+              : <div style={{ padding: '20px 0', color: '#6b6560', fontSize: 13 }}>Sem dados para o período selecionado.</div>
+            }
+          </SectionCard>
+        )}
+
+        {/* Cliente selecionado mas sem dados */}
+        {!loading && semDados && (
           <div style={{ padding: '40px 0', textAlign: 'center', color: '#8b2020', fontSize: 13 }}>
             {errorCliente
               ? `Erro ao carregar dados: ${errorCliente}`
-              : 'Nenhum dado encontrado para os filtros selecionados. Selecione um cliente e processo no filtro.'}
+              : 'Nenhum dado encontrado para os filtros selecionados.'}
           </div>
         )}
 
-        {!loading && clienteMetricas && (
+        {/* Comparação cliente vs. grupo */}
+        {!loading && cliente && clienteMetricas && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <SectionCard
               title="MÉTRICAS COMPARÁVEIS — CLIENTE VS. GRUPO PORTEIRA"
-              headerAction={
-                <button
-                  onClick={() => setShowSelector(s => !s)}
-                  style={{
-                    fontSize: 10, fontWeight: 600, cursor: 'pointer',
-                    color: showSelector ? '#ffffff' : '#4a3728',
-                    background: showSelector ? '#2d4a2d' : 'none',
-                    border: '1px solid ' + (showSelector ? '#2d4a2d' : '#d0cac4'),
-                    borderRadius: 4, padding: '3px 9px',
-                    textTransform: 'uppercase', letterSpacing: '0.06em',
-                  }}
-                >
-                  {showSelector ? 'Fechar ▴' : 'Configurar métricas ▾'}
-                </button>
-              }
+              headerAction={configBtn}
             >
               {showSelector && (
                 <MetricSelector selected={selectedMetrics} onToggle={toggleMetric} />

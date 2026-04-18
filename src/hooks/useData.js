@@ -408,6 +408,36 @@ export function useAllClientesBenchmark(filters = {}) {
   return { data, loading }
 }
 
+// Busca processos distintos disponíveis na view, excluindo os informados.
+// Solinftec apenas — JD excluído. Usa amostra inicial: os poucos valores distintos
+// de processo aparecem rapidamente nas primeiras linhas.
+export function useDistinctProcessos(exclude = []) {
+  const [processos, setProcessos] = useState([])
+  const JD_ID = '6731a094-8f65-472f-95f5-655d1303a72f'
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from('dashboard_operational_view')
+        .select('processo')
+        .neq('data_provider_id', JD_ID)
+        .neq('cliente', 'Média Porteira')
+        .not('processo', 'is', null)
+        .limit(3000)
+      if (!data) return
+      const unique = [...new Set(data.map(r => r.processo))]
+        .filter(p => !exclude.includes(p))
+        .sort()
+      setProcessos(unique)
+    }
+    load()
+  // exclude é literal estático no call site — não entra no dep array
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return processos
+}
+
 // Mapa métrica → denominador correto para média ponderada (espelho de compute-performance-stats)
 const METRIC_WEIGHT_MAP = {
   rendimento_operacional_hah:   'tempo_produtivo_h',
