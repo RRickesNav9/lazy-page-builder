@@ -644,7 +644,7 @@ function MetricasTable({ metricas, zoneThresholds, activeConfig }) {
 
 // ─── PÁGINA ───────────────────────────────────────────────────────────────────
 
-export default function BenchmarkClientePage() {
+export default function BenchmarkClientePage({ onTabChange }) {
   const { filters, queryFilters, currentSafra } = useFilters()
   const [activeTab, setActiveTab]             = useState('colheita')
   const [selectedMetrics, setSelectedMetrics] = useState(DEFAULT_SELECTED_METRICS)
@@ -732,7 +732,7 @@ export default function BenchmarkClientePage() {
           tipoSafra={tipoSafra}
         />
 
-        <TabControl tabs={TABS} active={activeTab} onChange={setActiveTab} />
+        <TabControl tabs={TABS} active={activeTab} onChange={(t) => { setActiveTab(t); onTabChange?.(t) }} />
 
         {filters.metricFilter?.field && filters.metricFilter?.value !== '' && filters.metricFilter?.value != null && (
           <div style={{ background: '#edf5ed', border: '1px solid #4a6741', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#1e4d1e' }}>

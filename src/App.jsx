@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import logoPorteira from './assets/logo-porteira.svg'
 import { FilterProvider, useFilters } from './lib/FilterContext'
 import GlobalFilterFAB from './components/GlobalFilterFAB'
@@ -19,9 +19,9 @@ const PAGES = {
 }
 
 // Processos permitidos por página — null = irrestrito
+// benchmark usa benchTab para restringir por aba (ver AppInner)
 const PAGE_PROCESSOS = {
   analise:       null,
-  benchmark:     ['Colheita', 'Plantio'],
   'bench-equip': ['Colheita', 'Plantio'],
 }
 
@@ -61,12 +61,22 @@ function Breadcrumb() {
 
 function AppInner() {
   const [activePage, setActivePage] = useState('analise')
+  const [benchTab,   setBenchTab]   = useState('colheita')
   const PageComponent  = PAGES[activePage]
   const { filters, applyFilters } = useFilters()
-  const allowedProcessos = PAGE_PROCESSOS[activePage]
-  const solinftecOnly    = PAGE_SOLINFTEC[activePage] ?? false
+  const solinftecOnly = PAGE_SOLINFTEC[activePage] ?? false
 
-  // Ao trocar para uma página com processos restritos, limpa o processo se ele não for permitido
+  // Para benchmark, restringe processo à aba ativa (colheita/plantio); geral = ambos
+  const allowedProcessos = useMemo(() => {
+    if (activePage === 'benchmark') {
+      if (benchTab === 'colheita') return ['Colheita']
+      if (benchTab === 'plantio')  return ['Plantio']
+      return ['Colheita', 'Plantio']
+    }
+    return PAGE_PROCESSOS[activePage] ?? null
+  }, [activePage, benchTab])
+
+  // Ao trocar página ou aba, limpa processo se ele não for permitido
   useEffect(() => {
     if (!allowedProcessos) return
     const valid = allowedProcessos.some(
@@ -75,7 +85,7 @@ function AppInner() {
     if (!valid && filters.processo) {
       applyFilters({ ...filters, processo: '' })
     }
-  }, [activePage]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activePage, benchTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="app-root" style={{ minHeight: '100vh', background: '#ffffff', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
@@ -115,7 +125,10 @@ function AppInner() {
       </nav>
 
       <div id="pdf-content">
-        <PageComponent />
+        {activePage === 'benchmark'
+          ? <BenchmarkClientePage onTabChange={setBenchTab} />
+          : <PageComponent />
+        }
       </div>
 
       <GlobalFilterFAB allowedProcessos={allowedProcessos} solinftecOnly={solinftecOnly} />
