@@ -51,8 +51,12 @@ export default function GlobalFilterFAB({ allowedProcessos = null, solinftecOnly
 
   function toggleExpanded() {
     setExpanded(e => {
-      if (e) setOpen(false) // fecha painel ao colapsar
-      return !e
+      const next = !e
+      if (!next) setOpen(false)
+      // informa MetricSelectorFAB (e outros) sobre o novo estado
+      window.__fabExpanded = next
+      window.dispatchEvent(new CustomEvent('fabToggle', { detail: { expanded: next } }))
+      return next
     })
   }
 

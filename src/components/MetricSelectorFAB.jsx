@@ -6,7 +6,18 @@ import { useState, useEffect, useRef } from 'react'
 
 export default function MetricSelectorFAB({ config, selected, onToggle }) {
   const [open, setOpen] = useState(false)
+  // sincroniza com o fold/unfold do GlobalFilterFAB via custom event
+  const [fabExpanded, setFabExpanded] = useState(() => window.__fabExpanded ?? false)
   const panelRef = useRef(null)
+
+  useEffect(() => {
+    function handle(e) {
+      setFabExpanded(e.detail.expanded)
+      if (!e.detail.expanded) setOpen(false)
+    }
+    window.addEventListener('fabToggle', handle)
+    return () => window.removeEventListener('fabToggle', handle)
+  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -16,6 +27,8 @@ export default function MetricSelectorFAB({ config, selected, onToggle }) {
     document.addEventListener('mousedown', handle)
     return () => document.removeEventListener('mousedown', handle)
   }, [open])
+
+  if (!fabExpanded) return null
 
   return (
     <>
