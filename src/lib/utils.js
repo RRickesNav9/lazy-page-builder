@@ -227,7 +227,7 @@ export const METRICAS = [
   { value: 'consumo_medio_efetivo_lh',   label: 'Consumo Médio Efetivo (l/h)',   fmt: fmtLh  },
   { value: 'eficiencia_geral_pct',       label: 'Eficiência Geral (%)',          fmt: fmtPct },
   { value: 'disponibilidade_mecanica_pct', label: 'Disponibilidade Mecânica (%)', fmt: fmtPct },
-  { value: 'tempo_produtivo_h',          label: 'Tempo Efetivo (h)',             fmt: fmtH   },
+  { value: 'tempo_efetivo_h',             label: 'Tempo Efetivo (h)',             fmt: fmtH   },
   { value: 'velocidade_media_kmh',       label: 'Velocidade Média (km/h)',       fmt: fmtKmh },
   { value: 'sem_apontamento_pct',        label: 'Sem Apontamento (%)',           fmt: fmtPct },
 ]
