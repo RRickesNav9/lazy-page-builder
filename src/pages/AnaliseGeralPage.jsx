@@ -33,7 +33,7 @@ const DIMS = [
 
 const FIXED_METRICS = [
   { key: 'area_ha',                   label: 'Área (ha)',          fmt: fmtHa },
-  { key: 'tempo_produtivo_h',         label: 'T. Efetivo (h)',     fmt: fmtH },
+  { key: 'tempo_efetivo_h',            label: 'T. Efetivo (h)',     fmt: fmtH },
   { key: 'rendimento_operacional_hah', label: 'Rend. Op. (ha/h)',  fmt: fmtHah },
   { key: 'consumo_medio_efetivo_lha', label: 'Cons. Ef. (l/ha)',   fmt: v => fmt(v, 1, ' l/ha') },
 ]
@@ -617,7 +617,7 @@ export default function AnaliseGeralPage() {
   const byRend  = useMemo(() => [...equipRows].sort((a, b) => b.rendimento_operacional_hah - a.rendimento_operacional_hah), [equipRows])
   const byVel   = useMemo(() => [...equipRows].sort((a, b) => b.velocidade_media_kmh - a.velocidade_media_kmh), [equipRows])
   const byComb  = useMemo(() => [...equipRows].sort((a, b) => a.consumo_medio_lh - b.consumo_medio_lh), [equipRows]) // menor = melhor
-  const byTempo = useMemo(() => [...equipRows].sort((a, b) => b.tempo_produtivo_h - a.tempo_produtivo_h), [equipRows])
+  const byTempo = useMemo(() => [...equipRows].sort((a, b) => b.tempo_efetivo_h - a.tempo_efetivo_h), [equipRows])
   const byDisp  = useMemo(() => [...equipRows].sort((a, b) => b.disponibilidade_mecanica_pct - a.disponibilidade_mecanica_pct), [equipRows])
 
   // escalas baseadas no total de equipamentos (não no slice) para barra estável ao expandir
@@ -625,7 +625,7 @@ export default function AnaliseGeralPage() {
   const maxRend  = useMemo(() => Math.max(...equipRows.map(e => e.rendimento_operacional_hah), benchRend ?? 0, 0.1), [equipRows, benchRend])
   const maxVel   = useMemo(() => Math.max(...equipRows.map(e => e.velocidade_media_kmh), benchVel ?? 0, 0.1), [equipRows, benchVel])
   const maxComb  = useMemo(() => Math.max(...equipRows.map(e => e.consumo_medio_lh), 0.1), [equipRows])
-  const maxTempo = useMemo(() => Math.max(...equipRows.map(e => e.tempo_produtivo_h), 0.1), [equipRows])
+  const maxTempo = useMemo(() => Math.max(...equipRows.map(e => e.tempo_efetivo_h), 0.1), [equipRows])
 
   const operadorRows = useMemo(() => {
     const map = new Map()
@@ -717,7 +717,7 @@ export default function AnaliseGeralPage() {
         <KPICard label="Rendimento Médio"  value={fmtHah(agg.rendimento_operacional_hah)} sub={benchRend ? `Média do grupo = ${fmtHah(benchRend)}` : undefined} />
         <KPICard label="Velocidade Média"  value={fmtKmh(agg.velocidade_media_kmh)} sub={benchVel ? `Média do grupo = ${fmtKmh(benchVel)}` : undefined} />
         <KPICard label="Eficiência Geral"  value={fmtPct(agg.eficiencia_geral_pct)} />
-        <KPICard label="Tempo Efetivo"     value={fmtH(agg.tempo_produtivo_h)} />
+        <KPICard label="Tempo Efetivo"     value={fmtH(agg.tempo_efetivo_h)} />
       </div>
 
       {/* ── BLOCO 2: Tabela de Dimensões ─────────────────────────────────── */}
@@ -770,7 +770,7 @@ export default function AnaliseGeralPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12, marginBottom: 6, alignItems: 'start' }}>
             <MiniPanel title="Tempo Efetivo (h)">
               {byTempo.slice(0, vis3).map(e => (
-                <HBar key={e.equip} label={e.label} value={e.tempo_produtivo_h} maxVal={maxTempo} barColor="#2d4a2d" displayValue={fmtH(e.tempo_produtivo_h)} />
+                <HBar key={e.equip} label={e.label} value={e.tempo_efetivo_h} maxVal={maxTempo} barColor="#2d4a2d" displayValue={fmtH(e.tempo_efetivo_h)} />
               ))}
             </MiniPanel>
             <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, overflow: 'hidden' }}>

@@ -12,7 +12,7 @@ const COLS_FIXAS = [
   { key: 'rendimento_operacional_hah', label: 'Rend. Op. (ha/h)',    render: v => fmtHah(v) },
   { key: 'rendimento_real_hah',        label: 'Rend. Real (ha/h)',   render: v => fmtHah(v) },
   { key: 'consumo_medio_efetivo_lh',   label: 'Cons. Ef. (l/h)',     render: v => fmtLh(v) },
-  { key: 'tempo_produtivo_h',          label: 'T. Efetivo (h)',      render: v => fmtH(v) },
+  { key: 'tempo_efetivo_h',             label: 'T. Efetivo (h)',      render: v => fmtH(v) },
   { key: 'eficiencia_geral_pct',       label: 'Efic. Geral (%)',     render: v => fmtPct(v) },
   { key: 'disponibilidade_mecanica_pct', label: 'Disp. Mec. (%)',   render: v => fmtPct(v) },
 ]
@@ -108,7 +108,7 @@ export default function DiarioOperacionalPage() {
             <span className="text-emerald-400 font-bold">{fmtHa(total.area_ha)}</span>
             <span className="text-zinc-400">{fmtHah(total.rendimento_operacional_hah)} rend. op.</span>
             <span className="text-zinc-400">{fmtPct(total.eficiencia_geral_pct)} efic.</span>
-            <span className="text-zinc-400">{fmtH(total.tempo_produtivo_h)} ef.</span>
+            <span className="text-zinc-400">{fmtH(total.tempo_efetivo_h)} ef.</span>
           </div>
         )}
       </div>
