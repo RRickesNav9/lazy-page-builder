@@ -51,6 +51,7 @@ export function aggregateRows(rows) {
   }
 
   const tempo_motor_ligado_h = sum('tempo_motor_ligado_h')
+  const tempo_efetivo_h      = sum('tempo_efetivo_h')
 
   // quando stop exclusions foram aplicadas, os tempos já foram ajustados —
   // recalcular eficiência e disponibilidade diretamente das fórmulas base
@@ -59,6 +60,7 @@ export function aggregateRows(rows) {
   return {
     area_ha,
     tempo_produtivo_h,
+    tempo_efetivo_h,
     tempo_parada_h,
     tempo_manutencao_h,
     tempo_manobra_h,
@@ -66,15 +68,15 @@ export function aggregateRows(rows) {
     tempo_total_h,
     consumo_total_l,
     consumo_efetivo_l,
-    rendimento_operacional_hah: tempo_produtivo_h > 0 ? area_ha / tempo_produtivo_h : 0,
+    rendimento_operacional_hah: tempo_efetivo_h > 0 ? area_ha / tempo_efetivo_h : 0,
     rendimento_real_hah: tempo_total_h > 0 ? area_ha / tempo_total_h : 0,
     eficiencia_geral_pct: hasExclusions
-      ? (tempo_total_h > 0 ? (tempo_produtivo_h / tempo_total_h) * 100 : 0)
+      ? (tempo_total_h > 0 ? (tempo_efetivo_h / tempo_total_h) * 100 : 0)
       : weightedAvg('eficiencia_geral_pct', 'tempo_total_h'),
     disponibilidade_mecanica_pct: hasExclusions
       ? (tempo_total_h > 0 ? ((tempo_total_h - tempo_manutencao_h) / tempo_total_h) * 100 : 0)
       : weightedAvg('disponibilidade_mecanica_pct', 'tempo_total_h'),
-    consumo_medio_efetivo_lh: tempo_produtivo_h > 0 ? consumo_efetivo_l / tempo_produtivo_h : 0,
+    consumo_medio_efetivo_lh: tempo_efetivo_h > 0 ? consumo_efetivo_l / tempo_efetivo_h : 0,
     consumo_medio_efetivo_lha: area_ha > 0 ? consumo_efetivo_l / area_ha : 0,
     consumo_medio_lh: tempo_total_h > 0 ? consumo_total_l / tempo_total_h : 0,
     consumo_medio_lha: area_ha > 0 ? consumo_total_l / area_ha : 0,

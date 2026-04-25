@@ -250,7 +250,7 @@ export function useClienteBenchmark(filters = {}) {
             'consumo_medio_lh', 'disponibilidade_mecanica_pct', 'velocidade_media_kmh',
             'rendimento_real_hah', 'consumo_medio_lha', 'consumo_medio_efetivo_lh',
             'sem_apontamento_pct', 'motor_ocioso_pct', 'motor_ligado_pct', 'rpm_medio', 'area_por_linha_ha',
-            'tempo_produtivo_h', 'tempo_total_h', 'area_ha', 'tempo_motor_ligado_h', 'tempo_parada_h',
+            'tempo_produtivo_h', 'tempo_efetivo_h', 'tempo_total_h', 'area_ha', 'tempo_motor_ligado_h', 'tempo_parada_h',
           ].join(','))
           .neq('cliente', 'Média Porteira')
           .neq('data_provider_id', JD_ID)
@@ -275,7 +275,7 @@ export function useClienteBenchmark(filters = {}) {
 
         // Média ponderada por denominador correto por métrica
         const PESO = {
-          rendimento_operacional_hah:   'tempo_produtivo_h',
+          rendimento_operacional_hah:   'tempo_efetivo_h',
           eficiencia_geral_pct:         'tempo_total_h',
           eficiencia_operacional_pct:   'tempo_total_h', // denom_h sintético não existe na view
           consumo_medio_efetivo_lha:    'area_ha',
@@ -284,7 +284,7 @@ export function useClienteBenchmark(filters = {}) {
           velocidade_media_kmh:         'tempo_produtivo_h',
           rendimento_real_hah:          'tempo_motor_ligado_h',
           consumo_medio_lha:            'area_ha',
-          consumo_medio_efetivo_lh:     'tempo_produtivo_h',
+          consumo_medio_efetivo_lh:     'tempo_efetivo_h',
           sem_apontamento_pct:          'tempo_parada_h',
           motor_ocioso_pct:             'tempo_motor_ligado_h',
           motor_ligado_pct:             'tempo_total_h',
@@ -346,7 +346,7 @@ export function useAllClientesBenchmark(filters = {}) {
             'consumo_medio_lh', 'disponibilidade_mecanica_pct', 'velocidade_media_kmh',
             'rendimento_real_hah', 'consumo_medio_lha', 'consumo_medio_efetivo_lh',
             'sem_apontamento_pct', 'motor_ocioso_pct', 'motor_ligado_pct', 'rpm_medio', 'area_por_linha_ha',
-            'tempo_produtivo_h', 'tempo_total_h', 'area_ha', 'tempo_motor_ligado_h', 'tempo_parada_h',
+            'tempo_produtivo_h', 'tempo_efetivo_h', 'tempo_total_h', 'area_ha', 'tempo_motor_ligado_h', 'tempo_parada_h',
           ].join(','))
           .neq('cliente', 'Média Porteira')
           .neq('data_provider_id', JD_ID)
@@ -365,7 +365,7 @@ export function useAllClientesBenchmark(filters = {}) {
         }
 
         const PESO = {
-          rendimento_operacional_hah:   'tempo_produtivo_h',
+          rendimento_operacional_hah:   'tempo_efetivo_h',
           eficiencia_geral_pct:         'tempo_total_h',
           eficiencia_operacional_pct:   'tempo_total_h',
           consumo_medio_efetivo_lha:    'area_ha',
@@ -374,7 +374,7 @@ export function useAllClientesBenchmark(filters = {}) {
           velocidade_media_kmh:         'tempo_produtivo_h',
           rendimento_real_hah:          'tempo_motor_ligado_h',
           consumo_medio_lha:            'area_ha',
-          consumo_medio_efetivo_lh:     'tempo_produtivo_h',
+          consumo_medio_efetivo_lh:     'tempo_efetivo_h',
           sem_apontamento_pct:          'tempo_parada_h',
           motor_ocioso_pct:             'tempo_motor_ligado_h',
           motor_ligado_pct:             'tempo_total_h',
@@ -453,12 +453,12 @@ export function useDistinctProcessos(exclude = []) {
 
 // Mapa métrica → denominador correto para média ponderada (espelho de compute-performance-stats)
 const METRIC_WEIGHT_MAP = {
-  rendimento_operacional_hah:   'tempo_produtivo_h',
+  rendimento_operacional_hah:   'tempo_efetivo_h',
   rendimento_real_hah:          'tempo_motor_ligado_h',
   eficiencia_geral_pct:         'tempo_total_h',
   eficiencia_operacional_pct:   'tempo_total_h',
   consumo_medio_efetivo_lha:    'area_ha',
-  consumo_medio_efetivo_lh:     'tempo_produtivo_h',
+  consumo_medio_efetivo_lh:     'tempo_efetivo_h',
   consumo_medio_lh:             'tempo_total_h',
   consumo_medio_lha:            'area_ha',
   disponibilidade_mecanica_pct: 'tempo_total_h',
@@ -502,7 +502,7 @@ export function useMaquinaMetricas(filters = {}) {
       try {
         let query = supabase
           .from('dashboard_operational_view')
-          .select('rendimento_operacional_hah,rendimento_real_hah,eficiencia_geral_pct,eficiencia_operacional_pct,consumo_medio_efetivo_lha,consumo_medio_efetivo_lh,consumo_medio_lh,consumo_medio_lha,disponibilidade_mecanica_pct,velocidade_media_kmh,rpm_medio,motor_ligado_pct,motor_ocioso_pct,sem_apontamento_pct,area_por_linha_ha,tempo_produtivo_h,tempo_total_h,area_ha,tempo_motor_ligado_h,tempo_parada_h')
+          .select('rendimento_operacional_hah,rendimento_real_hah,eficiencia_geral_pct,eficiencia_operacional_pct,consumo_medio_efetivo_lha,consumo_medio_efetivo_lh,consumo_medio_lh,consumo_medio_lha,disponibilidade_mecanica_pct,velocidade_media_kmh,rpm_medio,motor_ligado_pct,motor_ocioso_pct,sem_apontamento_pct,area_por_linha_ha,tempo_produtivo_h,tempo_efetivo_h,tempo_total_h,area_ha,tempo_motor_ligado_h,tempo_parada_h')
           .eq('equipamento_cod', filters.equipamento_cod)
         if (filters.processo)   query = query.eq('processo',   filters.processo)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
@@ -604,7 +604,7 @@ export function useModeloStats(filters = {}) {
       try {
         let query = supabase
           .from('dashboard_operational_view')
-          .select('equipamento_cod,rendimento_operacional_hah,rendimento_real_hah,eficiencia_geral_pct,eficiencia_operacional_pct,consumo_medio_efetivo_lha,consumo_medio_efetivo_lh,consumo_medio_lh,consumo_medio_lha,disponibilidade_mecanica_pct,velocidade_media_kmh,rpm_medio,motor_ligado_pct,motor_ocioso_pct,sem_apontamento_pct,area_por_linha_ha,tempo_produtivo_h,tempo_total_h,area_ha,tempo_motor_ligado_h,tempo_parada_h')
+          .select('equipamento_cod,rendimento_operacional_hah,rendimento_real_hah,eficiencia_geral_pct,eficiencia_operacional_pct,consumo_medio_efetivo_lha,consumo_medio_efetivo_lh,consumo_medio_lh,consumo_medio_lha,disponibilidade_mecanica_pct,velocidade_media_kmh,rpm_medio,motor_ligado_pct,motor_ocioso_pct,sem_apontamento_pct,area_por_linha_ha,tempo_produtivo_h,tempo_efetivo_h,tempo_total_h,area_ha,tempo_motor_ligado_h,tempo_parada_h')
           .eq('modelo_equipamento', filters.modelo_equipamento)
         if (filters.processo)   query = query.eq('processo',   filters.processo)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
