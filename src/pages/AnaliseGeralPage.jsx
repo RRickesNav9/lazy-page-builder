@@ -377,8 +377,6 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
   function toggleMetric(key) {
     setMetricCols(prev => {
       if (prev.includes(key)) return prev.filter(m => m !== key)
-      // máximo 2 selecionadas
-      if (prev.length >= 2) return [prev[1], key]
       return [...prev, key]
     })
   }
@@ -470,7 +468,7 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
               padding: '4px 0',
             }}>
               <div style={{ padding: '4px 12px 6px', fontSize: 10, color: '#6b6560' }}>
-                Selecione até 2 métricas
+                Selecione as métricas desejadas
               </div>
               {SELECTABLE_METRICS.map(m => (
                 <div
