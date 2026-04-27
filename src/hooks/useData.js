@@ -20,6 +20,7 @@ export function useOperationalData(filters = {}, enabled = true) {
         .select('*')
         .neq('cliente', 'Média Porteira')
         .order('data', { ascending: false })
+        .order('id', { ascending: true })
 
       if (filters.cliente)            query = query.eq('cliente', filters.cliente)
       if (filters.propriedade)        query = query.eq('propriedade', filters.propriedade)
