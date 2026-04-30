@@ -5,6 +5,8 @@ import GlobalFilterFAB from './components/GlobalFilterFAB'
 import AnaliseGeralPage from './pages/AnaliseGeralPage'
 import BenchmarkClientePage from './pages/BenchmarkClientePage'
 import BenchmarkEquipamentoPage from './pages/BenchmarkEquipamentoPage'
+import LoginPage from './pages/LoginPage'
+import { supabase } from './lib/supabase'
 
 const NAV = [
   { id: 'analise',         label: 'Análise Geral' },
@@ -59,7 +61,7 @@ function Breadcrumb() {
   )
 }
 
-function AppInner() {
+function AppInner({ onLogout }) {
   const [activePage, setActivePage] = useState('analise')
   const [benchTab,   setBenchTab]   = useState('colheita')
   const PageComponent  = PAGES[activePage]
@@ -97,7 +99,7 @@ function AppInner() {
 
       <header className="no-print" style={{
         background: '#2d4a2d', padding: '1px 24px',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <img
@@ -107,6 +109,16 @@ function AppInner() {
           />
           <div style={{ color: '#ffffff', fontSize: 16 }}>Relatório de Operações Agrícolas</div>
         </div>
+        <button
+          onClick={onLogout}
+          style={{
+            background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
+            borderRadius: 6, padding: '6px 14px', color: '#ffffff', fontSize: 12,
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          Sair
+        </button>
       </header>
 
       <Breadcrumb />
@@ -142,9 +154,24 @@ function AppInner() {
 }
 
 export default function App() {
+  const [session, setSession] = useState(undefined)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // aguarda resolução do estado de auth para evitar flash de tela de login
+  if (session === undefined) return null
+
+  if (!session) return <LoginPage />
+
   return (
     <FilterProvider>
-      <AppInner />
+      <AppInner onLogout={() => supabase.auth.signOut()} />
     </FilterProvider>
   )
 }
