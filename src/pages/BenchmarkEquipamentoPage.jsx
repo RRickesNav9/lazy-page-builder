@@ -29,7 +29,8 @@ const METRICAS_CONFIG = [
   { key: 'motor_ocioso_pct',             modeloKey: 'motor_ocioso_pct_modelo',             label: 'Motor Ocioso',             unit: '%',    d: 2, higherIsBetter: false },
   { key: 'sem_apontamento_pct',          modeloKey: 'sem_apontamento_pct_modelo',          label: 'Sem Apontamento',          unit: '%',    d: 2, higherIsBetter: false },
   { key: 'rpm_medio',                    modeloKey: 'rpm_medio_modelo',                    label: 'RPM Médio',                unit: 'RPM',  d: 0, higherIsBetter: null  },
-  { key: 'area_por_linha_ha',            modeloKey: 'area_por_linha_ha_modelo',            label: 'Área por Linha',           unit: 'ha',   d: 4, higherIsBetter: true  },
+  { key: 'area_por_linha_ha',            modeloKey: 'area_por_linha_ha_modelo',            label: 'Área por Linha',           unit: 'ha',       d: 4, higherIsBetter: true  },
+  { key: 'pes_plataforma_24h',           modeloKey: null,                                  label: 'Pés Plat. por 24h',        unit: 'ha/linha/dia', d: 3, higherIsBetter: true  },
 ]
 
 const DEFAULT_SELECTED_METRICS = new Set([
@@ -355,7 +356,8 @@ function StateMsg({ loading, empty, emptyText }) {
 
 // ─── TABELA COMPARATIVA (usada por Tab 1 e Tab 2) ────────────────────────────
 
-function CompareRow({ cfg, valA, valB, labelA, labelB, isEven }) {
+function CompareRow({ cfg, valA, valB, labelA, labelB, isEven, dragProps }) {
+  const { isDragging, isDragOver, onDragStart, onDragOver, onDrop, onDragEnd } = dragProps ?? {}
   const status = computeStatus(valA, valB, cfg.higherIsBetter)
   const badge  = badgeProps(status)
   const diff   = fmtDiff(valA, valB)
@@ -363,7 +365,20 @@ function CompareRow({ cfg, valA, valB, labelA, labelB, isEven }) {
   const diffColor = status === 'acima' ? '#1e4d1e' : status === 'abaixo' ? '#8b2020' : '#7a5c00'
 
   return (
-    <tr style={{ background: isEven ? '#ffffff' : '#fafaf8' }}>
+    <tr
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={e => { e.preventDefault(); onDragOver?.() }}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+      style={{
+        background: isDragging ? '#f0f7f0' : (isEven ? '#ffffff' : '#fafaf8'),
+        opacity: isDragging ? 0.4 : 1,
+        outline: isDragOver ? '2px dashed #2d4a2d' : 'none',
+        outlineOffset: '-2px',
+      }}
+    >
+      <td style={{ width: 20, textAlign: 'center', cursor: 'grab', color: '#c0bab4', userSelect: 'none', padding: '0 4px' }}>⠿</td>
       <td style={{ padding: '8px 10px', width: 170 }}>
         <div style={{ fontSize: 11, fontWeight: 500, color: '#4a3728' }}>{cfg.label}</div>
         <div style={{ fontSize: 8, color: '#6b6560', marginTop: 1 }}>{cfg.unit}</div>
@@ -415,7 +430,9 @@ function CompareRow({ cfg, valA, valB, labelA, labelB, isEven }) {
   )
 }
 
-function CompareTable({ metricasA, metricasB, labelA, labelB, config }) {
+function CompareTable({ metricasA, metricasB, labelA, labelB, config, onReorder }) {
+  const [draggedKey,  setDraggedKey]  = useState(null)
+  const [dragOverKey, setDragOverKey] = useState(null)
   const activeConfig = config ?? METRICAS_CONFIG
   const thStyle = {
     background: '#2d4a2d', color: '#fff', fontSize: 11, fontWeight: 600,
@@ -426,6 +443,7 @@ function CompareTable({ metricasA, metricasB, labelA, labelB, config }) {
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
+            <th style={{ ...thStyle, width: 28 }} />
             <th style={{ ...thStyle, textAlign: 'left' }}>Métrica</th>
             <th style={{ ...thStyle, textAlign: 'center', width: 80 }}>{labelA}</th>
             <th style={{ ...thStyle, textAlign: 'center', width: 80 }}>{labelB}</th>
@@ -444,6 +462,14 @@ function CompareTable({ metricasA, metricasB, labelA, labelB, config }) {
               labelA={labelA}
               labelB={labelB}
               isEven={i % 2 === 0}
+              dragProps={{
+                isDragging: draggedKey === cfg.key,
+                isDragOver: dragOverKey === cfg.key && draggedKey !== cfg.key,
+                onDragStart: () => setDraggedKey(cfg.key),
+                onDragOver: () => setDragOverKey(cfg.key),
+                onDrop: () => { if (draggedKey && onReorder) onReorder(draggedKey, cfg.key); setDraggedKey(null); setDragOverKey(null) },
+                onDragEnd: () => { setDraggedKey(null); setDragOverKey(null) },
+              }}
             />
           ))}
         </tbody>
@@ -561,7 +587,7 @@ export default function BenchmarkEquipamentoPage() {
   const [sideB, setSideB]         = useState({ cod: '', dataInicio: '', dataFim: '' })
   const [modeloA, setModeloA]     = useState('')
   const [modeloB, setModeloB]     = useState('')
-  const [selectedMetrics, setSelectedMetrics] = useState(DEFAULT_SELECTED_METRICS)
+  const [selectedMetrics, setSelectedMetrics] = useState([...DEFAULT_SELECTED_METRICS])
 
   // O filtro global já garante que processo é Colheita ou Plantio nesta página (via App.jsx + cascade do FAB).
   // processoFiltro é apenas o valor normalizado para passar aos hooks.
@@ -569,12 +595,30 @@ export default function BenchmarkEquipamentoPage() {
 
   function toggleMetric(key) {
     setSelectedMetrics(prev => {
-      if (prev.has(key) && prev.size <= 1) return prev
-      const next = new Set(prev)
-      next.has(key) ? next.delete(key) : next.add(key)
+      if (prev.includes(key)) {
+        if (prev.length <= 1) return prev
+        return prev.filter(k => k !== key)
+      }
+      return [...prev, key]
+    })
+  }
+
+  function handleReorder(fromKey, toKey) {
+    setSelectedMetrics(prev => {
+      const from = prev.indexOf(fromKey)
+      const to   = prev.indexOf(toKey)
+      if (from === -1 || to === -1 || from === to) return prev
+      const next = [...prev]
+      next.splice(from, 1)
+      next.splice(to, 0, fromKey)
       return next
     })
   }
+
+  const orderedConfig = useMemo(
+    () => selectedMetrics.map(key => METRICAS_CONFIG.find(m => m.key === key)).filter(Boolean),
+    [selectedMetrics]
+  )
 
   // ── hooks compartilhados ───────────────────────────────────────────────────
 
@@ -718,7 +762,8 @@ export default function BenchmarkEquipamentoPage() {
                   metricasB={modeloNorm1}
                   labelA={maqInfo1 ? `${maqInfo1.equipamento_cod} — ${maqInfo1.equipamento}` : tab1Cod}
                   labelB={maqInfo1?.modelo ? `${maqInfo1.modelo} — Porteira` : 'Média modelo'}
-                  config={METRICAS_CONFIG.filter(m => selectedMetrics.has(m.key))}
+                  config={orderedConfig}
+                  onReorder={handleReorder}
                 />
               )}
             </SectionCard>
@@ -805,7 +850,8 @@ export default function BenchmarkEquipamentoPage() {
                   metricasB={metricasEquipB ?? {}}
                   labelA={labelEquipA}
                   labelB={labelEquipB}
-                  config={METRICAS_CONFIG.filter(m => selectedMetrics.has(m.key))}
+                  config={orderedConfig}
+                  onReorder={handleReorder}
                 />
               )}
             </SectionCard>
@@ -863,7 +909,7 @@ export default function BenchmarkEquipamentoPage() {
 
               {!loadingModelos && (modeloNormA || modeloNormB) && (
                 <div>
-                  {METRICAS_CONFIG.filter(m => selectedMetrics.has(m.key)).map(cfg => (
+                  {orderedConfig.map(cfg => (
                     <ModeloMetricBar
                       key={cfg.key}
                       cfg={cfg}
@@ -875,7 +921,7 @@ export default function BenchmarkEquipamentoPage() {
                       statsB={statsB?.[cfg.key]}
                     />
                   ))}
-                  {selectedMetrics.size === 0 && (
+                  {selectedMetrics.length === 0 && (
                     <div style={{ color: '#6b6560', fontSize: 12 }}>
                       Selecione ao menos uma métrica no botão flutuante.
                     </div>
@@ -886,7 +932,7 @@ export default function BenchmarkEquipamentoPage() {
           )}
         </div>
       )}
-      <MetricSelectorFAB config={METRICAS_CONFIG} selected={selectedMetrics} onToggle={toggleMetric} />
+      <MetricSelectorFAB config={METRICAS_CONFIG} selected={new Set(selectedMetrics)} onToggle={toggleMetric} />
     </div>
   )
 }

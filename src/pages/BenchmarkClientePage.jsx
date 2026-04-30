@@ -128,7 +128,15 @@ const ALL_METRICAS_CONFIG = [
     key: 'area_por_linha_ha',
     label: 'Área por Linha',
     sub: 'ha · plantio · maior é melhor',
-    fmt: (v) => v.toFixed(4),
+    fmt: (v) => v != null ? v.toFixed(4) : '—',
+    higherIsBetter: true,
+    isPct: false,
+  },
+  {
+    key: 'pes_plataforma_24h',
+    label: 'Pés Plat. por 24h',
+    sub: 'ha/linha/dia · plantio · maior é melhor',
+    fmt: (v) => v != null && v > 0 ? v.toFixed(3) : '—',
     higherIsBetter: true,
     isPct: false,
   },
@@ -321,7 +329,7 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
         <span style={{
           position: 'absolute', left: `${pct}%`, top: -22,
           transform: 'translateX(-50%)',
-          fontSize: 8, fontWeight: 700, color: barColor, whiteSpace: 'nowrap',
+          fontSize: 8, fontWeight: 700, color: '#4a3728', whiteSpace: 'nowrap',
           background: 'rgba(255,255,255,0.95)', padding: '1px 3px', borderRadius: 2,
           zIndex: 9, lineHeight: '12px',
         }}>
@@ -330,7 +338,7 @@ function LinearGauge({ clienteVal, grupoVal, barColor, zones, fmt }) {
         {/* Diamante centrado na barra — sobrepõe a linha */}
         <div style={{
           position: 'absolute', left: `${pct}%`, top: '50%',
-          width: 13, height: 13, background: barColor,
+          width: 13, height: 13, background: '#4a3728',
           transform: 'translate(-50%, -50%) rotate(45deg)',
           zIndex: 8, boxShadow: '0 0 0 2.5px white, 0 1px 5px rgba(0,0,0,0.3)',
         }} />
@@ -558,6 +566,7 @@ function MetricasHeader() {
   ]
   return (
     <tr>
+      <th style={{ background: '#2d4a2d', width: 28 }} />
       {cols.map((c) => (
         <th
           key={c.label}
@@ -576,7 +585,8 @@ function MetricasHeader() {
   )
 }
 
-function MetricaRow({ cfg, clienteVal, grupoVal, isEven, zoneInfo }) {
+function MetricaRow({ cfg, clienteVal, grupoVal, isEven, zoneInfo, dragProps }) {
+  const { isDragging, isDragOver, onDragStart, onDragOver, onDrop, onDragEnd } = dragProps ?? {}
   const status   = computeStatus(clienteVal, grupoVal, cfg.higherIsBetter)
   const barColor = clienteBarColor(status)
   const badge    = statusBadgeProps(status)
@@ -591,7 +601,20 @@ function MetricaRow({ cfg, clienteVal, grupoVal, isEven, zoneInfo }) {
     : null
 
   return (
-    <tr style={{ background: isEven ? '#ffffff' : '#fafaf8' }}>
+    <tr
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={e => { e.preventDefault(); onDragOver?.() }}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+      style={{
+        background: isDragging ? '#f0f7f0' : (isEven ? '#ffffff' : '#fafaf8'),
+        opacity: isDragging ? 0.4 : 1,
+        outline: isDragOver ? '2px dashed #2d4a2d' : 'none',
+        outlineOffset: '-2px',
+      }}
+    >
+      <td style={{ width: 20, textAlign: 'center', cursor: 'grab', color: '#c0bab4', userSelect: 'none', padding: '0 4px' }}>⠿</td>
       <td style={{ padding: '9px 10px', width: 160 }}>
         <div style={{ fontSize: 11, fontWeight: 500, color: '#4a3728' }}>{cfg.label}</div>
         <div style={{ fontSize: 8, color: '#6b6560', marginTop: 2 }}>{cfg.sub}</div>
@@ -629,7 +652,9 @@ function MetricaRow({ cfg, clienteVal, grupoVal, isEven, zoneInfo }) {
   )
 }
 
-function MetricasTable({ metricas, zoneThresholds, activeConfig }) {
+function MetricasTable({ metricas, zoneThresholds, activeConfig, onReorder }) {
+  const [draggedKey,  setDraggedKey]  = useState(null)
+  const [dragOverKey, setDragOverKey] = useState(null)
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -643,6 +668,14 @@ function MetricasTable({ metricas, zoneThresholds, activeConfig }) {
               grupoVal={metricas[cfg.key]?.grupoVal ?? 0}
               isEven={i % 2 === 0}
               zoneInfo={zoneThresholds?.[cfg.key]}
+              dragProps={{
+                isDragging: draggedKey === cfg.key,
+                isDragOver: dragOverKey === cfg.key && draggedKey !== cfg.key,
+                onDragStart: () => setDraggedKey(cfg.key),
+                onDragOver: () => setDragOverKey(cfg.key),
+                onDrop: () => { if (draggedKey && onReorder) onReorder(draggedKey, cfg.key); setDraggedKey(null); setDragOverKey(null) },
+                onDragEnd: () => { setDraggedKey(null); setDragOverKey(null) },
+              }}
             />
           ))}
         </tbody>
@@ -656,13 +689,23 @@ function MetricasTable({ metricas, zoneThresholds, activeConfig }) {
 export default function BenchmarkClientePage({ onTabChange }) {
   const { filters, queryFilters, currentSafra } = useFilters()
   const [activeTab, setActiveTab]             = useState('colheita')
-  const [selectedMetrics, setSelectedMetrics] = useState(DEFAULT_SELECTED_METRICS)
+  const [selectedMetrics, setSelectedMetrics] = useState([...DEFAULT_SELECTED_METRICS])
 
   const toggleMetric = useCallback((key) => {
     setSelectedMetrics(prev => {
-      if (prev.has(key) && prev.size <= 1) return prev
-      const next = new Set(prev)
-      next.has(key) ? next.delete(key) : next.add(key)
+      if (prev.includes(key) && prev.length <= 1) return prev
+      return prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    })
+  }, [])
+
+  const handleReorder = useCallback((fromKey, toKey) => {
+    setSelectedMetrics(prev => {
+      const from = prev.indexOf(fromKey)
+      const to   = prev.indexOf(toKey)
+      if (from === -1 || to === -1 || from === to) return prev
+      const next = [...prev]
+      next.splice(from, 1)
+      next.splice(to, 0, fromKey)
       return next
     })
   }, [])
@@ -725,7 +768,7 @@ export default function BenchmarkClientePage({ onTabChange }) {
     return m
   }, [clienteMetricas, grupoMetricas])
 
-  const activeConfig = ALL_METRICAS_CONFIG.filter(cfg => selectedMetrics.has(cfg.key))
+  const activeConfig = selectedMetrics.map(key => ALL_METRICAS_CONFIG.find(m => m.key === key)).filter(Boolean)
 
   // Quando não há cliente, aguardamos só os dados do grupo
   const loading  = cliente ? (loadingCliente || loadingAllClientes) : loadingAllClientes
@@ -785,12 +828,13 @@ export default function BenchmarkClientePage({ onTabChange }) {
                 metricas={metricas}
                 zoneThresholds={zoneThresholds}
                 activeConfig={activeConfig}
+                onReorder={handleReorder}
               />
             </SectionCard>
           </div>
         )}
       </div>
-      <MetricSelectorFAB config={ALL_METRICAS_CONFIG} selected={selectedMetrics} onToggle={toggleMetric} />
+      <MetricSelectorFAB config={ALL_METRICAS_CONFIG} selected={new Set(selectedMetrics)} onToggle={toggleMetric} />
     </>
   )
 }

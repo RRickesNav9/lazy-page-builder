@@ -313,6 +313,19 @@ export function useClienteBenchmark(filters = {}) {
           ? all.reduce((s, r) => s + (r.tempo_total_h ?? 0), 0) / equipDays.size
           : 0
 
+        // pes_plataforma_24h: Σ(area_por_linha_ha / tempo_total_h * 24 * area_ha) / Σ(area_ha)
+        let pesNum = 0, pesDen = 0
+        for (const row of all) {
+          const apl  = row.area_por_linha_ha
+          const tt   = row.tempo_total_h
+          const area = row.area_ha
+          if (apl != null && apl > 0 && tt != null && tt > 0 && area != null && area > 0) {
+            pesNum += apl / tt * 24 * area
+            pesDen += area
+          }
+        }
+        result['pes_plataforma_24h'] = pesDen > 0 ? pesNum / pesDen : 0
+
         setMetricas(result)
       } catch (err) {
         setError(err.message)
@@ -406,6 +419,19 @@ export function useAllClientesBenchmark(filters = {}) {
           entry['tempo_medio_turno_h'] = equipDays.size > 0
             ? rows.reduce((s, r) => s + (r.tempo_total_h ?? 0), 0) / equipDays.size
             : null
+
+          // pes_plataforma_24h: Σ(area_por_linha_ha / tempo_total_h * 24 * area_ha) / Σ(area_ha)
+          let pesNum = 0, pesDen = 0
+          for (const row of rows) {
+            const apl  = row.area_por_linha_ha
+            const tt   = row.tempo_total_h
+            const area = row.area_ha
+            if (apl != null && apl > 0 && tt != null && tt > 0 && area != null && area > 0) {
+              pesNum += apl / tt * 24 * area
+              pesDen += area
+            }
+          }
+          entry['pes_plataforma_24h'] = pesDen > 0 ? pesNum / pesDen : null
           result.push(entry)
         }
         setData(result)
@@ -487,6 +513,19 @@ export function computeWeightedAvg(rows) {
     }
     result[metrica] = sumPeso > 0 ? sumProd / sumPeso : 0
   }
+  // pes_plataforma_24h: Σ(area_por_linha_ha / tempo_total_h * 24 * area_ha) / Σ(area_ha)
+  // fórmula do Looker Studio — apenas sessões de plantio (area_por_linha_ha > 0)
+  let pesNum = 0, pesDen = 0
+  for (const row of rows) {
+    const apl  = row.area_por_linha_ha
+    const tt   = row.tempo_total_h
+    const area = row.area_ha
+    if (apl != null && apl > 0 && tt != null && tt > 0 && area != null && area > 0) {
+      pesNum += apl / tt * 24 * area
+      pesDen += area
+    }
+  }
+  result.pes_plataforma_24h = pesDen > 0 ? pesNum / pesDen : 0
   return result
 }
 
@@ -565,8 +604,8 @@ export function useAllEquipamentos(filters = {}) {
         const seen = new Set()
         const opts = []
         for (const r of all) {
-          const k = r.equipamento_cod || r.equipamento
-          if (k && !seen.has(k)) {
+          const k = `${r.equipamento_cod || ''}|||${r.equipamento || ''}`
+          if (k !== '|||' && !seen.has(k)) {
             seen.add(k)
             opts.push({
               cliente: r.cliente,

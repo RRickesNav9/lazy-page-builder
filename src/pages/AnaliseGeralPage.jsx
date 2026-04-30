@@ -47,6 +47,7 @@ const SELECTABLE_METRICS = [
   { key: 'tempo_total_h',               label: 'T. Total (h)',        fmt: fmtH },
   { key: 'tempo_parada_h',              label: 'T. Parada (h)',       fmt: fmtH },
   { key: 'eficiencia_operacional_pct',  label: 'Efic. Op. (%)',       fmt: fmtPct },
+  { key: 'area_por_linha_ha',           label: 'Área/linha (ha)',     fmt: v => fmt(v, 4, ' ha') },
 ]
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
@@ -365,11 +366,22 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
   function handleDimClick(key, ctrlKey) {
     setActiveDims(prev => {
       if (ctrlKey) {
-        const next = prev.includes(key) ? prev.filter(d => d !== key) : [...prev, key]
-        // preserva a ordem canônica definida em DIMS
-        return DIMS.map(d => d.key).filter(d => next.includes(d))
+        // toggle: remove se presente, adiciona ao final se ausente — preserva ordem de clique
+        return prev.includes(key) ? prev.filter(d => d !== key) : [...prev, key]
       }
       return [key]
+    })
+    setExpanded(new Set())
+  }
+
+  function moveDim(key, dir) {
+    setActiveDims(prev => {
+      const idx = prev.indexOf(key)
+      const swap = idx + dir
+      if (idx === -1 || swap < 0 || swap >= prev.length) return prev
+      const next = [...prev]
+      ;[next[idx], next[swap]] = [next[swap], next[idx]]
+      return next
     })
     setExpanded(new Set())
   }
@@ -420,28 +432,42 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
               padding: '4px 0',
             }}>
               <div style={{ padding: '4px 12px 6px', fontSize: 10, color: '#6b6560' }}>
-                Ctrl+clique para múltiplas
+                Ctrl+clique para múltiplas · use ↑↓ para reordenar
               </div>
-              {DIMS.map(d => (
-                <div
-                  key={d.key}
-                  onClick={e => { handleDimClick(d.key, e.ctrlKey); if (!e.ctrlKey) setDimDropOpen(false) }}
-                  style={{
-                    padding: '7px 14px', fontSize: 13, cursor: 'pointer',
-                    background: activeDims.includes(d.key) ? '#edf5ed' : 'transparent',
-                    color: activeDims.includes(d.key) ? '#1e4d1e' : '#1a1a1a',
-                    fontWeight: activeDims.includes(d.key) ? 600 : 400,
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  }}
-                >
-                  {d.label}
-                  {activeDims.includes(d.key) && (
-                    <span style={{ fontSize: 11, color: '#6b6560' }}>
-                      #{activeDims.indexOf(d.key) + 1}
-                    </span>
-                  )}
-                </div>
-              ))}
+              {DIMS.map(d => {
+                const idx = activeDims.indexOf(d.key)
+                const isActive = idx !== -1
+                return (
+                  <div
+                    key={d.key}
+                    onClick={e => { handleDimClick(d.key, e.ctrlKey); if (!e.ctrlKey) setDimDropOpen(false) }}
+                    style={{
+                      padding: '7px 14px', fontSize: 13, cursor: 'pointer',
+                      background: isActive ? '#edf5ed' : 'transparent',
+                      color: isActive ? '#1e4d1e' : '#1a1a1a',
+                      fontWeight: isActive ? 600 : 400,
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6,
+                    }}
+                  >
+                    <span style={{ flex: 1 }}>{d.label}</span>
+                    {isActive && (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <span style={{ fontSize: 10, color: '#6b6560', marginRight: 4 }}>#{idx + 1}</span>
+                        <button
+                          onClick={e => { e.stopPropagation(); moveDim(d.key, -1) }}
+                          disabled={idx === 0}
+                          style={{ border: 'none', background: 'none', cursor: idx === 0 ? 'default' : 'pointer', fontSize: 11, color: idx === 0 ? '#c0bab4' : '#4a3728', padding: '0 2px', lineHeight: 1 }}
+                        >↑</button>
+                        <button
+                          onClick={e => { e.stopPropagation(); moveDim(d.key, 1) }}
+                          disabled={idx === activeDims.length - 1}
+                          style={{ border: 'none', background: 'none', cursor: idx === activeDims.length - 1 ? 'default' : 'pointer', fontSize: 11, color: idx === activeDims.length - 1 ? '#c0bab4' : '#4a3728', padding: '0 2px', lineHeight: 1 }}
+                        >↓</button>
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
@@ -599,12 +625,18 @@ export default function AnaliseGeralPage() {
   const [visOp, setVisOp] = useState(6) // operadores
 
   const equipRows = useMemo(() => {
-    return Object.entries(groupBy(filteredData.filter(r => (parseFloat(r.area_ha) || 0) > 0), 'equipamento'))
-      .map(([equip, rows]) => ({
-        equip,
-        label: equipLabel(rows[0] ?? {}),
-        ...aggregateRows(rows),
-      }))
+    const map = new Map()
+    for (const r of filteredData) {
+      if ((parseFloat(r.area_ha) || 0) <= 0) continue
+      const k = equipLabel(r)
+      if (!map.has(k)) map.set(k, [])
+      map.get(k).push(r)
+    }
+    return [...map.entries()].map(([label, rows]) => ({
+      equip: label,
+      label,
+      ...aggregateRows(rows),
+    }))
   }, [filteredData])
 
   // reset paginação quando os dados mudam
@@ -629,24 +661,28 @@ export default function AnaliseGeralPage() {
     const map = new Map()
     for (const r of filteredData) {
       const nome = r.operador || 'Desconhecido'
-      const acc  = map.get(nome) ?? { nome, trabalhando: 0, deslocamento: 0, manobra: 0, parada: 0 }
+      const acc  = map.get(nome) ?? { nome, trabalhando: 0, deslocamento: 0, manobra: 0, parada: 0, tempoTotal: 0, datas: new Set() }
       acc.trabalhando  += parseFloat(r.tempo_produtivo_h)    || 0
       acc.deslocamento += parseFloat(r.tempo_deslocamento_h) || 0
       acc.manobra      += parseFloat(r.tempo_manobra_h)      || 0
       acc.parada       += parseFloat(r.tempo_parada_h)       || 0
+      acc.tempoTotal   += parseFloat(r.tempo_total_h)        || 0
+      if (r.data) acc.datas.add(r.data)
       map.set(nome, acc)
     }
     return [...map.values()]
       .filter(o => (o.trabalhando + o.deslocamento + o.manobra + o.parada) > 0)
       .sort((a, b) => b.trabalhando - a.trabalhando)
       .map(o => {
-        const total = o.trabalhando + o.deslocamento + o.manobra + o.parada
+        const total      = o.trabalhando + o.deslocamento + o.manobra + o.parada
+        const diasAtivos = o.datas.size || 1
         return {
           ...o,
           trabalhando_pct:  (o.trabalhando  / total) * 100,
           deslocamento_pct: (o.deslocamento / total) * 100,
           manobra_pct:      (o.manobra      / total) * 100,
           parada_pct:       (o.parada        / total) * 100,
+          turnoMedio:       o.tempoTotal / diasAtivos,
         }
       })
   }, [filteredData])
@@ -818,6 +854,11 @@ export default function AnaliseGeralPage() {
             <StackedBar segments={timeDist.map(d => ({ pct: d.pct, color: d.color }))} height={28} />
             {/* Por operador */}
             <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+                <div style={{ width: 100, flexShrink: 0 }} />
+                <div style={{ flex: 1, fontSize: 10, color: '#9b9390' }}>Distribuição de tempo</div>
+                <div style={{ width: 58, fontSize: 10, color: '#9b9390', textAlign: 'right', flexShrink: 0 }}>Turno/dia</div>
+              </div>
               {operadorRows.slice(0, visOp).map(op => (
                 <div key={op.nome} style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
                   <div style={{ width: 100, fontSize: 12, color: '#1a1a1a', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -830,6 +871,9 @@ export default function AnaliseGeralPage() {
                       { pct: op.manobra_pct,      color: '#7a5c00' },
                       { pct: op.parada_pct,        color: '#8b2020' },
                     ]} height={16} showLabels={false} />
+                  </div>
+                  <div style={{ width: 58, fontSize: 11, fontWeight: 600, color: '#4a3728', textAlign: 'right', flexShrink: 0, paddingLeft: 6 }}>
+                    {fmtH(op.turnoMedio)}
                   </div>
                 </div>
               ))}
