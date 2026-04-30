@@ -13,7 +13,18 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
-    if (authError) setError(authError.message)
+    if (authError) {
+      setError(authError.message)
+      setLoading(false)
+      return
+    }
+    const ALLOWED = ['@porteiraadentro.com', '@dspartners.com.br']
+    if (!ALLOWED.some(d => email.toLowerCase().endsWith(d))) {
+      await supabase.auth.signOut()
+      setError('Acesso restrito a e-mails @porteiraadentro.com e @dspartners.com.br.')
+      setLoading(false)
+      return
+    }
     setLoading(false)
   }
 
