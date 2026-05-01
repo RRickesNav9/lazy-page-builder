@@ -125,7 +125,6 @@ function AppInner({ onLogout }) {
         </div>
       </header>
 
-      <Breadcrumb />
 
       <nav className="no-print" style={{ borderBottom: '1px solid #e0dbd4', padding: '0 24px', background: '#ffffff', display: 'flex' }}>
         {NAV.map(item => (

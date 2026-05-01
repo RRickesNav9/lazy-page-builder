@@ -519,12 +519,12 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
       <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid #e0dbd4', background: '#f7f5f2' }}>
-              <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b6560', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <tr style={{ borderBottom: '2px solid #2d4a2d', background: '#2d4a2d' }}>
+              <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 {dimLabel}
               </th>
               {activeCols.map(col => (
-                <th key={col.key} style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#6b6560', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                <th key={col.key} style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                   {col.label}
                 </th>
               ))}
