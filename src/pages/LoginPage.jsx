@@ -15,50 +15,100 @@ export default function LoginPage({ authError }) {
 
   return (
     <div style={{
-      minHeight: '100vh', background: '#f7f5f2',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      minHeight: '100vh',
+      background: '#f4f1ee',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
       fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+      padding: 24,
     }}>
       <div style={{
-        background: '#ffffff', borderRadius: 10, boxShadow: '0 2px 16px rgba(0,0,0,0.08)',
-        padding: '40px 36px', width: '100%', maxWidth: 360,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 32,
+        width: '100%',
+        maxWidth: 320,
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-          <div style={{ background: '#2d4a2d', borderRadius: 8, padding: '10px 20px' }}>
-            <img src={logoPorteira} alt="Porteira Adentro" style={{ height: 56, width: 'auto', display: 'block' }} />
-          </div>
-          <div style={{ fontSize: 13, color: '#6b6560' }}>Relatório de Operações Agrícolas</div>
+
+        {/* Logo */}
+        <div style={{
+          background: '#2d4a2d',
+          borderRadius: 16,
+          padding: '16px 28px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 8,
+        }}>
+          <img
+            src={logoPorteira}
+            alt="Porteira Adentro"
+            style={{ height: 52, width: 'auto' }}
+          />
         </div>
 
-        {authError && (
-          <div style={{
-            background: '#fdf0f0', border: '1px solid #e5b8b8', borderRadius: 6,
-            padding: '8px 12px', fontSize: 12, color: '#8b2020', width: '100%', textAlign: 'center',
-          }}>
-            {authError}
+        {/* Textos */}
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: '#1a1a1a', letterSpacing: '-0.3px' }}>
+            Porteira Adentro
           </div>
-        )}
-
-        <button
-          onClick={handleGoogleLogin}
-          disabled={loading}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-            width: '100%', padding: '10px 16px',
-            background: '#ffffff', border: '1px solid #d4cec8', borderRadius: 6,
-            fontSize: 13, fontWeight: 500, color: '#2c2a27',
-            cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-          }}
-        >
-          <GoogleIcon />
-          {loading ? 'Redirecionando…' : 'Entrar com Google'}
-        </button>
-
-        <div style={{ fontSize: 11, color: '#9b9590', textAlign: 'center' }}>
-          Acesso restrito a @porteiraadentro.com e @dspartners.com.br
+          <div style={{ fontSize: 13, color: '#6b6560', lineHeight: 1.5 }}>
+            Relatório de Operações Agrícolas
+          </div>
         </div>
+
+        {/* Botão + erro */}
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <button
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              padding: '11px 20px',
+              background: '#ffffff',
+              border: '1px solid #ddd8d2',
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 500,
+              color: '#1a1a1a',
+              cursor: loading ? 'default' : 'pointer',
+              fontFamily: 'inherit',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+              transition: 'box-shadow 0.15s, background 0.15s',
+              opacity: loading ? 0.7 : 1,
+            }}
+          >
+            <GoogleIcon />
+            {loading ? 'Redirecionando…' : 'Continuar com Google'}
+          </button>
+
+          {authError && (
+            <div style={{
+              background: '#fdf0f0',
+              border: '1px solid #f0c0c0',
+              borderRadius: 6,
+              padding: '8px 12px',
+              fontSize: 12,
+              color: '#8b2020',
+              textAlign: 'center',
+              lineHeight: 1.5,
+            }}>
+              {authError}
+            </div>
+          )}
+
+          <div style={{ fontSize: 11, color: '#9b9590', textAlign: 'center', lineHeight: 1.6 }}>
+            Use sua conta <strong style={{ color: '#5a5550' }}>@porteiraadentro.com</strong><br />
+            ou <strong style={{ color: '#5a5550' }}>@dspartners.com.br</strong>
+          </div>
+        </div>
+
       </div>
     </div>
   )
