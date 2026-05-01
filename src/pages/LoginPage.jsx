@@ -13,45 +13,81 @@ export default function LoginPage({ authError }) {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-      background: '#ffffff',
-      padding: 24,
-    }}>
-      <div style={{
-        width: '100%',
-        maxWidth: 320,
+    <div
+      data-login-root
+      style={{
+        minHeight: '100vh',
         display: 'flex',
-        flexDirection: 'column',
-        gap: 40,
-      }}>
-        {/* Marca + identificação do sistema */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{
-            fontSize: 11,
-            fontWeight: 500,
-            letterSpacing: '1.5px',
-            textTransform: 'uppercase',
-            color: '#9b9590',
-          }}>
-            Porteira Adentro
-          </div>
-          <div style={{
-            fontSize: 18,
-            fontWeight: 600,
-            color: '#1a1a1a',
-            letterSpacing: '-0.3px',
-          }}>
-            Painel de telemetria
-          </div>
+        fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+        background: '#ffffff',
+      }}
+    >
+      {/* Painel esquerdo — verde, minimalista */}
+      <div
+        className="login-brand-panel"
+        style={{
+          flex: '1 1 55%',
+          background: '#2d4a2d',
+          padding: '40px 48px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+        }}
+      >
+        <div style={{
+          color: '#ffffff',
+          fontSize: 14,
+          fontWeight: 600,
+          letterSpacing: '0.3px',
+        }}>
+          Porteira Adentro
         </div>
 
-        {/* Login */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{
+          color: '#ffffff',
+          fontSize: 32,
+          fontWeight: 500,
+          lineHeight: 1.2,
+          letterSpacing: '-0.6px',
+          maxWidth: 420,
+        }}>
+          Painel de telemetria
+        </div>
+
+        <div style={{
+          fontSize: 11,
+          color: 'rgba(255,255,255,0.5)',
+          letterSpacing: '0.3px',
+        }}>
+          © {new Date().getFullYear()}
+        </div>
+      </div>
+
+      {/* Painel direito — login */}
+      <div style={{
+        flex: '1 1 45%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '40px 32px',
+        background: '#ffffff',
+      }}>
+        <div style={{
+          width: '100%',
+          maxWidth: 300,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 20,
+        }}>
+          <div style={{
+            fontSize: 14,
+            fontWeight: 600,
+            color: '#1a1a1a',
+            letterSpacing: '-0.2px',
+          }}>
+            Entrar
+          </div>
+
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
@@ -81,25 +117,30 @@ export default function LoginPage({ authError }) {
           </button>
 
           {authError && (
-            <div style={{
-              fontSize: 12,
-              color: '#8b2020',
-              lineHeight: 1.5,
-            }}>
+            <div style={{ fontSize: 12, color: '#8b2020', lineHeight: 1.5 }}>
               {authError}
             </div>
           )}
-        </div>
 
-        {/* Restrição de acesso */}
-        <div style={{
-          fontSize: 11,
-          color: '#9b9590',
-          lineHeight: 1.6,
-        }}>
-          Acesso restrito · @porteiraadentro.com
+          <div style={{ fontSize: 11, color: '#9b9590', lineHeight: 1.6 }}>
+            Acesso restrito · @porteiraadentro.com
+          </div>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 860px) {
+          [data-login-root] {
+            flex-direction: column !important;
+          }
+          .login-brand-panel {
+            flex: 0 0 auto !important;
+            padding: 28px 24px !important;
+            min-height: 200px;
+            gap: 32px;
+          }
+        }
+      `}</style>
     </div>
   )
 }
