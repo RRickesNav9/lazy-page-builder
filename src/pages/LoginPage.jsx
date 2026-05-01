@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
-import logoPorteira from '../assets/logo-porteira.svg'
+import logoPorteira from '../assets/logo-porteira-full.jpeg'
 
 export default function LoginPage({ authError }) {
   const [loading, setLoading] = useState(false)
@@ -14,61 +14,64 @@ export default function LoginPage({ authError }) {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-      background: '#ffffff',
-    }}>
-      {/* Painel esquerdo — branding */}
-      <div style={{
-        flex: '1 1 55%',
-        background: '#2d4a2d',
-        padding: '48px 56px',
+    <div
+      data-login-root
+      style={{
+        minHeight: '100vh',
         display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        position: 'relative',
-        overflow: 'hidden',
+        fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+        background: '#ffffff',
       }}
-      className="login-brand-panel"
+    >
+      {/* Painel esquerdo — branding (fundo claro com o logo oficial) */}
+      <div
+        className="login-brand-panel"
+        style={{
+          flex: '1 1 55%',
+          background: '#f7f5f2',
+          padding: '48px 56px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          position: 'relative',
+          borderRight: '1px solid #e0dbd4',
+        }}
       >
-        {/* Logo topo */}
-        <div style={{ position: 'relative', zIndex: 2 }}>
+        {/* Logo + headline centralizados */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', maxWidth: 520 }}>
           <img
             src={logoPorteira}
             alt="Porteira Adentro"
-            style={{ height: 96, width: 'auto', display: 'block' }}
+            style={{ width: '100%', maxWidth: 420, height: 'auto', display: 'block', marginBottom: 32 }}
           />
-        </div>
 
-        {/* Headline */}
-        <div style={{ position: 'relative', zIndex: 2, color: '#ffffff', maxWidth: 460 }}>
           <div style={{
-            fontSize: 13,
-            fontWeight: 500,
+            fontSize: 12,
+            fontWeight: 600,
             letterSpacing: '2px',
             textTransform: 'uppercase',
-            color: '#c8960c',
-            marginBottom: 16,
+            color: '#603913',
+            marginBottom: 14,
           }}>
             Plataforma interna
           </div>
           <h1 style={{
-            fontSize: 38,
+            fontSize: 32,
             fontWeight: 600,
-            lineHeight: 1.15,
+            lineHeight: 1.2,
             margin: 0,
-            letterSpacing: '-0.8px',
+            letterSpacing: '-0.6px',
+            color: '#2d4a2d',
           }}>
             Telemetria e agricultura de precisão.
           </h1>
           <p style={{
-            fontSize: 15,
+            fontSize: 14,
             lineHeight: 1.6,
-            color: 'rgba(255,255,255,0.75)',
-            marginTop: 20,
+            color: '#6b6560',
+            marginTop: 16,
             marginBottom: 0,
+            maxWidth: 460,
           }}>
             Ambiente de uso interno da equipe Porteira Adentro para análise de telemetria das máquinas, benchmarks operacionais e geração dos relatórios entregues aos clientes.
           </p>
@@ -76,25 +79,12 @@ export default function LoginPage({ authError }) {
 
         {/* Rodapé */}
         <div style={{
-          position: 'relative',
-          zIndex: 2,
           fontSize: 11,
-          color: 'rgba(255,255,255,0.5)',
+          color: '#9b9590',
           letterSpacing: '0.5px',
         }}>
           © {new Date().getFullYear()} Porteira Adentro
         </div>
-
-        {/* Detalhe decorativo: linha marrom (mesma do logo) */}
-        <div style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: 6,
-          background: '#603913',
-          zIndex: 1,
-        }} />
       </div>
 
       {/* Painel direito — login */}
@@ -185,16 +175,17 @@ export default function LoginPage({ authError }) {
       {/* Responsivo: empilha no mobile */}
       <style>{`
         @media (max-width: 860px) {
+          [data-login-root] {
+            flex-direction: column !important;
+          }
           .login-brand-panel {
             flex: 0 0 auto !important;
             padding: 32px 28px !important;
-            min-height: 320px;
+            border-right: none !important;
+            border-bottom: 1px solid #e0dbd4 !important;
           }
           .login-brand-panel h1 {
-            font-size: 26px !important;
-          }
-          [data-login-root] {
-            flex-direction: column !important;
+            font-size: 24px !important;
           }
         }
       `}</style>
