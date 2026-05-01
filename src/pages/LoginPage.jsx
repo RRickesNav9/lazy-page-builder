@@ -57,7 +57,7 @@ export default function LoginPage({ authError }) {
             color: '#c8960c',
             marginBottom: 16,
           }}>
-            Porteira Adentro
+            ​
           </div>
           <h1 style={{
             fontSize: 38,
