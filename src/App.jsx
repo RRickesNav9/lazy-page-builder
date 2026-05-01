@@ -98,26 +98,25 @@ function AppInner({ onLogout }) {
     <div className="app-root" style={{ minHeight: '100vh', background: '#ffffff', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
 
       <header className="no-print" style={{
-        background: '#2d4a2d', padding: '6px 24px',
+        background: '#ffffff', padding: '6px 24px',
+        borderBottom: '1px solid #e0dbd4',
         display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center',
       }}>
         <div />
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ background: '#ffffff', borderRadius: 6, padding: '1px 6px', display: 'flex', alignItems: 'center' }}>
-            <img
-              src={logoPorteira}
-              alt="Porteira Adentro"
-              style={{ height: '50px', width: 'auto' }}
-            />
-          </div>
-          <div style={{ color: '#ffffff', fontSize: 14 }}>Relatório de Operações Agrícolas</div>
+          <img
+            src={logoPorteira}
+            alt="Porteira Adentro"
+            style={{ height: '50px', width: 'auto' }}
+          />
+          <div style={{ color: '#2d4a2d', fontSize: 14 }}>Relatório de Operações Agrícolas</div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button
             onClick={onLogout}
             style={{
-              background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
-              borderRadius: 6, padding: '6px 14px', color: '#ffffff', fontSize: 12,
+              background: 'transparent', border: '1px solid #d4cec8',
+              borderRadius: 6, padding: '6px 14px', color: '#6b6560', fontSize: 12,
               cursor: 'pointer', fontFamily: 'inherit',
             }}
           >
