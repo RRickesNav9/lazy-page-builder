@@ -124,7 +124,7 @@ export default function LoginPage({ authError }) {
               Acesse sua conta
             </div>
             <div style={{ fontSize: 13, color: '#6b6560', lineHeight: 1.5 }}>
-              Entre com seu e-mail corporativo para visualizar o dashboard.
+              Entre com seu e-mail Porteira Adentro para acessar o painel.
             </div>
           </div>
 
