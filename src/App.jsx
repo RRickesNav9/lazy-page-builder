@@ -103,11 +103,11 @@ function AppInner({ onLogout }) {
       }}>
         <div />
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ background: '#ffffff', borderRadius: 6, padding: '3px 10px', display: 'flex', alignItems: 'center' }}>
+          <div style={{ background: '#ffffff', borderRadius: 6, padding: '1px 6px', display: 'flex', alignItems: 'center' }}>
             <img
               src={logoPorteira}
               alt="Porteira Adentro"
-              style={{ height: '42px', width: 'auto' }}
+              style={{ height: '50px', width: 'auto' }}
             />
           </div>
           <div style={{ color: '#ffffff', fontSize: 14 }}>Relatório de Operações Agrícolas</div>
