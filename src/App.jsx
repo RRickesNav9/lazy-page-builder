@@ -153,7 +153,7 @@ function AppInner({ onLogout }) {
   )
 }
 
-const ALLOWED_DOMAINS = ['@porteiraadentro.com']
+const ALLOWED_DOMAINS = ['@porteiraadentro.com', '@dspartners.com.br']
 
 function isAllowedEmail(email) {
   return ALLOWED_DOMAINS.some(d => (email || '').toLowerCase().endsWith(d))
