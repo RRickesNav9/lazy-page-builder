@@ -52,7 +52,7 @@ export default function LoginPage({ authError }) {
             color: '#c8960c',
             marginBottom: 16,
           }}>
-            Nav9 Tech · Porteira Adentro
+            Plataforma interna
           </div>
           <h1 style={{
             fontSize: 38,
@@ -61,7 +61,7 @@ export default function LoginPage({ authError }) {
             margin: 0,
             letterSpacing: '-0.8px',
           }}>
-            Inteligência operacional para o agronegócio.
+            Telemetria e agricultura de precisão.
           </h1>
           <p style={{
             fontSize: 15,
@@ -70,7 +70,7 @@ export default function LoginPage({ authError }) {
             marginTop: 20,
             marginBottom: 0,
           }}>
-            Acompanhe o desempenho das operações agrícolas, benchmarks de equipamentos e indicadores de eficiência em tempo real.
+            Ambiente de uso interno da equipe Porteira Adentro para análise de telemetria das máquinas, benchmarks operacionais e geração dos relatórios entregues aos clientes.
           </p>
         </div>
 
@@ -124,7 +124,7 @@ export default function LoginPage({ authError }) {
               Acesse sua conta
             </div>
             <div style={{ fontSize: 13, color: '#6b6560', lineHeight: 1.5 }}>
-              Entre com seu e-mail corporativo para visualizar o dashboard.
+              Entre com seu e-mail Porteira Adentro para acessar o painel.
             </div>
           </div>
 
