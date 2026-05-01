@@ -16,61 +16,130 @@ export default function LoginPage({ authError }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#f4f1ee',
       display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
       fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-      padding: 24,
+      background: '#ffffff',
     }}>
+      {/* Painel esquerdo — branding */}
       <div style={{
+        flex: '1 1 55%',
+        background: '#2d4a2d',
+        padding: '48px 56px',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        gap: 32,
-        width: '100%',
-        maxWidth: 320,
-      }}>
-
-        {/* Logo */}
-        <div style={{
-          background: '#2d4a2d',
-          borderRadius: 16,
-          padding: '16px 28px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 8,
-        }}>
+        justifyContent: 'space-between',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+      className="login-brand-panel"
+      >
+        {/* Logo topo */}
+        <div style={{ position: 'relative', zIndex: 2 }}>
           <img
             src={logoPorteira}
             alt="Porteira Adentro"
-            style={{ height: 52, width: 'auto' }}
+            style={{ height: 96, width: 'auto', display: 'block' }}
           />
         </div>
 
-        {/* Textos */}
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: '#1a1a1a', letterSpacing: '-0.3px' }}>
-            Porteira Adentro
+        {/* Headline */}
+        <div style={{ position: 'relative', zIndex: 2, color: '#ffffff', maxWidth: 460 }}>
+          <div style={{
+            fontSize: 13,
+            fontWeight: 500,
+            letterSpacing: '2px',
+            textTransform: 'uppercase',
+            color: '#c8960c',
+            marginBottom: 16,
+          }}>
+            Nav9 Tech · Porteira Adentro
           </div>
-          <div style={{ fontSize: 13, color: '#6b6560', lineHeight: 1.5 }}>
-            Relatório de Operações Agrícolas
-          </div>
+          <h1 style={{
+            fontSize: 38,
+            fontWeight: 600,
+            lineHeight: 1.15,
+            margin: 0,
+            letterSpacing: '-0.8px',
+          }}>
+            Inteligência operacional para o agronegócio.
+          </h1>
+          <p style={{
+            fontSize: 15,
+            lineHeight: 1.6,
+            color: 'rgba(255,255,255,0.75)',
+            marginTop: 20,
+            marginBottom: 0,
+          }}>
+            Acompanhe o desempenho das operações agrícolas, benchmarks de equipamentos e indicadores de eficiência em tempo real.
+          </p>
         </div>
 
-        {/* Botão + erro */}
-        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* Rodapé */}
+        <div style={{
+          position: 'relative',
+          zIndex: 2,
+          fontSize: 11,
+          color: 'rgba(255,255,255,0.5)',
+          letterSpacing: '0.5px',
+        }}>
+          © {new Date().getFullYear()} Porteira Adentro
+        </div>
+
+        {/* Detalhe decorativo: linha marrom (mesma do logo) */}
+        <div style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 6,
+          background: '#603913',
+          zIndex: 1,
+        }} />
+      </div>
+
+      {/* Painel direito — login */}
+      <div style={{
+        flex: '1 1 45%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '48px 32px',
+        background: '#ffffff',
+      }}>
+        <div style={{
+          width: '100%',
+          maxWidth: 360,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 28,
+        }}>
+          <div>
+            <div style={{
+              fontSize: 22,
+              fontWeight: 600,
+              color: '#1a1a1a',
+              letterSpacing: '-0.4px',
+              marginBottom: 6,
+            }}>
+              Acesse sua conta
+            </div>
+            <div style={{ fontSize: 13, color: '#6b6560', lineHeight: 1.5 }}>
+              Entre com seu e-mail corporativo para visualizar o dashboard.
+            </div>
+          </div>
+
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
+            onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#f7f5f2' }}
+            onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = '#ffffff' }}
             style={{
               width: '100%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 10,
-              padding: '11px 20px',
+              gap: 12,
+              padding: '12px 20px',
               background: '#ffffff',
               border: '1px solid #ddd8d2',
               borderRadius: 8,
@@ -79,8 +148,7 @@ export default function LoginPage({ authError }) {
               color: '#1a1a1a',
               cursor: loading ? 'default' : 'pointer',
               fontFamily: 'inherit',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-              transition: 'box-shadow 0.15s, background 0.15s',
+              transition: 'background 0.15s, border-color 0.15s',
               opacity: loading ? 0.7 : 1,
             }}
           >
@@ -93,23 +161,43 @@ export default function LoginPage({ authError }) {
               background: '#fdf0f0',
               border: '1px solid #f0c0c0',
               borderRadius: 6,
-              padding: '8px 12px',
+              padding: '10px 14px',
               fontSize: 12,
               color: '#8b2020',
-              textAlign: 'center',
               lineHeight: 1.5,
             }}>
               {authError}
             </div>
           )}
 
-          <div style={{ fontSize: 11, color: '#9b9590', textAlign: 'center', lineHeight: 1.6 }}>
-            Use sua conta <strong style={{ color: '#5a5550' }}>@porteiraadentro.com</strong><br />
-            ou <strong style={{ color: '#5a5550' }}>@dspartners.com.br</strong>
+          <div style={{
+            paddingTop: 20,
+            borderTop: '1px solid #ececec',
+            fontSize: 12,
+            color: '#6b6560',
+            lineHeight: 1.6,
+          }}>
+            Acesso restrito a contas <strong style={{ color: '#2d4a2d', fontWeight: 600 }}>@porteiraadentro.com</strong>.
           </div>
         </div>
-
       </div>
+
+      {/* Responsivo: empilha no mobile */}
+      <style>{`
+        @media (max-width: 860px) {
+          .login-brand-panel {
+            flex: 0 0 auto !important;
+            padding: 32px 28px !important;
+            min-height: 320px;
+          }
+          .login-brand-panel h1 {
+            font-size: 26px !important;
+          }
+          [data-login-root] {
+            flex-direction: column !important;
+          }
+        }
+      `}</style>
     </div>
   )
 }
