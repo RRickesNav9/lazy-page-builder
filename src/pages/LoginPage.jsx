@@ -152,7 +152,7 @@ export default function LoginPage({ authError }) {
           )}
 
           <div style={{ fontSize: 11, color: '#b0aaa4', lineHeight: 1.6 }}>
-            Acesso restrito · @porteiraadentro.com e @dspartners.com.br
+            Acesso restrito · uso interno
           </div>
         </div>
       </div>

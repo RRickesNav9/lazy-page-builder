@@ -98,27 +98,32 @@ function AppInner({ onLogout }) {
     <div className="app-root" style={{ minHeight: '100vh', background: '#ffffff', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
 
       <header className="no-print" style={{
-        background: '#2d4a2d', padding: '1px 24px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: '#2d4a2d', padding: '8px 24px',
+        display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <img
-            src={logoPorteira}
-            alt="Porteira Adentro"
-            style={{ height: '70px', width: 'auto' }}
-          />
-          <div style={{ color: '#ffffff', fontSize: 16 }}>Relatório de Operações Agrícolas</div>
+        <div />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ background: '#ffffff', borderRadius: 6, padding: '4px 10px', display: 'flex', alignItems: 'center' }}>
+            <img
+              src={logoPorteira}
+              alt="Porteira Adentro"
+              style={{ height: '52px', width: 'auto' }}
+            />
+          </div>
+          <div style={{ color: '#ffffff', fontSize: 15 }}>Relatório de Operações Agrícolas</div>
         </div>
-        <button
-          onClick={onLogout}
-          style={{
-            background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
-            borderRadius: 6, padding: '6px 14px', color: '#ffffff', fontSize: 12,
-            cursor: 'pointer', fontFamily: 'inherit',
-          }}
-        >
-          Sair
-        </button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            onClick={onLogout}
+            style={{
+              background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
+              borderRadius: 6, padding: '6px 14px', color: '#ffffff', fontSize: 12,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            Sair
+          </button>
+        </div>
       </header>
 
       <Breadcrumb />
