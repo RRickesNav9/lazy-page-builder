@@ -1,6 +1,21 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
+const FEATURES = [
+  {
+    label: 'Análise Geral',
+    desc: 'Distribuição de tempo, eficiência e rendimento por equipamento, operador e safra.',
+  },
+  {
+    label: 'Benchmark de Frota',
+    desc: 'Comparação de métricas entre cliente e grupo Porteira por modelo de máquina.',
+  },
+  {
+    label: 'Relatórios Diários',
+    desc: 'PDFs gerados automaticamente por propriedade a partir de dados Solinftec e John Deere.',
+  },
+]
+
 export default function LoginPage({ authError }) {
   const [loading, setLoading] = useState(false)
 
@@ -22,48 +37,67 @@ export default function LoginPage({ authError }) {
         background: '#ffffff',
       }}
     >
-      {/* Painel esquerdo — verde, minimalista */}
+      {/* ── Painel esquerdo ── */}
       <div
         className="login-brand-panel"
         style={{
           flex: '1 1 55%',
           background: '#2d4a2d',
-          padding: '40px 48px',
+          padding: '48px 56px',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
+          gap: 48,
         }}
       >
-        <div style={{
-          color: '#ffffff',
-          fontSize: 14,
-          fontWeight: 600,
-          letterSpacing: '0.3px',
-        }}>
+        {/* Topo */}
+        <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
           Porteira Adentro
         </div>
 
-        <div style={{
-          color: '#ffffff',
-          fontSize: 32,
-          fontWeight: 500,
-          lineHeight: 1.2,
-          letterSpacing: '-0.6px',
-          maxWidth: 420,
-        }}>
-          Painel de telemetria
+        {/* Centro */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+          <div>
+            <div style={{ color: '#ffffff', fontSize: 28, fontWeight: 500, letterSpacing: '-0.5px', lineHeight: 1.25, marginBottom: 14 }}>
+              Telemetria de operações agrícolas
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, lineHeight: 1.65, maxWidth: 400 }}>
+              Plataforma interna de monitoramento e análise de desempenho de frota. Dados processados
+              diariamente a partir de Solinftec e John Deere.
+            </div>
+          </div>
+
+          {/* Divisor */}
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.12)' }} />
+
+          {/* Features */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {FEATURES.map((f) => (
+              <div key={f.label} style={{ display: 'flex', gap: 14 }}>
+                <div style={{
+                  width: 4, borderRadius: 2, background: 'rgba(255,255,255,0.25)',
+                  flexShrink: 0, marginTop: 3, alignSelf: 'stretch',
+                }} />
+                <div>
+                  <div style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, marginBottom: 3, letterSpacing: '0.01em' }}>
+                    {f.label}
+                  </div>
+                  <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, lineHeight: 1.6 }}>
+                    {f.desc}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div style={{
-          fontSize: 11,
-          color: 'rgba(255,255,255,0.5)',
-          letterSpacing: '0.3px',
-        }}>
-          © {new Date().getFullYear()}
+        {/* Rodapé */}
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.02em' }}>
+          © {new Date().getFullYear()} · Uso interno
         </div>
       </div>
 
-      {/* Painel direito — login */}
+      {/* ── Painel direito ── */}
       <div style={{
         flex: '1 1 45%',
         display: 'flex',
@@ -72,20 +106,15 @@ export default function LoginPage({ authError }) {
         padding: '40px 32px',
         background: '#ffffff',
       }}>
-        <div style={{
-          width: '100%',
-          maxWidth: 300,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 20,
-        }}>
-          <div style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: '#1a1a1a',
-            letterSpacing: '-0.2px',
-          }}>
-            Entrar
+        <div style={{ width: '100%', maxWidth: 300, display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 600, color: '#1a1a1a', letterSpacing: '-0.3px', marginBottom: 6 }}>
+              Entrar
+            </div>
+            <div style={{ fontSize: 12, color: '#6b6560', lineHeight: 1.5 }}>
+              Use sua conta Google corporativa para acessar o painel.
+            </div>
           </div>
 
           <button
@@ -122,7 +151,7 @@ export default function LoginPage({ authError }) {
             </div>
           )}
 
-          <div style={{ fontSize: 11, color: '#9b9590', lineHeight: 1.6 }}>
+          <div style={{ fontSize: 11, color: '#b0aaa4', lineHeight: 1.6 }}>
             Acesso restrito · @porteiraadentro.com
           </div>
         </div>
@@ -130,14 +159,11 @@ export default function LoginPage({ authError }) {
 
       <style>{`
         @media (max-width: 860px) {
-          [data-login-root] {
-            flex-direction: column !important;
-          }
+          [data-login-root] { flex-direction: column !important; }
           .login-brand-panel {
             flex: 0 0 auto !important;
-            padding: 28px 24px !important;
-            min-height: 200px;
-            gap: 32px;
+            padding: 32px 24px !important;
+            gap: 28px !important;
           }
         }
       `}</style>
