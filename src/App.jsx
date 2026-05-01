@@ -167,7 +167,7 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session && !isAllowedEmail(session.user.email)) {
         supabase.auth.signOut()
-        setAuthError('Acesso restrito a e-mails @porteiraadentro.com e @dspartners.com.br.')
+        setAuthError('Acesso restrito a e-mails @porteiraadentro.com.')
         setSession(null)
         return
       }
@@ -176,7 +176,7 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session && !isAllowedEmail(session.user.email)) {
         await supabase.auth.signOut()
-        setAuthError('Acesso restrito a e-mails @porteiraadentro.com e @dspartners.com.br.')
+        setAuthError('Acesso restrito a e-mails @porteiraadentro.com.')
         setSession(null)
         return
       }
