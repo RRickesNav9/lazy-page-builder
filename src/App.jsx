@@ -107,7 +107,7 @@ function AppInner({ onLogout }) {
           <img
             src={logoPorteira}
             alt="Porteira Adentro"
-            style={{ height: '50px', width: 'auto' }}
+            style={{ height: '68px', width: 'auto' }}
           />
           <div style={{ color: '#2d4a2d', fontSize: 14 }}>Relatório de Operações Agrícolas</div>
         </div>
