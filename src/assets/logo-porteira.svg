@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
 
   <!-- Grupo Centralizador das Porteiras -->
 
-  <!-- A largura total das porteiras é de 327px. Para centralizar em 800px, transladamos para X = (800 - 327) / 2 = 236.5 -->
+  <!-- A largura total das porteiras Ã© de 327px. Para centralizar em 800px, transladamos para X = (800 - 327) / 2 = 236.5 -->
 
   <g transform="translate(236.5, 110)">
 
@@ -12,7 +12,7 @@
 
     <g fill="#603913">
 
-      <!-- Poste Externo (Esquerda) com Pé apenas para fora (esquerda) -->
+      <!-- Poste Externo (Esquerda) com PÃ© apenas para fora (esquerda) -->
 
       <!-- Inicia reto no X=0 e X=12, mas na base (Y=114 a 120) expande para a esquerda (X=-8) -->
 
@@ -51,7 +51,7 @@
 
     <!-- PORTEIRA DA DIREITA -->
 
-    <!-- Transladada 177px para a direita em relação à primeira porteira -->
+    <!-- Transladada 177px para a direita em relaÃ§Ã£o Ã  primeira porteira -->
 
     <g fill="#603913" transform="translate(177, 0)">
 
@@ -61,7 +61,7 @@
 
       
 
-      <!-- Poste Externo (Direita) com Pé apenas para fora (direita) -->
+      <!-- Poste Externo (Direita) com PÃ© apenas para fora (direita) -->
 
       <!-- Inicia reto no X=138 e X=150, mas na base (Y=114 a 120) expande para a direita (X=158) -->
 
@@ -96,7 +96,7 @@
 
   <!-- Texto PORTEIRA ADENTRO -->
 
-  <text x="400" y="300" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="52" fill="#ffffff" text-anchor="middle" letter-spacing="2">
+  <text x="400" y="300" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="52" fill="#2d4a2d" text-anchor="middle" letter-spacing="2">
     PORTEIRA ADENTRO
   </text>
 

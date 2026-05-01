@@ -98,19 +98,19 @@ function AppInner({ onLogout }) {
     <div className="app-root" style={{ minHeight: '100vh', background: '#ffffff', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
 
       <header className="no-print" style={{
-        background: '#2d4a2d', padding: '8px 24px',
+        background: '#2d4a2d', padding: '6px 24px',
         display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center',
       }}>
         <div />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ background: '#ffffff', borderRadius: 6, padding: '4px 10px', display: 'flex', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ background: '#ffffff', borderRadius: 6, padding: '3px 10px', display: 'flex', alignItems: 'center' }}>
             <img
               src={logoPorteira}
               alt="Porteira Adentro"
-              style={{ height: '52px', width: 'auto' }}
+              style={{ height: '42px', width: 'auto' }}
             />
           </div>
-          <div style={{ color: '#ffffff', fontSize: 15 }}>Relatório de Operações Agrícolas</div>
+          <div style={{ color: '#ffffff', fontSize: 14 }}>Relatório de Operações Agrícolas</div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button
