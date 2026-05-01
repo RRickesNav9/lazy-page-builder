@@ -153,12 +153,34 @@ function AppInner({ onLogout }) {
   )
 }
 
+const ALLOWED_DOMAINS = ['@porteiraadentro.com', '@dspartners.com.br']
+
+function isAllowedEmail(email) {
+  return ALLOWED_DOMAINS.some(d => (email || '').toLowerCase().endsWith(d))
+}
+
 export default function App() {
-  const [session, setSession] = useState(undefined)
+  const [session,   setSession]   = useState(undefined)
+  const [authError, setAuthError] = useState(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session && !isAllowedEmail(session.user.email)) {
+        supabase.auth.signOut()
+        setAuthError('Acesso restrito a e-mails @porteiraadentro.com e @dspartners.com.br.')
+        setSession(null)
+        return
+      }
+      setSession(session)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session && !isAllowedEmail(session.user.email)) {
+        await supabase.auth.signOut()
+        setAuthError('Acesso restrito a e-mails @porteiraadentro.com e @dspartners.com.br.')
+        setSession(null)
+        return
+      }
+      setAuthError(null)
       setSession(session)
     })
     return () => subscription.unsubscribe()
@@ -167,7 +189,7 @@ export default function App() {
   // aguarda resolução do estado de auth para evitar flash de tela de login
   if (session === undefined) return null
 
-  if (!session) return <LoginPage />
+  if (!session) return <LoginPage authError={authError} />
 
   return (
     <FilterProvider>
