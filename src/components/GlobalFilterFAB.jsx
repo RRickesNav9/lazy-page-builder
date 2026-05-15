@@ -125,7 +125,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
     if (validTipos.length     !== pending.tipos_safra.length)  updates.tipos_safra = validTipos
     if (Object.keys(updates).length > 0) setPending(p => ({ ...p, ...updates }))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending.clientes, pending.propriedades, pending.processos, pending.tipos_safra, open])
+  }, [pending.clientes, pending.propriedades, pending.processos, pending.tipos_safra, open, cascadedOpts])
 
   useEffect(() => {
     if (!open) return
