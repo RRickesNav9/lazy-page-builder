@@ -990,9 +990,8 @@ export default function AnaliseGeralPage() {
       </div>
 
       {/* Rodapé */}
-      <div style={{ background: '#f7f5f2', borderTop: '1px solid #e0dbd4', padding: '10px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 -24px -24px' }}>
-        <span style={{ fontSize: 11, color: '#6b6560' }}>Relatório gerado automaticamente · Porteira Adentro Consultoria Agrícola</span>
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#4a3728' }}>PORTEIRA ADENTRO</span>
+      <div style={{ background: '#f7f5f2', borderTop: '1px solid #e0dbd4', padding: '10px 24px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', margin: '0 -24px -24px' }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: '#4a3728' }}>Porteira Adentro Consultoria Agrícola</span>
       </div>
     </div>
   )
