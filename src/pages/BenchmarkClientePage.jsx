@@ -687,7 +687,7 @@ function MetricasTable({ metricas, zoneThresholds, activeConfig, onReorder }) {
 // ─── PÁGINA ───────────────────────────────────────────────────────────────────
 
 export default function BenchmarkClientePage({ onTabChange }) {
-  const { filters, queryFilters, currentSafra } = useFilters()
+  const { filters, queryFilters, benchmarkSafra } = useFilters()
   const [activeTab, setActiveTab]             = useState('colheita')
   const [selectedMetrics, setSelectedMetrics] = useState([...DEFAULT_SELECTED_METRICS])
 
@@ -720,7 +720,7 @@ export default function BenchmarkClientePage({ onTabChange }) {
     ...(cliente   && { cliente }),
     processo,
     ...(tipoSafra && { tipo_safra: tipoSafra }),
-    safra: currentSafra,
+    safra: benchmarkSafra,
     ...(queryFilters.dataInicio && { dataInicio: queryFilters.dataInicio }),
     ...(queryFilters.dataFim    && { dataFim:    queryFilters.dataFim    }),
     filterMode: filters.filterMode,
@@ -729,7 +729,7 @@ export default function BenchmarkClientePage({ onTabChange }) {
   const grupoFilters = {
     processo,
     ...(tipoSafra && { tipo_safra: tipoSafra }),
-    safra: currentSafra,
+    safra: benchmarkSafra,
     filterMode: filters.filterMode,
   }
 

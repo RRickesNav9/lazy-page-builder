@@ -1,6 +1,6 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { useFilters } from '../lib/FilterContext'
-import { useOperationalData, useStopData, useGrupoBenchmark, useMachineBaseline } from '../hooks/useData'
+import { useOperationalData, useStopData, useGrupoInterativo, useMachineBaseline } from '../hooks/useData'
 import {
   aggregateRows, groupBy, applyStopExclusions, applyBreakdownFilter, calcTimeDistribution, calcStopDistribution,
   fmtHah, fmtHa, fmtKmh, fmtPct, fmtH, fmtLh, fmt,
@@ -672,19 +672,20 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
 /* ── Página principal ─────────────────────────────────────────────────────── */
 
 export default function AnaliseGeralPage() {
-  const { filters, queryFilters, currentSafra } = useFilters()
+  const { filters, queryFilters, benchmarkSafra } = useFilters()
   const { excludedMotivos, metricFilter, showGroupAvg } = filters
 
   const { data: raw, loading } = useOperationalData(queryFilters)
   const { data: stopRows }     = useStopData(queryFilters)
-  const { data: benchmarks }   = useGrupoBenchmark({
-    safra:      currentSafra,
-    processo:   queryFilters.processos?.[0],
-    tipo_safra: queryFilters.tipos_safra?.[0],
-  })
+  const { metricas: benchmarks } = useGrupoInterativo(
+    benchmarkSafra,
+    queryFilters.processos?.[0],
+    queryFilters.tipos_safra?.[0],
+    showGroupAvg,
+  )
 
   const isDetalhado = filters.filterMode === 'detalhado'
-  const { baseline } = useMachineBaseline(currentSafra, isDetalhado)
+  const { baseline } = useMachineBaseline(benchmarkSafra, isDetalhado)
 
   const data = useMemo(() => {
     let rows = applyStopExclusions(raw, stopRows, excludedMotivos)
@@ -726,10 +727,9 @@ export default function AnaliseGeralPage() {
   const timeDist = useMemo(() => calcTimeDistribution(filteredData), [filteredData])
   const stopDist = useMemo(() => calcStopDistribution(filteredData), [filteredData])
 
-  const mainBenchmark = benchmarks?.[0] ?? null
-  // referências de grupo só ativas quando o toggle "Comparar com grupo" está ligado
-  const benchRend = showGroupAvg ? (mainBenchmark?.rendimento_operacional_hah_grupo ?? null) : null
-  const benchVel  = showGroupAvg ? (mainBenchmark?.velocidade_media_kmh_grupo      ?? null) : null
+  // benchmarks agora é objeto direto com as métricas (useGrupoInterativo)
+  const benchRend = showGroupAvg ? (benchmarks?.rendimento_operacional_hah ?? null) : null
+  const benchVel  = showGroupAvg ? (benchmarks?.velocidade_media_kmh       ?? null) : null
 
   // Paginação independente por bloco
   const [vis1,  setVis1]  = useState(6) // par 1: área + rendimento
@@ -877,7 +877,7 @@ export default function AnaliseGeralPage() {
       {/* ── BLOCO 2: Tabela de Dimensões ─────────────────────────────────── */}
       <SectionTitle>Análise por Dimensão</SectionTitle>
       <div style={{ marginBottom: 28 }}>
-        <DimensionTable data={filteredData} grupoRow={showGroupAvg ? mainBenchmark : null} showGroupAvg={showGroupAvg} />
+        <DimensionTable data={filteredData} grupoRow={showGroupAvg ? benchmarks : null} showGroupAvg={showGroupAvg} />
       </div>
 
       {/* ── BLOCO 3: Desempenho por Equipamento (3 pares independentes) ──── */}

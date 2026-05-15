@@ -13,6 +13,7 @@ export const DEFAULT_FILTERS = {
   showGroupAvg: false,
   metricFilter: { field: '', operator: '>=', value: '' },
   filterMode: 'padrao',
+  referenciaSafra: '',
 }
 
 export function dateRangeForPeriodo(periodo) {
@@ -81,6 +82,10 @@ export function FilterProvider({ children }) {
     return month >= 6 ? `${year}/${year + 1}` : `${year - 1}/${year}`
   }, [queryFilters.dataFim])
 
+  // Safra usada como janela de referência para benchmarks e baseline de quebra.
+  // Quando o usuário seleciona explicitamente uma safra, usa ela; caso contrário usa a safra do período ativo.
+  const benchmarkSafra = filters.referenciaSafra || currentSafra
+
   const activeCount = useMemo(() => {
     let count = 0
     if (filters.clientes.length)        count++
@@ -93,6 +98,7 @@ export function FilterProvider({ children }) {
     if (filters.periodo !== '7dias')   count++
     if (filters.metricFilter?.field)   count++
     if (filters.filterMode !== 'padrao') count++
+    if (filters.referenciaSafra)        count++
     return count
   }, [filters])
 
@@ -102,7 +108,7 @@ export function FilterProvider({ children }) {
       drawerOpen, openDrawer, closeDrawer,
       showFABs, setShowFABs,
       activeCount, DEFAULT_FILTERS,
-      queryFilters, currentSafra,
+      queryFilters, currentSafra, benchmarkSafra,
     }}>
       {children}
     </FilterContext.Provider>

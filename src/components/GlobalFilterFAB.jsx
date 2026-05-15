@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useFilters, dateRangeForPeriodo } from '../lib/FilterContext'
-import { useFilterOptionsRaw, useStopMotivos } from '../hooks/useData'
+import { useFilterOptionsRaw, useStopMotivos, useFilterOptions } from '../hooks/useData'
 
 
 
@@ -60,6 +60,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
 
   const { rawRows } = useFilterOptionsRaw(solinftecOnly, pendingDateRange)
   const motivos     = useStopMotivos()
+  const { safras }  = useFilterOptions()
 
   function toggleExpanded() {
     setExpanded(e => {
@@ -157,6 +158,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
       showGroupAvg: false,
       metricFilter: { field: '', operator: '>=', value: '' },
       filterMode: 'padrao',
+      referenciaSafra: '',
     }
     setPending(cleared); applyFilters(cleared); setOpen(false)
   }
@@ -187,6 +189,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
     if (show('showGroupAvg')    && filters.showGroupAvg)           c++
     if (show('metricFilter')    && filters.metricFilter?.field)    c++
     if (solinftecOnly           && filters.filterMode !== 'padrao') c++
+    if (solinftecOnly           && filters.referenciaSafra)         c++
     return c
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, visibleFilters, solinftecOnly])
@@ -516,6 +519,24 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                   ? 'Remove sessões com consumo/hora anormal vs. o histórico da safra da máquina (indicativo de quebra).'
                   : 'Dados brutos — todas as sessões incluídas.'}
               </p>
+            </div>
+          )}
+
+          {/* ── Safra de referência — só em páginas Solinftec ───────── */}
+          {solinftecOnly && safras.length > 0 && (
+            <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14, marginBottom: 14 }}>
+              <Label>Safra de referência</Label>
+              <p style={{ fontSize: 11, color: '#6b6560', marginBottom: 8 }}>
+                Janela usada para benchmarks e detecção de quebra. Padrão: safra do período ativo.
+              </p>
+              <select
+                value={pending.referenciaSafra ?? ''}
+                onChange={e => set('referenciaSafra', e.target.value)}
+                style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, color: '#1a1a1a', background: '#fff' }}
+              >
+                <option value="">Automático (safra do período)</option>
+                {safras.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
           )}
 

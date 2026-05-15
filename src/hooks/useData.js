@@ -266,7 +266,6 @@ export function useClienteBenchmark(filters = {}) {
           .neq('cliente', 'Média Porteira')
           .neq('data_provider_id', JD_ID)
 
-        if (filters.filterMode === 'detalhado') query = query.gt('area_ha', 0).gt('consumo_total_l', 0)
         if (filters.cliente)    query = query.eq('cliente',    filters.cliente)
         if (filters.processo)   query = query.eq('processo',   filters.processo)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
@@ -281,6 +280,10 @@ export function useClienteBenchmark(filters = {}) {
           all = all.concat(page)
           if (page.length < 1000) break
           from += 1000
+        }
+
+        if (filters.filterMode === 'detalhado') {
+          all = filterBreakdown(all, computeBreakdownBaseline(all))
         }
 
         if (all.length === 0) { setMetricas(null); return }
@@ -376,7 +379,6 @@ export function useAllClientesBenchmark(filters = {}) {
           .neq('cliente', 'Média Porteira')
           .neq('data_provider_id', JD_ID)
 
-        if (filters.filterMode === 'detalhado') query = query.gt('area_ha', 0).gt('consumo_total_l', 0)
         if (filters.processo)   query = query.eq('processo',   filters.processo)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
         if (filters.safra)      query = query.eq('safra',      filters.safra)
@@ -388,6 +390,10 @@ export function useAllClientesBenchmark(filters = {}) {
           all = all.concat(page)
           if (page.length < 1000) break
           from += 1000
+        }
+
+        if (filters.filterMode === 'detalhado') {
+          all = filterBreakdown(all, computeBreakdownBaseline(all))
         }
 
         const PESO = {
@@ -490,6 +496,50 @@ export function useDistinctProcessos(exclude = []) {
   return processos
 }
 
+// Converte string de safra ('YYYY/YYYY+1') para intervalo de datas.
+function safraToDateRange(safra) {
+  const startYear = parseInt(safra.split('/')[0])
+  return { dataInicio: `${startYear}-06-01`, dataFim: `${startYear + 1}-05-31` }
+}
+
+// Calcula mediana de consumo_medio_lh por equipamento_cod a partir de rows já carregadas.
+// Retorna Map<equipamento_cod, { median, count }> — mesma estrutura de useMachineBaseline.
+function computeBreakdownBaseline(rows) {
+  const byMachine = {}
+  for (const row of rows) {
+    if (!row.equipamento_cod) continue
+    const c = parseFloat(row.consumo_medio_lh) || 0
+    if (!c) continue
+    if (!byMachine[row.equipamento_cod]) byMachine[row.equipamento_cod] = []
+    byMachine[row.equipamento_cod].push(c)
+  }
+  const map = new Map()
+  for (const [cod, vals] of Object.entries(byMachine)) {
+    const sorted = vals.sort((a, b) => a - b)
+    const mid    = Math.floor(sorted.length / 2)
+    const median = sorted.length % 2 !== 0
+      ? sorted[mid]
+      : (sorted[mid - 1] + sorted[mid]) / 2
+    map.set(cod, { median, count: sorted.length })
+  }
+  return map
+}
+
+const BREAKDOWN_MULT      = 3.0
+const BREAKDOWN_MIN_COUNT = 5
+
+// Filtra rows com consumo_medio_lh acima de 3× a mediana da própria máquina na safra.
+function filterBreakdown(rows, baseline) {
+  if (!baseline || baseline.size === 0) return rows
+  return rows.filter(r => {
+    const ref    = baseline.get(r.equipamento_cod)
+    if (!ref || ref.count < BREAKDOWN_MIN_COUNT) return true
+    const consumo = parseFloat(r.consumo_medio_lh) || 0
+    if (!consumo) return true
+    return consumo <= ref.median * BREAKDOWN_MULT
+  })
+}
+
 // Mapa métrica → denominador correto para média ponderada (espelho de compute-performance-stats)
 const METRIC_WEIGHT_MAP = {
   rendimento_operacional_hah:   'tempo_efetivo_h',
@@ -556,7 +606,6 @@ export function useMaquinaMetricas(filters = {}) {
           .from('dashboard_operational_view')
           .select('rendimento_operacional_hah,rendimento_real_hah,eficiencia_geral_pct,eficiencia_operacional_pct,consumo_medio_efetivo_lha,consumo_medio_efetivo_lh,consumo_medio_lh,consumo_medio_lha,disponibilidade_mecanica_pct,velocidade_media_kmh,rpm_medio,motor_ligado_pct,motor_ocioso_pct,sem_apontamento_pct,area_por_linha_ha,tempo_produtivo_h,tempo_efetivo_h,tempo_total_h,area_ha,tempo_motor_ligado_h,tempo_parada_h')
           .eq('equipamento_cod', filters.equipamento_cod)
-        if (filters.filterMode === 'detalhado') query = query.gt('area_ha', 0).gt('consumo_total_l', 0)
         if (filters.processo)   query = query.eq('processo',   filters.processo)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
         if (filters.safra)      query = query.eq('safra',      filters.safra)
@@ -569,6 +618,9 @@ export function useMaquinaMetricas(filters = {}) {
           all = all.concat(page)
           if (page.length < 1000) break
           from += 1000
+        }
+        if (filters.filterMode === 'detalhado' && filters.baseline) {
+          all = filterBreakdown(all, filters.baseline)
         }
         setMetricas(computeWeightedAvg(all))
       } catch (err) {
@@ -932,6 +984,119 @@ export function useEquipamentoComparativo(filterA, filterB) {
 }
 
 const SOLINFTEC_ID = '4303d3d1-b62b-4a03-850a-bb87e797f013'
+
+const EQUIP_SELECT = [
+  'equipamento_cod', 'modelo_equipamento', 'data',
+  'consumo_medio_lh',
+  'rendimento_operacional_hah', 'rendimento_real_hah', 'velocidade_media_kmh',
+  'eficiencia_geral_pct', 'eficiencia_operacional_pct', 'disponibilidade_mecanica_pct',
+  'consumo_medio_lha', 'consumo_medio_efetivo_lha', 'consumo_medio_efetivo_lh',
+  'area_por_linha_ha', 'sem_apontamento_pct', 'motor_ocioso_pct', 'motor_ligado_pct', 'rpm_medio',
+  'tempo_produtivo_h', 'tempo_efetivo_h', 'tempo_total_h', 'area_ha', 'tempo_motor_ligado_h', 'tempo_parada_h',
+].join(',')
+
+// Calcula médias por modelo de equipamento direto de operational_records para a safra inteira.
+// Aplica breakdown filter antes de agregar.
+// Retorna array com shape compatível com media_equipamentos_porteira (sufixo _modelo).
+export function useEquipamentoInterativo(safra, processo, tipo_safra) {
+  const [data, setData]     = useState([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!safra) return
+    setLoading(true)
+    async function run() {
+      const { dataInicio, dataFim } = safraToDateRange(safra)
+      let query = supabase
+        .from('operational_records')
+        .select(EQUIP_SELECT)
+        .eq('data_provider_id', SOLINFTEC_ID)
+        .gte('data', dataInicio)
+        .lte('data', dataFim)
+        .gt('consumo_medio_lh', 0)
+      if (processo)   query = query.eq('processo',   processo)
+      if (tipo_safra) query = query.eq('tipo_safra', tipo_safra)
+
+      let all = [], from = 0
+      while (true) {
+        const { data: page } = await query.range(from, from + 999)
+        if (!page?.length) break
+        all = all.concat(page)
+        if (page.length < 1000) break
+        from += 1000
+      }
+
+      const baseline = computeBreakdownBaseline(all)
+      const clean    = filterBreakdown(all, baseline)
+
+      const byModelo = new Map()
+      for (const row of clean) {
+        const m = row.modelo_equipamento
+        if (!m) continue
+        if (!byModelo.has(m)) byModelo.set(m, [])
+        byModelo.get(m).push(row)
+      }
+
+      const result = []
+      for (const [modelo, rows] of byModelo) {
+        const avg = computeWeightedAvg(rows)
+        if (!avg) continue
+        const entry = { modelo_equipamento: modelo, dias_ativos: new Set(rows.map(r => r.data)).size }
+        for (const [key, val] of Object.entries(avg)) {
+          entry[`${key}_modelo`] = val
+        }
+        result.push(entry)
+      }
+      setData(result)
+      setLoading(false)
+    }
+    run()
+  }, [safra, processo, tipo_safra])
+
+  return { data, loading }
+}
+
+// Calcula média do grupo (todos os clientes Solinftec) para a safra inteira.
+// Aplica breakdown filter. Retorna objeto com as métricas ou null.
+// enabled=false → skip (evita fetch desnecessário quando showGroupAvg=false).
+export function useGrupoInterativo(safra, processo, tipo_safra, enabled = false) {
+  const [metricas, setMetricas] = useState(null)
+  const [loading, setLoading]   = useState(false)
+
+  useEffect(() => {
+    if (!enabled || !safra) { setMetricas(null); return }
+    setLoading(true)
+    async function run() {
+      const { dataInicio, dataFim } = safraToDateRange(safra)
+      let query = supabase
+        .from('operational_records')
+        .select(EQUIP_SELECT)
+        .eq('data_provider_id', SOLINFTEC_ID)
+        .gte('data', dataInicio)
+        .lte('data', dataFim)
+        .gt('consumo_medio_lh', 0)
+      if (processo)   query = query.eq('processo',   processo)
+      if (tipo_safra) query = query.eq('tipo_safra', tipo_safra)
+
+      let all = [], from = 0
+      while (true) {
+        const { data: page } = await query.range(from, from + 999)
+        if (!page?.length) break
+        all = all.concat(page)
+        if (page.length < 1000) break
+        from += 1000
+      }
+
+      const baseline = computeBreakdownBaseline(all)
+      const clean    = filterBreakdown(all, baseline)
+      setMetricas(computeWeightedAvg(clean))
+      setLoading(false)
+    }
+    run()
+  }, [safra, processo, tipo_safra, enabled])
+
+  return { metricas, loading }
+}
 
 // Calcula mediana de consumo_medio_lh por equipamento_cod ao longo da safra inteira (Solinftec).
 // Usado pelo modo "Detalhado" para identificar sessões de quebra vs. operação normal.
