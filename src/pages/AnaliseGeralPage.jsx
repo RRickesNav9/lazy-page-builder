@@ -3,7 +3,7 @@ import { useFilters } from '../lib/FilterContext'
 import { useOperationalData, useStopData, useGrupoBenchmark } from '../hooks/useData'
 import {
   aggregateRows, groupBy, applyStopExclusions, calcTimeDistribution, calcStopDistribution,
-  fmtHah, fmtHa, fmtKmh, fmtPct, fmtH, fmt,
+  fmtHah, fmtHa, fmtKmh, fmtPct, fmtH, fmtLh, fmt,
 } from '../lib/utils'
 
 /* ── Filtro de métrica — labels para o banner ────────────────────────────── */
@@ -31,24 +31,86 @@ const DIMS = [
   { key: 'operador',           label: 'Operador' },
 ]
 
-const FIXED_METRICS = [
-  { key: 'area_ha',                   label: 'Área (ha)',          fmt: fmtHa },
-  { key: 'tempo_efetivo_h',            label: 'T. Efetivo (h)',     fmt: fmtH },
-  { key: 'rendimento_operacional_hah', label: 'Rend. Op. (ha/h)',  fmt: fmtHah },
-  { key: 'consumo_medio_efetivo_lha', label: 'Cons. Ef. (l/ha)',   fmt: v => fmt(v, 1, ' l/ha') },
+const fmtL   = v => fmt(v, 1, ' l')
+const fmtLha = v => fmt(v, 1, ' l/ha')
+const fmtRpm = v => fmt(v, 0, ' rpm')
+
+const ALL_METRICS_GROUPS = [
+  { group: 'Área', metrics: [
+    { key: 'area_ha',           label: 'Área (ha)',         fmt: fmtHa },
+    { key: 'area_por_linha_ha', label: 'Área/linha (ha)',   fmt: v => fmt(v, 4, ' ha') },
+  ]},
+  { group: 'Rendimento', metrics: [
+    { key: 'rendimento_operacional_hah', label: 'Rend. Op. (ha/h)',   fmt: fmtHah },
+    { key: 'rendimento_real_hah',        label: 'Rend. Real (ha/h)',  fmt: fmtHah },
+  ]},
+  { group: 'Velocidade', metrics: [
+    { key: 'velocidade_media_kmh', label: 'Velocidade (km/h)', fmt: fmtKmh },
+  ]},
+  { group: 'Eficiência', metrics: [
+    { key: 'eficiencia_geral_pct',         label: 'Efic. Geral (%)',   fmt: fmtPct },
+    { key: 'eficiencia_operacional_pct',   label: 'Efic. Op. (%)',     fmt: fmtPct },
+    { key: 'disponibilidade_mecanica_pct', label: 'Disponib. (%)',     fmt: fmtPct },
+  ]},
+  { group: 'Motor', metrics: [
+    { key: 'motor_ligado_pct',    label: 'Motor Ligado (%)',      fmt: fmtPct },
+    { key: 'motor_ocioso_pct',    label: 'Motor Ocioso (%)',      fmt: fmtPct },
+    { key: 'sem_apontamento_pct', label: 'Sem Apontamento (%)',   fmt: fmtPct },
+  ]},
+  { group: 'RPM', metrics: [
+    { key: 'rpm_medio',               label: 'RPM Médio',           fmt: fmtRpm },
+    { key: 'rpm_medio_trabalhando',   label: 'RPM Trabalhando',     fmt: fmtRpm },
+    { key: 'rpm_medio_descarregando', label: 'RPM Descarregando',   fmt: fmtRpm },
+    { key: 'rpm_medio_deslocamento',  label: 'RPM Deslocamento',    fmt: fmtRpm },
+    { key: 'rpm_medio_desloc_desc',   label: 'RPM Desloc. Desc.',   fmt: fmtRpm },
+    { key: 'rpm_medio_desloc_reab',   label: 'RPM Desloc. Reab.',   fmt: fmtRpm },
+    { key: 'rpm_medio_manobra',       label: 'RPM Manobra',         fmt: fmtRpm },
+    { key: 'rpm_medio_parada',        label: 'RPM Parada',          fmt: fmtRpm },
+  ]},
+  { group: 'Consumo — Taxa', metrics: [
+    { key: 'consumo_medio_lh',          label: 'Cons. Médio (l/h)',  fmt: fmtLh  },
+    { key: 'consumo_medio_lha',         label: 'Cons. Médio (l/ha)', fmt: fmtLha },
+    { key: 'consumo_medio_efetivo_lha', label: 'Cons. Ef. (l/ha)',   fmt: fmtLha },
+    { key: 'consumo_medio_efetivo_lh',  label: 'Cons. Ef. (l/h)',    fmt: fmtLh  },
+  ]},
+  { group: 'Consumo — Volume', metrics: [
+    { key: 'consumo_total_l',        label: 'Cons. Total (l)',         fmt: fmtL },
+    { key: 'consumo_efetivo_l',      label: 'Cons. Efetivo (l)',       fmt: fmtL },
+    { key: 'consumo_trabalhando_l',  label: 'Cons. Trabalhando (l)',   fmt: fmtL },
+    { key: 'consumo_descarregando_l',label: 'Cons. Descarregando (l)', fmt: fmtL },
+    { key: 'consumo_deslocamento_l', label: 'Cons. Deslocamento (l)',  fmt: fmtL },
+    { key: 'consumo_desloc_desc_l',  label: 'Cons. Desloc. Desc. (l)',fmt: fmtL },
+    { key: 'consumo_desloc_reab_l',  label: 'Cons. Desloc. Reab. (l)',fmt: fmtL },
+    { key: 'consumo_manobra_l',      label: 'Cons. Manobra (l)',       fmt: fmtL },
+    { key: 'consumo_parada_l',       label: 'Cons. Parada (l)',        fmt: fmtL },
+  ]},
+  { group: 'Tempo — Operacional', metrics: [
+    { key: 'tempo_efetivo_h',      label: 'T. Efetivo (h)',      fmt: fmtH },
+    { key: 'tempo_produtivo_h',    label: 'T. Produtivo (h)',    fmt: fmtH },
+    { key: 'tempo_total_h',        label: 'T. Total (h)',        fmt: fmtH },
+    { key: 'tempo_trabalhando_h',  label: 'T. Trabalhando (h)', fmt: fmtH },
+    { key: 'tempo_descarregando_h',label: 'T. Descarregando (h)',fmt: fmtH },
+    { key: 'tempo_manobra_h',      label: 'T. Manobra (h)',      fmt: fmtH },
+    { key: 'tempo_deslocamento_h', label: 'T. Deslocamento (h)', fmt: fmtH },
+    { key: 'tempo_desloc_desc_h',  label: 'T. Desloc. Desc. (h)',fmt: fmtH },
+    { key: 'tempo_abastecimento_h',label: 'T. Abastecimento (h)',fmt: fmtH },
+  ]},
+  { group: 'Tempo — Parada', metrics: [
+    { key: 'tempo_parada_h',                 label: 'T. Parada (h)',         fmt: fmtH },
+    { key: 'tempo_manutencao_h',             label: 'T. Manutenção (h)',     fmt: fmtH },
+    { key: 'tempo_parada_climatica_h',       label: 'T. Climática (h)',      fmt: fmtH },
+    { key: 'tempo_parada_administrativa_h',  label: 'T. Administrativa (h)', fmt: fmtH },
+    { key: 'tempo_parada_sem_apontamento_h', label: 'T. Sem Apontamento (h)',fmt: fmtH },
+  ]},
+  { group: 'Tempo — Motor', metrics: [
+    { key: 'tempo_motor_ligado_h', label: 'T. Motor Ligado (h)', fmt: fmtH },
+    { key: 'tempo_motor_ocioso_h', label: 'T. Motor Ocioso (h)', fmt: fmtH },
+  ]},
 ]
 
-const SELECTABLE_METRICS = [
-  { key: 'velocidade_media_kmh',         label: 'Velocidade (km/h)',   fmt: fmtKmh },
-  { key: 'eficiencia_geral_pct',         label: 'Efic. Geral (%)',     fmt: fmtPct },
-  { key: 'disponibilidade_mecanica_pct', label: 'Disponib. (%)',       fmt: fmtPct },
-  { key: 'consumo_medio_lh',             label: 'Cons. Médio (l/h)',   fmt: v => fmt(v, 1, ' l/h') },
-  { key: 'rendimento_real_hah',          label: 'Rend. Real (ha/h)',   fmt: fmtHah },
-  { key: 'tempo_total_h',               label: 'T. Total (h)',        fmt: fmtH },
-  { key: 'tempo_parada_h',              label: 'T. Parada (h)',       fmt: fmtH },
-  { key: 'eficiencia_operacional_pct',  label: 'Efic. Op. (%)',       fmt: fmtPct },
-  { key: 'area_por_linha_ha',           label: 'Área/linha (ha)',     fmt: v => fmt(v, 4, ' ha') },
-]
+const ALL_METRICS        = ALL_METRICS_GROUPS.flatMap(g => g.metrics)
+const ALL_METRICS_LOOKUP = Object.fromEntries(ALL_METRICS.map(m => [m.key, m]))
+const DEFAULT_METRICS    = ['area_ha', 'tempo_efetivo_h', 'rendimento_operacional_hah', 'consumo_medio_efetivo_lha', 'velocidade_media_kmh', 'eficiencia_geral_pct']
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 
@@ -338,7 +400,7 @@ const AVG_GROUP_KEYS = new Set([
 
 function DimensionTable({ data, grupoRow, showGroupAvg }) {
   const [activeDims,    setActiveDims]    = useState(['cliente', 'processo'])
-  const [metricCols,    setMetricCols]    = useState(['velocidade_media_kmh', 'eficiencia_geral_pct'])
+  const [metricCols,    setMetricCols]    = useState(DEFAULT_METRICS)
   const [expanded,      setExpanded]      = useState(new Set())
   const [dimDropOpen,   setDimDropOpen]   = useState(false)
   const [metDropOpen,   setMetDropOpen]   = useState(false)
@@ -395,16 +457,14 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
 
   const groups = useMemo(() => buildGroups(data, activeDims), [data, activeDims])
 
-  const activeCols = [
-    ...FIXED_METRICS,
-    ...SELECTABLE_METRICS.filter(m => metricCols.includes(m.key)),
-  ]
-
+  const activeCols = metricCols.map(k => ALL_METRICS_LOOKUP[k]).filter(Boolean)
 
   const dimLabel = activeDims.map(k => DIMS.find(d => d.key === k)?.label ?? k).join(' + ')
-  const metLabel = metricCols.length
-    ? metricCols.map(k => SELECTABLE_METRICS.find(m => m.key === k)?.label ?? k).join(', ')
-    : 'Selecionar'
+  const metLabel = metricCols.length === 0
+    ? 'Selecionar...'
+    : metricCols.length === 1
+      ? (ALL_METRICS_LOOKUP[metricCols[0]]?.label ?? metricCols[0])
+      : `${metricCols.length} selecionadas`
 
   return (
     <div>
@@ -472,7 +532,7 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
           )}
         </div>
 
-        {/* Seletor de métricas adicionais */}
+        {/* Seletor de métricas */}
         <div ref={metRef} style={{ position: 'relative' }}>
           <button
             onClick={() => setMetDropOpen(o => !o)}
@@ -482,7 +542,7 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
               display: 'flex', alignItems: 'center', gap: 6, color: '#1a1a1a',
             }}
           >
-            <span style={{ fontSize: 11, color: '#6b6560' }}>Métricas extras:</span>
+            <span style={{ fontSize: 11, color: '#6b6560' }}>Métricas:</span>
             <strong>{metLabel}</strong>
             <span style={{ fontSize: 10, color: '#6b6560' }}>{metDropOpen ? '▲' : '▼'}</span>
           </button>
@@ -490,24 +550,64 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
             <div style={{
               position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 200,
               background: '#fff', border: '1px solid #d4cfc9', borderRadius: 6,
-              minWidth: 220, boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-              padding: '4px 0',
+              minWidth: 480, maxWidth: 560, boxShadow: '0 4px 16px rgba(0,0,0,0.14)',
+              maxHeight: 480, overflowY: 'auto',
             }}>
-              <div style={{ padding: '4px 12px 6px', fontSize: 10, color: '#6b6560' }}>
-                Selecione as métricas desejadas
+              {/* Cabeçalho com ações */}
+              <div style={{
+                position: 'sticky', top: 0, zIndex: 1,
+                padding: '8px 12px', borderBottom: '1px solid #e0dbd4',
+                background: '#faf9f7', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <span style={{ fontSize: 11, color: '#6b6560' }}>Selecione as métricas desejadas</span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={() => setMetricCols([])}
+                    style={{ fontSize: 11, padding: '3px 10px', border: '1px solid #d4cfc9', borderRadius: 4, background: '#fff', cursor: 'pointer', color: '#6b6560' }}
+                  >
+                    Limpar
+                  </button>
+                  <button
+                    onClick={() => setMetricCols(DEFAULT_METRICS)}
+                    style={{ fontSize: 11, padding: '3px 10px', border: '1px solid #b8d4b8', borderRadius: 4, background: '#edf5ed', cursor: 'pointer', color: '#1e4d1e', fontWeight: 500 }}
+                  >
+                    Padrão
+                  </button>
+                </div>
               </div>
-              {SELECTABLE_METRICS.map(m => (
-                <div
-                  key={m.key}
-                  onClick={() => toggleMetric(m.key)}
-                  style={{
-                    padding: '7px 14px', fontSize: 13, cursor: 'pointer',
-                    background: metricCols.includes(m.key) ? '#edf5ed' : 'transparent',
-                    color: metricCols.includes(m.key) ? '#1e4d1e' : '#1a1a1a',
-                    fontWeight: metricCols.includes(m.key) ? 600 : 400,
-                  }}
-                >
-                  {m.label}
+              {/* Grupos */}
+              {ALL_METRICS_GROUPS.map((group, gi) => (
+                <div key={group.group} style={{ borderTop: gi === 0 ? 'none' : '1px solid #f0ede8' }}>
+                  <div style={{ padding: '7px 12px 3px', fontSize: 10, fontWeight: 700, color: '#4a3728', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                    {group.group}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', padding: '0 4px 4px' }}>
+                    {group.metrics.map(m => {
+                      const active = metricCols.includes(m.key)
+                      return (
+                        <div
+                          key={m.key}
+                          onClick={() => toggleMetric(m.key)}
+                          style={{
+                            padding: '5px 8px', fontSize: 12, cursor: 'pointer', borderRadius: 4,
+                            background: active ? '#edf5ed' : 'transparent',
+                            color: active ? '#1e4d1e' : '#1a1a1a',
+                            display: 'flex', alignItems: 'center', gap: 6,
+                          }}
+                        >
+                          <span style={{
+                            width: 13, height: 13, borderRadius: 3, flexShrink: 0,
+                            border: `1px solid ${active ? '#2d6a2d' : '#c0bab4'}`,
+                            background: active ? '#2d6a2d' : '#fff',
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            {active && <span style={{ color: '#fff', fontSize: 9, fontWeight: 700, lineHeight: 1 }}>✓</span>}
+                          </span>
+                          {m.label}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               ))}
             </div>
@@ -579,8 +679,8 @@ export default function AnaliseGeralPage() {
   const { data: stopRows }     = useStopData(queryFilters)
   const { data: benchmarks }   = useGrupoBenchmark({
     safra:      currentSafra,
-    processo:   queryFilters.processo,
-    tipo_safra: queryFilters.tipo_safra,
+    processo:   queryFilters.processos?.[0],
+    tipo_safra: queryFilters.tipos_safra?.[0],
   })
 
   const data = useMemo(() => applyStopExclusions(raw, stopRows, excludedMotivos), [raw, stopRows, excludedMotivos])
@@ -692,9 +792,9 @@ export default function AnaliseGeralPage() {
 
   const n = equipRows.length
 
-  const cliente   = filters.cliente    || ''
-  const processo  = filters.processo   || ''
-  const tipoSafra = filters.tipo_safra || ''
+  const cliente   = filters.clientes?.[0]    || ''
+  const processo  = filters.processos?.[0]   || ''
+  const tipoSafra = filters.tipos_safra?.[0] || ''
 
   const fmtDate = (iso) => {
     if (!iso) return ''

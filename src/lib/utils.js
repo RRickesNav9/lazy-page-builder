@@ -53,6 +53,22 @@ export function aggregateRows(rows) {
   const tempo_motor_ligado_h = sum('tempo_motor_ligado_h')
   const tempo_efetivo_h      = sum('tempo_efetivo_h')
 
+  const consumo_trabalhando_l          = sum('consumo_trabalhando_l')
+  const consumo_descarregando_l        = sum('consumo_descarregando_l')
+  const consumo_deslocamento_l         = sum('consumo_deslocamento_l')
+  const consumo_desloc_desc_l          = sum('consumo_desloc_desc_l')
+  const consumo_desloc_reab_l          = sum('consumo_desloc_reab_l')
+  const consumo_manobra_l              = sum('consumo_manobra_l')
+  const consumo_parada_l               = sum('consumo_parada_l')
+  const tempo_descarregando_h          = sum('tempo_descarregando_h')
+  const tempo_abastecimento_h          = sum('tempo_abastecimento_h')
+  const tempo_motor_ocioso_h           = sum('tempo_motor_ocioso_h')
+  const tempo_parada_climatica_h       = sum('tempo_parada_climatica_h')
+  const tempo_parada_administrativa_h  = sum('tempo_parada_administrativa_h')
+  const tempo_parada_sem_apontamento_h = sum('tempo_parada_sem_apontamento_h')
+  const tempo_desloc_desc_h            = sum('tempo_desloc_desc_h')
+  const tempo_trabalhando_h            = sum('tempo_trabalhando_h')
+
   // quando stop exclusions foram aplicadas, os tempos já foram ajustados —
   // recalcular eficiência e disponibilidade diretamente das fórmulas base
   const hasExclusions = rows.some(r => r._hasStopExclusions)
@@ -88,6 +104,29 @@ export function aggregateRows(rows) {
     motor_ocioso_pct: weightedAvg('motor_ocioso_pct', tempo_motor_ligado_h > 0 ? 'tempo_motor_ligado_h' : 'tempo_total_h'),
     rpm_medio: weightedAvg('rpm_medio', 'tempo_total_h'),
     area_por_linha_ha: weightedAvg('area_por_linha_ha', 'area_ha'),
+    tempo_motor_ligado_h,
+    tempo_motor_ocioso_h,
+    consumo_trabalhando_l,
+    consumo_descarregando_l,
+    consumo_deslocamento_l,
+    consumo_desloc_desc_l,
+    consumo_desloc_reab_l,
+    consumo_manobra_l,
+    consumo_parada_l,
+    tempo_descarregando_h,
+    tempo_abastecimento_h,
+    tempo_parada_climatica_h,
+    tempo_parada_administrativa_h,
+    tempo_parada_sem_apontamento_h,
+    tempo_desloc_desc_h,
+    tempo_trabalhando_h,
+    rpm_medio_trabalhando:   weightedAvg('rpm_medio_trabalhando',   'tempo_trabalhando_h'),
+    rpm_medio_descarregando: weightedAvg('rpm_medio_descarregando', 'tempo_descarregando_h'),
+    rpm_medio_deslocamento:  weightedAvg('rpm_medio_deslocamento',  'tempo_deslocamento_h'),
+    rpm_medio_desloc_desc:   weightedAvg('rpm_medio_desloc_desc',   'tempo_desloc_desc_h'),
+    rpm_medio_desloc_reab:   weightedAvg('rpm_medio_desloc_reab',   'tempo_abastecimento_h'),
+    rpm_medio_manobra:       weightedAvg('rpm_medio_manobra',       'tempo_manobra_h'),
+    rpm_medio_parada:        weightedAvg('rpm_medio_parada',        'tempo_parada_h'),
   }
 }
 
