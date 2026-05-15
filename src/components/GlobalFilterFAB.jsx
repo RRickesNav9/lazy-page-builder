@@ -277,7 +277,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
       {open && expanded && (
         <div ref={panelRef} data-pdf-exclude="true" style={{
           position: 'fixed', bottom: pageActiveCount > 0 ? 264 : 204, right: 24, zIndex: 999,
-          width: 320, maxHeight: '80vh', overflowY: 'auto',
+          width: 320, maxHeight: pageActiveCount > 0 ? 'calc(100vh - 284px)' : 'calc(100vh - 224px)', overflowY: 'auto',
           background: '#fff', border: '1px solid #e0dbd4', borderRadius: 12,
           boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: 20,
         }}>
