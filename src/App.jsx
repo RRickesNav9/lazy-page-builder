@@ -5,6 +5,7 @@ import GlobalFilterFAB from './components/GlobalFilterFAB'
 import AnaliseGeralPage from './pages/AnaliseGeralPage'
 import BenchmarkClientePage from './pages/BenchmarkClientePage'
 import BenchmarkEquipamentoPage from './pages/BenchmarkEquipamentoPage'
+import BenchmarkJohnDeerePage from './pages/BenchmarkJohnDeerePage'
 import LoginPage from './pages/LoginPage'
 import { supabase } from './lib/supabase'
 
@@ -12,12 +13,14 @@ const NAV = [
   { id: 'analise',         label: 'Análise Geral' },
   { id: 'benchmark',       label: 'Benchmark Cliente' },
   { id: 'bench-equip',     label: 'Benchmark Equipamento' },
+  { id: 'bench-jd',        label: 'Benchmark John Deere' },
 ]
 
 const PAGES = {
   analise:       AnaliseGeralPage,
   benchmark:     BenchmarkClientePage,
   'bench-equip': BenchmarkEquipamentoPage,
+  'bench-jd':    BenchmarkJohnDeerePage,
 }
 
 // Processos permitidos por página — null = irrestrito
@@ -25,6 +28,7 @@ const PAGES = {
 const PAGE_PROCESSOS = {
   analise:       null,
   'bench-equip': ['Colheita', 'Plantio'],
+  'bench-jd':    null,
 }
 
 // Páginas que exibem apenas dados Solinftec (excluem John Deere dos filtros e cálculos)
@@ -32,16 +36,22 @@ const PAGE_SOLINFTEC = {
   analise:       false,
   benchmark:     true,
   'bench-equip': true,
+  'bench-jd':    false,
 }
 
 
 function Breadcrumb() {
   const { filters } = useFilters()
+  function fmtArr(arr, none, many = 'selecionados') {
+    if (!arr?.length) return none
+    if (arr.length === 1) return arr[0]
+    return `${arr.length} ${many}`
+  }
   const items = [
-    { label: 'Cliente',     value: filters.cliente     || 'Todos' },
-    { label: 'Propriedade', value: filters.propriedade || 'Todas' },
-    { label: 'Operação',    value: filters.processo     || 'Todas' },
-    { label: 'Cultura',     value: filters.tipo_safra   || 'Todas' },
+    { label: 'Cliente',     value: fmtArr(filters.clientes,    'Todos') },
+    { label: 'Propriedade', value: fmtArr(filters.propriedades,'Todas') },
+    { label: 'Operação',    value: fmtArr(filters.processos,   'Todas') },
+    { label: 'Cultura',     value: fmtArr(filters.tipos_safra, 'Todas') },
   ]
 
   return (
@@ -83,14 +93,17 @@ function AppInner({ onLogout }) {
     return null
   }, [activePage, benchTab])
 
-  // Ao trocar página ou aba, limpa processo se ele não for permitido (ou for excluído)
+  // Ao trocar página ou aba, remove processos selecionados que não são permitidos
   useEffect(() => {
-    if (!filters.processo) return
-    const proc = filters.processo.toLowerCase()
-    const blockedByAllowed  = allowedProcessos  && !allowedProcessos.some(p => p.toLowerCase() === proc)
-    const blockedByExcluded = excludedProcessos &&  excludedProcessos.some(p => p.toLowerCase() === proc)
-    if (blockedByAllowed || blockedByExcluded) {
-      applyFilters({ ...filters, processo: '' })
+    if (!filters.processos?.length) return
+    const remaining = filters.processos.filter(proc => {
+      const p = proc.toLowerCase()
+      const blockedByAllowed  = allowedProcessos  && !allowedProcessos.some(a => a.toLowerCase() === p)
+      const blockedByExcluded = excludedProcessos &&  excludedProcessos.some(a => a.toLowerCase() === p)
+      return !blockedByAllowed && !blockedByExcluded
+    })
+    if (remaining.length !== filters.processos.length) {
+      applyFilters({ ...filters, processos: remaining })
     }
   }, [activePage, benchTab]) // eslint-disable-line react-hooks/exhaustive-deps
 

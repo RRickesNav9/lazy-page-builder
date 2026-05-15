@@ -22,10 +22,14 @@ export function useOperationalData(filters = {}, enabled = true) {
         .order('data', { ascending: false })
         .order('id', { ascending: true })
 
-      if (filters.cliente)            query = query.eq('cliente', filters.cliente)
-      if (filters.propriedade)        query = query.eq('propriedade', filters.propriedade)
-      if (filters.processo)           query = query.eq('processo', filters.processo)
-      if (filters.tipo_safra)         query = query.eq('tipo_safra', filters.tipo_safra)
+      if (filters.clientes?.length)     query = query.in('cliente', filters.clientes)
+      else if (filters.cliente)        query = query.eq('cliente', filters.cliente)
+      if (filters.propriedades?.length) query = query.in('propriedade', filters.propriedades)
+      else if (filters.propriedade)    query = query.eq('propriedade', filters.propriedade)
+      if (filters.processos?.length)   query = query.in('processo', filters.processos)
+      else if (filters.processo)       query = query.eq('processo', filters.processo)
+      if (filters.tipos_safra?.length) query = query.in('tipo_safra', filters.tipos_safra)
+      else if (filters.tipo_safra)     query = query.eq('tipo_safra', filters.tipo_safra)
       if (filters.safra)              query = query.eq('safra', filters.safra)
       if (filters.equipamento)        query = query.ilike('equipamento', `%${filters.equipamento}%`)
       if (filters.equipamento_cod)    query = query.eq('equipamento_cod', filters.equipamento_cod)
@@ -204,9 +208,12 @@ export function useStopData(queryFilters = {}) {
           .select('report_id, motivo_de_parada, tipo_parada, tempo_parado_h')
         if (queryFilters.dataInicio) query = query.gte('data', queryFilters.dataInicio)
         if (queryFilters.dataFim)    query = query.lte('data', queryFilters.dataFim)
-        if (queryFilters.cliente)    query = query.eq('cliente', queryFilters.cliente)
-        if (queryFilters.processo)   query = query.eq('processo', queryFilters.processo)
-        if (queryFilters.tipo_safra) query = query.eq('tipo_safra', queryFilters.tipo_safra)
+        if (queryFilters.clientes?.length)     query = query.in('cliente', queryFilters.clientes)
+        else if (queryFilters.cliente)        query = query.eq('cliente', queryFilters.cliente)
+        if (queryFilters.processos?.length)   query = query.in('processo', queryFilters.processos)
+        else if (queryFilters.processo)       query = query.eq('processo', queryFilters.processo)
+        if (queryFilters.tipos_safra?.length) query = query.in('tipo_safra', queryFilters.tipos_safra)
+        else if (queryFilters.tipo_safra)     query = query.eq('tipo_safra', queryFilters.tipo_safra)
         let all = [], from = 0
         const pageSize = 1000
         while (true) {
@@ -715,6 +722,157 @@ export function useEquipamentoOptions(cliente) {
   }, [cliente])
 
   return equipamentos
+}
+
+// Agrega métricas de um cliente JD via média ponderada — campos disponíveis no provider John Deere.
+// tempo_efetivo_h = tempo_total_h para JD (não há estados, todo tempo é efetivo).
+export function useClienteBenchmarkJD(filters = {}) {
+  const [metricas, setMetricas] = useState(null)
+  const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(null)
+  const JD_ID = '6731a094-8f65-472f-95f5-655d1303a72f'
+
+  useEffect(() => {
+    async function fetch() {
+      setLoading(true)
+      setError(null)
+      try {
+        let query = supabase
+          .from('dashboard_operational_view')
+          .select('equipamento,equipamento_cod,data,rendimento_operacional_hah,velocidade_media_kmh,consumo_medio_lh,consumo_medio_lha,area_por_linha_ha,tempo_efetivo_h,tempo_total_h,area_ha')
+          .eq('data_provider_id', JD_ID)
+          .neq('cliente', 'Média Porteira')
+
+        if (filters.cliente)    query = query.eq('cliente',    filters.cliente)
+        if (filters.processo)   query = query.eq('processo',   filters.processo)
+        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
+        if (filters.safra)      query = query.eq('safra',      filters.safra)
+        if (filters.dataInicio) query = query.gte('data',      filters.dataInicio)
+        if (filters.dataFim)    query = query.lte('data',      filters.dataFim)
+
+        let all = [], from = 0
+        while (true) {
+          const { data: page, error: err } = await query.range(from, from + 999)
+          if (err) throw err
+          all = all.concat(page)
+          if (page.length < 1000) break
+          from += 1000
+        }
+
+        if (all.length === 0) { setMetricas(null); return }
+
+        const PESO = {
+          rendimento_operacional_hah: 'tempo_efetivo_h',
+          velocidade_media_kmh:       'tempo_efetivo_h',
+          consumo_medio_lh:           'tempo_total_h',
+          consumo_medio_lha:          'area_ha',
+          area_por_linha_ha:          'area_ha',
+        }
+
+        const result = {}
+        for (const [metrica, peso] of Object.entries(PESO)) {
+          let sumProd = 0, sumPeso = 0
+          for (const row of all) {
+            const v = row[metrica]; const w = row[peso]
+            if (v != null && w != null && w > 0) { sumProd += v * w; sumPeso += w }
+          }
+          result[metrica] = sumPeso > 0 ? sumProd / sumPeso : 0
+        }
+
+        // JD: equipamento_cod é vazio — usa equipamento como identificador de máquina
+        const equipDays = new Set(all.map(r => `${r.data}|||${r.equipamento_cod || r.equipamento}`))
+        result['tempo_medio_turno_h'] = equipDays.size > 0
+          ? all.reduce((s, r) => s + (r.tempo_total_h ?? 0), 0) / equipDays.size
+          : 0
+
+        setMetricas(result)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetch()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(filters)])
+
+  return { metricas, loading, error }
+}
+
+// Agrega métricas de todos os clientes JD — fornece grupo, pior e melhor para limiares de zona.
+export function useAllClientesBenchmarkJD(filters = {}) {
+  const [data, setData]     = useState([])
+  const [loading, setLoading] = useState(true)
+  const JD_ID = '6731a094-8f65-472f-95f5-655d1303a72f'
+
+  useEffect(() => {
+    async function fetch() {
+      setLoading(true)
+      try {
+        let query = supabase
+          .from('dashboard_operational_view')
+          .select('cliente,equipamento,equipamento_cod,data,rendimento_operacional_hah,velocidade_media_kmh,consumo_medio_lh,consumo_medio_lha,area_por_linha_ha,tempo_efetivo_h,tempo_total_h,area_ha')
+          .eq('data_provider_id', JD_ID)
+          .neq('cliente', 'Média Porteira')
+
+        if (filters.processo)   query = query.eq('processo',   filters.processo)
+        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
+        if (filters.safra)      query = query.eq('safra',      filters.safra)
+
+        let all = [], from = 0
+        while (true) {
+          const { data: page, error } = await query.range(from, from + 999)
+          if (error) throw error
+          all = all.concat(page)
+          if (page.length < 1000) break
+          from += 1000
+        }
+
+        const PESO = {
+          rendimento_operacional_hah: 'tempo_efetivo_h',
+          velocidade_media_kmh:       'tempo_efetivo_h',
+          consumo_medio_lh:           'tempo_total_h',
+          consumo_medio_lha:          'area_ha',
+          area_por_linha_ha:          'area_ha',
+        }
+
+        const byCliente = new Map()
+        for (const row of all) {
+          if (!row.cliente) continue
+          if (!byCliente.has(row.cliente)) byCliente.set(row.cliente, [])
+          byCliente.get(row.cliente).push(row)
+        }
+
+        const result = []
+        for (const [cliente, rows] of byCliente) {
+          const entry = { cliente }
+          for (const [metrica, peso] of Object.entries(PESO)) {
+            let sumProd = 0, sumPeso = 0
+            for (const row of rows) {
+              const v = row[metrica]; const w = row[peso]
+              if (v != null && w != null && w > 0) { sumProd += v * w; sumPeso += w }
+            }
+            entry[metrica] = sumPeso > 0 ? sumProd / sumPeso : null
+          }
+          // JD: equipamento_cod é vazio — usa equipamento como identificador de máquina
+          const equipDays = new Set(rows.map(r => `${r.data}|||${r.equipamento_cod || r.equipamento}`))
+          entry['tempo_medio_turno_h'] = equipDays.size > 0
+            ? rows.reduce((s, r) => s + (r.tempo_total_h ?? 0), 0) / equipDays.size
+            : null
+          result.push(entry)
+        }
+        setData(result)
+      } catch {
+        setData([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetch()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.processo, filters.tipo_safra, filters.safra])
+
+  return { data, loading }
 }
 
 // Busca dados de dois conjuntos de filtros em paralelo para comparativo de equipamentos
