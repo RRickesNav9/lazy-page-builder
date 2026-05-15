@@ -204,6 +204,23 @@ export function calcTimeDistribution(rows) {
   ].filter(d => d.value > 0)
 }
 
+// Remove sessões com consumo_medio_lh anormalmente alto vs. mediana da máquina na safra.
+// baseline: Map<equipamento_cod, { median, count }> — gerado por useMachineBaseline.
+// Sessões de máquinas sem baseline suficiente (< MIN_SESSIONS) passam sem filtro.
+const BREAKDOWN_MULTIPLIER  = 3.0
+const MIN_BASELINE_SESSIONS = 5
+
+export function applyBreakdownFilter(rows, baseline) {
+  if (!baseline || baseline.size === 0) return rows
+  return rows.filter(r => {
+    const ref = baseline.get(r.equipamento_cod)
+    if (!ref || ref.count < MIN_BASELINE_SESSIONS) return true
+    const consumo = parseFloat(r.consumo_medio_lh) || 0
+    if (!consumo) return true
+    return consumo <= ref.median * BREAKDOWN_MULTIPLIER
+  })
+}
+
 // Retorna cor semáforo baseada em performance vs benchmark
 export function semaphoreColor(value, benchmark, higherIsBetter = true) {
   if (!benchmark || !value) return 'text-zinc-400'

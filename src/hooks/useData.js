@@ -930,3 +930,63 @@ export function useEquipamentoComparativo(filterA, filterB) {
 
   return { dataA, dataB, loading, error }
 }
+
+const SOLINFTEC_ID = '4303d3d1-b62b-4a03-850a-bb87e797f013'
+
+// Calcula mediana de consumo_medio_lh por equipamento_cod ao longo da safra inteira (Solinftec).
+// Usado pelo modo "Detalhado" para identificar sessões de quebra vs. operação normal.
+// Retorna Map<equipamento_cod, { median: number, count: number }>.
+export function useMachineBaseline(safra, enabled = false) {
+  const [baseline, setBaseline] = useState(new Map())
+  const [loading, setLoading]   = useState(false)
+
+  useEffect(() => {
+    if (!enabled || !safra) { setBaseline(new Map()); return }
+
+    async function fetch() {
+      setLoading(true)
+      const startYear = parseInt(safra.split('/')[0])
+      const dataInicio = `${startYear}-06-01`
+      const dataFim    = `${startYear + 1}-05-31`
+
+      let all = [], from = 0
+      while (true) {
+        const { data } = await supabase
+          .from('operational_records')
+          .select('equipamento_cod, consumo_medio_lh')
+          .eq('data_provider_id', SOLINFTEC_ID)
+          .gte('data', dataInicio)
+          .lte('data', dataFim)
+          .gt('consumo_medio_lh', 0)
+          .range(from, from + 999)
+        if (!data?.length) break
+        all = all.concat(data)
+        if (data.length < 1000) break
+        from += 1000
+      }
+
+      const byMachine = {}
+      for (const row of all) {
+        if (!row.equipamento_cod) continue
+        if (!byMachine[row.equipamento_cod]) byMachine[row.equipamento_cod] = []
+        byMachine[row.equipamento_cod].push(parseFloat(row.consumo_medio_lh))
+      }
+
+      const map = new Map()
+      for (const [cod, vals] of Object.entries(byMachine)) {
+        const sorted = vals.sort((a, b) => a - b)
+        const mid    = Math.floor(sorted.length / 2)
+        const median = sorted.length % 2 !== 0
+          ? sorted[mid]
+          : (sorted[mid - 1] + sorted[mid]) / 2
+        map.set(cod, { median, count: sorted.length })
+      }
+
+      setBaseline(map)
+      setLoading(false)
+    }
+    fetch()
+  }, [safra, enabled])
+
+  return { baseline, loading }
+}

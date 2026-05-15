@@ -513,7 +513,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
               </div>
               <p style={{ fontSize: 11, color: '#6b6560', margin: 0 }}>
                 {pending.filterMode === 'detalhado'
-                  ? 'Exclui sessões sem área trabalhada e sem consumo registrado.'
+                  ? 'Remove sessões com consumo/hora anormal vs. o histórico da safra da máquina (indicativo de quebra).'
                   : 'Dados brutos — todas as sessões incluídas.'}
               </p>
             </div>

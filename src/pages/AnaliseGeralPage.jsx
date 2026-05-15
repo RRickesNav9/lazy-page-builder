@@ -1,8 +1,8 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { useFilters } from '../lib/FilterContext'
-import { useOperationalData, useStopData, useGrupoBenchmark } from '../hooks/useData'
+import { useOperationalData, useStopData, useGrupoBenchmark, useMachineBaseline } from '../hooks/useData'
 import {
-  aggregateRows, groupBy, applyStopExclusions, calcTimeDistribution, calcStopDistribution,
+  aggregateRows, groupBy, applyStopExclusions, applyBreakdownFilter, calcTimeDistribution, calcStopDistribution,
   fmtHah, fmtHa, fmtKmh, fmtPct, fmtH, fmtLh, fmt,
 } from '../lib/utils'
 
@@ -683,7 +683,20 @@ export default function AnaliseGeralPage() {
     tipo_safra: queryFilters.tipos_safra?.[0],
   })
 
-  const data = useMemo(() => applyStopExclusions(raw, stopRows, excludedMotivos), [raw, stopRows, excludedMotivos])
+  const isDetalhado = filters.filterMode === 'detalhado'
+  const { baseline } = useMachineBaseline(currentSafra, isDetalhado)
+
+  const data = useMemo(() => {
+    let rows = applyStopExclusions(raw, stopRows, excludedMotivos)
+    if (isDetalhado) rows = applyBreakdownFilter(rows, baseline)
+    return rows
+  }, [raw, stopRows, excludedMotivos, isDetalhado, baseline])
+
+  const breakdownRemovedCount = useMemo(() => {
+    if (!isDetalhado || baseline.size === 0) return 0
+    const withStop = applyStopExclusions(raw, stopRows, excludedMotivos)
+    return withStop.length - data.length
+  }, [raw, stopRows, excludedMotivos, isDetalhado, baseline, data])
 
   // Filtro de métrica: mantém apenas sessões de equipamentos cuja média agregada passa o limiar
   const filteredData = useMemo(() => {
@@ -842,6 +855,13 @@ export default function AnaliseGeralPage() {
       {metricFilter?.field && metricFilter?.value !== '' && metricFilter?.value != null && (
         <div style={{ background: '#edf5ed', border: '1px solid #4a6741', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#1e4d1e' }}>
           Filtro de métrica: {METRIC_FILTER_LABELS[metricFilter.field] ?? metricFilter.field} {metricFilter.operator} {metricFilter.value} — {equipRows.length} equipamento(s) exibido(s)
+        </div>
+      )}
+
+      {/* Banner de sessões de quebra removidas pelo modo Detalhado */}
+      {breakdownRemovedCount > 0 && (
+        <div style={{ background: '#fdf0f0', border: '1px solid #c0392b', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#8b2020' }}>
+          {breakdownRemovedCount} sess{breakdownRemovedCount === 1 ? 'ão removida' : 'ões removidas'} por consumo anormal (possível quebra de máquina) — modo Detalhado ativo
         </div>
       )}
 
