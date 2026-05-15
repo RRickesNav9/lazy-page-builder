@@ -152,7 +152,8 @@ export function useFilterOptions() {
 // Retorna as linhas brutas de dashboard_filter_options para filtros cascateados no FAB.
 // Cada linha é uma combinação distinta de (cliente, propriedade, processo, tipo_safra).
 // solinftecOnly=true exclui linhas do provider John Deere.
-export function useFilterOptionsRaw(solinftecOnly = false) {
+// dateRange filtra pelo período pending — garante que opções refletem o intervalo selecionado.
+export function useFilterOptionsRaw(solinftecOnly = false, dateRange = {}) {
   const [rawRows, setRawRows] = useState([])
   const [loading, setLoading] = useState(true)
   const JD_ID = '6731a094-8f65-472f-95f5-655d1303a72f'
@@ -162,13 +163,15 @@ export function useFilterOptionsRaw(solinftecOnly = false) {
       let query = supabase
         .from('dashboard_filter_options')
         .select('cliente, propriedade, processo, tipo_safra')
-      if (solinftecOnly) query = query.neq('data_provider_id', JD_ID)
+      if (solinftecOnly)        query = query.neq('data_provider_id', JD_ID)
+      if (dateRange.dataInicio) query = query.gte('data', dateRange.dataInicio)
+      if (dateRange.dataFim)    query = query.lte('data', dateRange.dataFim)
       const { data } = await query
       if (data) setRawRows(data)
       setLoading(false)
     }
     fetch()
-  }, [solinftecOnly])
+  }, [solinftecOnly, dateRange.dataInicio, dateRange.dataFim])
 
   return { rawRows, loading }
 }

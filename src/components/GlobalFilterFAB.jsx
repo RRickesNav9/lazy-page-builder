@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useFilters } from '../lib/FilterContext'
+import { useFilters, dateRangeForPeriodo } from '../lib/FilterContext'
 import { useFilterOptionsRaw, useStopMotivos } from '../hooks/useData'
 
 
@@ -41,8 +41,6 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
   const { filters, applyFilters } = useFilters()
   // true quando a seção é aplicável nesta página (ausente = visível por padrão)
   const show = (key) => visibleFilters[key] !== false
-  const { rawRows } = useFilterOptionsRaw(solinftecOnly)
-  const motivos     = useStopMotivos()
 
   const [expanded,     setExpanded]     = useState(false)
   const [open,         setOpen]         = useState(false)
@@ -50,6 +48,18 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
   const [motivosOpen,  setMotivosOpen]  = useState(false)
   const [motivoSearch, setMotivoSearch] = useState('')
   const panelRef = useRef(null)
+
+  // Range de datas do estado pending — atualiza em tempo real enquanto o usuário
+  // navega pelas opções do painel, antes de clicar em Aplicar
+  const pendingDateRange = useMemo(() => {
+    if (pending.periodo === 'custom') {
+      return { dataInicio: pending.dataInicio, dataFim: pending.dataFim }
+    }
+    return dateRangeForPeriodo(pending.periodo)
+  }, [pending.periodo, pending.dataInicio, pending.dataFim])
+
+  const { rawRows } = useFilterOptionsRaw(solinftecOnly, pendingDateRange)
+  const motivos     = useStopMotivos()
 
   function toggleExpanded() {
     setExpanded(e => {

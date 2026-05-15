@@ -15,7 +15,7 @@ export const DEFAULT_FILTERS = {
   filterMode: 'padrao',
 }
 
-function dateRangeForPeriodo(periodo) {
+export function dateRangeForPeriodo(periodo) {
   const end = new Date()
   const start = new Date()
   if (periodo === 'ontem') {
