@@ -68,7 +68,7 @@ body {
 
 @page {
   size: A4 portrait;
-  margin: 15mm;
+  margin: 0; /* zera margem para suprimir URL/título do browser no rodapé/cabeçalho */
 }
 
 @media print {
@@ -79,6 +79,7 @@ body {
   /* ── Corpo ────────────────────────────────────────────────────────────────── */
   body {
     margin: 0;
+    padding: 15mm; /* espaçamento que antes era a margem do @page */
     background: #fff !important;
     font-family: 'Inter', system-ui, sans-serif;
   }
