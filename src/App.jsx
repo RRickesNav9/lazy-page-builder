@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import logoPorteira from './assets/logo-porteira.svg'
 import { FilterProvider, useFilters } from './lib/FilterContext'
 import GlobalFilterFAB from './components/GlobalFilterFAB'
@@ -116,18 +116,36 @@ function AppInner({ onLogout }) {
     return null
   }, [activePage, benchTab])
 
-  // Ao trocar página ou aba, remove processos selecionados que não são permitidos
+  const prevSolinftecOnly = useRef(solinftecOnly)
+
+  // Ao trocar página ou aba: remove processos não permitidos e limpa dimensões ao
+  // mudar entre contextos solinftec-only e all-providers (evita "sem dados" cross-página)
   useEffect(() => {
-    if (!filters.processos?.length) return
-    const remaining = filters.processos.filter(proc => {
-      const p = proc.toLowerCase()
-      const blockedByAllowed  = allowedProcessos  && !allowedProcessos.some(a => a.toLowerCase() === p)
-      const blockedByExcluded = excludedProcessos &&  excludedProcessos.some(a => a.toLowerCase() === p)
-      return !blockedByAllowed && !blockedByExcluded
-    })
-    if (remaining.length !== filters.processos.length) {
-      applyFilters({ ...filters, processos: remaining })
+    const contextChanged = prevSolinftecOnly.current !== solinftecOnly
+    prevSolinftecOnly.current = solinftecOnly
+
+    let updated = { ...filters }
+    let changed = false
+
+    if (contextChanged && (filters.clientes.length || filters.propriedades.length || filters.tipos_safra.length)) {
+      updated = { ...updated, clientes: [], propriedades: [], tipos_safra: [] }
+      changed = true
     }
+
+    if (filters.processos?.length) {
+      const remaining = filters.processos.filter(proc => {
+        const p = proc.toLowerCase()
+        const blockedByAllowed  = allowedProcessos  && !allowedProcessos.some(a => a.toLowerCase() === p)
+        const blockedByExcluded = excludedProcessos &&  excludedProcessos.some(a => a.toLowerCase() === p)
+        return !blockedByAllowed && !blockedByExcluded
+      })
+      if (remaining.length !== filters.processos.length) {
+        updated = { ...updated, processos: remaining }
+        changed = true
+      }
+    }
+
+    if (changed) applyFilters(updated)
   }, [activePage, benchTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
