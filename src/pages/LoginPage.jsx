@@ -93,7 +93,7 @@ export default function LoginPage({ authError }) {
 
         {/* Rodapé */}
         <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.02em' }}>
-          © {new Date().getFullYear()} · Uso interno
+          © {new Date().getFullYear()} · Porteira Adentro
         </div>
       </div>
 
@@ -152,7 +152,7 @@ export default function LoginPage({ authError }) {
           )}
 
           <div style={{ fontSize: 11, color: '#b0aaa4', lineHeight: 1.6 }}>
-            Acesso restrito · uso interno
+            Acesso restrito · Porteira Adentro
           </div>
         </div>
       </div>

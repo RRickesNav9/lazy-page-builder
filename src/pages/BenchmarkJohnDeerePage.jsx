@@ -15,7 +15,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'rendimento_operacional_hah',
     label: 'Rendimento Operacional',
-    sub: 'ha/h · maior é melhor',
+    sub: 'ha/h',
     fmt: (v) => (v != null && v > 0) ? v.toFixed(2) : '—',
     higherIsBetter: true,
     isPct: false,
@@ -23,7 +23,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'velocidade_media_kmh',
     label: 'Velocidade Média',
-    sub: 'km/h · maior é melhor',
+    sub: 'km/h',
     fmt: (v) => (v != null && v > 0) ? v.toFixed(2) : '—',
     higherIsBetter: true,
     isPct: false,
@@ -31,7 +31,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'consumo_medio_lh',
     label: 'Consumo Médio',
-    sub: 'L/h · menor é melhor',
+    sub: 'L/h',
     fmt: (v) => (v != null && v > 0) ? v.toFixed(2) : '—',
     higherIsBetter: false,
     isPct: false,
@@ -39,7 +39,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'consumo_medio_lha',
     label: 'Consumo L/ha',
-    sub: 'L/ha · menor é melhor',
+    sub: 'L/ha',
     fmt: (v) => (v != null && v > 0) ? v.toFixed(2) : '—',
     higherIsBetter: false,
     isPct: false,
@@ -47,7 +47,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'area_por_linha_ha',
     label: 'Área por Linha',
-    sub: 'ha · apenas Plantio · maior é melhor',
+    sub: 'ha · apenas Plantio',
     fmt: (v) => (v != null && v > 0) ? v.toFixed(4) : '—',
     higherIsBetter: true,
     isPct: false,
@@ -55,7 +55,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'tempo_medio_turno_h',
     label: 'Tempo Médio de Turno',
-    sub: 'h/equip/dia · maior é melhor',
+    sub: 'h/equip/dia',
     fmt: (v) => (v != null && v > 0) ? v.toFixed(1) + 'h' : '—',
     higherIsBetter: true,
     isPct: false,

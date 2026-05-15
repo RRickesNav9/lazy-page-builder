@@ -15,7 +15,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'rendimento_operacional_hah',
     label: 'Rendimento Operacional',
-    sub: 'ha/h · maior é melhor',
+    sub: 'ha/h',
     fmt: (v) => v.toFixed(2),
     higherIsBetter: true,
     isPct: false,
@@ -23,7 +23,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'rendimento_real_hah',
     label: 'Rendimento Real',
-    sub: 'ha/h · maior é melhor',
+    sub: 'ha/h',
     fmt: (v) => v.toFixed(2),
     higherIsBetter: true,
     isPct: false,
@@ -31,7 +31,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'velocidade_media_kmh',
     label: 'Velocidade Média Op.',
-    sub: 'km/h · maior é melhor',
+    sub: 'km/h',
     fmt: (v) => v.toFixed(2),
     higherIsBetter: true,
     isPct: false,
@@ -39,7 +39,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'eficiencia_geral_pct',
     label: 'Eficiência Geral',
-    sub: '% · maior é melhor',
+    sub: '%',
     fmt: (v) => v.toFixed(2) + '%',
     higherIsBetter: true,
     isPct: true,
@@ -47,7 +47,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'eficiencia_operacional_pct',
     label: 'Eficiência Operacional',
-    sub: '% · maior é melhor',
+    sub: '%',
     fmt: (v) => v.toFixed(2) + '%',
     higherIsBetter: true,
     isPct: true,
@@ -55,7 +55,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'disponibilidade_mecanica_pct',
     label: 'Disponibilidade Mecânica',
-    sub: '% · maior é melhor',
+    sub: '%',
     fmt: (v) => v.toFixed(2) + '%',
     higherIsBetter: true,
     isPct: true,
@@ -63,7 +63,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'consumo_medio_efetivo_lha',
     label: 'Consumo Efetivo Médio',
-    sub: 'L/ha · menor é melhor',
+    sub: 'L/ha',
     fmt: (v) => v.toFixed(2),
     higherIsBetter: false,
     isPct: false,
@@ -71,7 +71,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'consumo_medio_lha',
     label: 'Consumo Médio',
-    sub: 'L/ha · menor é melhor',
+    sub: 'L/ha',
     fmt: (v) => v.toFixed(2),
     higherIsBetter: false,
     isPct: false,
@@ -79,7 +79,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'consumo_medio_lh',
     label: 'Consumo Médio',
-    sub: 'L/h · menor é melhor',
+    sub: 'L/h',
     fmt: (v) => v.toFixed(2),
     higherIsBetter: false,
     isPct: false,
@@ -87,7 +87,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'consumo_medio_efetivo_lh',
     label: 'Consumo Efetivo',
-    sub: 'L/h · menor é melhor',
+    sub: 'L/h',
     fmt: (v) => v.toFixed(2),
     higherIsBetter: false,
     isPct: false,
@@ -95,7 +95,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'motor_ligado_pct',
     label: 'Motor Ligado',
-    sub: '% do total · maior é melhor',
+    sub: '% do total',
     fmt: (v) => v.toFixed(2) + '%',
     higherIsBetter: true,
     isPct: true,
@@ -103,7 +103,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'motor_ocioso_pct',
     label: 'Motor Ocioso',
-    sub: '% do motor ligado · menor é melhor',
+    sub: '% do motor ligado',
     fmt: (v) => v.toFixed(2) + '%',
     higherIsBetter: false,
     isPct: true,
@@ -111,7 +111,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'sem_apontamento_pct',
     label: 'Sem Apontamento',
-    sub: '% da parada · menor é melhor',
+    sub: '% da parada',
     fmt: (v) => v.toFixed(2) + '%',
     higherIsBetter: false,
     isPct: true,
@@ -127,7 +127,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'area_por_linha_ha',
     label: 'Área por Linha',
-    sub: 'ha · plantio · maior é melhor',
+    sub: 'ha · plantio',
     fmt: (v) => v != null ? v.toFixed(4) : '—',
     higherIsBetter: true,
     isPct: false,
@@ -135,7 +135,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'pes_plataforma_24h',
     label: 'Pés Plat. por 24h',
-    sub: 'ha/linha/dia · plantio · maior é melhor',
+    sub: 'ha/linha/dia · plantio',
     fmt: (v) => v != null && v > 0 ? v.toFixed(3) : '—',
     higherIsBetter: true,
     isPct: false,
@@ -143,7 +143,7 @@ const ALL_METRICAS_CONFIG = [
   {
     key: 'tempo_medio_turno_h',
     label: 'Tempo Médio de Turno',
-    sub: 'h/equip/dia · maior é melhor',
+    sub: 'h/equip/dia',
     fmt: (v) => v.toFixed(1) + 'h',
     higherIsBetter: true,
     isPct: false,

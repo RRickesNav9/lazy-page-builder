@@ -13,21 +13,21 @@ import MetricSelectorFAB from '../components/MetricSelectorFAB'
 // Apenas métricas não-absolutas — comparáveis entre equipamentos e contextos distintos.
 // Métricas absolutas (area_ha, tempo_total_h, etc.) são excluídas por não serem comparáveis.
 const ALL_METRICAS_CONFIG = [
-  { key: 'rendimento_operacional_hah',   label: 'Rendimento Operacional',   sub: 'ha/h · maior é melhor',              fmtFn: fmtHah,                    modeloKey: 'rendimento_operacional_hah_modelo',   higherIsBetter: true,  isPct: false },
-  { key: 'rendimento_real_hah',          label: 'Rendimento Real',          sub: 'ha/h · maior é melhor',              fmtFn: fmtHah,                    modeloKey: 'rendimento_real_hah_modelo',          higherIsBetter: true,  isPct: false },
-  { key: 'velocidade_media_kmh',         label: 'Velocidade Média',         sub: 'km/h · maior é melhor',              fmtFn: fmtKmh,                    modeloKey: 'velocidade_media_kmh_modelo',         higherIsBetter: true,  isPct: false },
-  { key: 'eficiencia_geral_pct',         label: 'Eficiência Geral',         sub: '% · maior é melhor',                 fmtFn: fmtPct,                    modeloKey: 'eficiencia_geral_pct_modelo',         higherIsBetter: true,  isPct: true  },
-  { key: 'eficiencia_operacional_pct',   label: 'Eficiência Operacional',   sub: '% · maior é melhor',                 fmtFn: fmtPct,                    modeloKey: 'eficiencia_operacional_pct_modelo',   higherIsBetter: true,  isPct: true  },
-  { key: 'disponibilidade_mecanica_pct', label: 'Disponibilidade Mecânica', sub: '% · maior é melhor',                 fmtFn: fmtPct,                    modeloKey: 'disponibilidade_mecanica_pct_modelo', higherIsBetter: true,  isPct: true  },
-  { key: 'consumo_medio_lha',            label: 'Consumo Médio',            sub: 'L/ha · menor é melhor',              fmtFn: (v) => fmt(v, 1, ' L/ha'), modeloKey: 'consumo_medio_lha_modelo',            higherIsBetter: false, isPct: false },
-  { key: 'consumo_medio_lh',             label: 'Consumo Médio',            sub: 'L/h · menor é melhor',               fmtFn: fmtLh,                     modeloKey: 'consumo_medio_lh_modelo',             higherIsBetter: false, isPct: false },
-  { key: 'consumo_medio_efetivo_lha',    label: 'Consumo Efetivo Médio',    sub: 'L/ha · menor é melhor',              fmtFn: (v) => fmt(v, 1, ' L/ha'), modeloKey: 'consumo_medio_efetivo_lha_modelo',    higherIsBetter: false, isPct: false },
-  { key: 'consumo_medio_efetivo_lh',     label: 'Consumo Efetivo',          sub: 'L/h · menor é melhor',               fmtFn: (v) => fmt(v, 1, ' L/h'),  modeloKey: 'consumo_medio_efetivo_lh_modelo',     higherIsBetter: false, isPct: false },
-  { key: 'motor_ligado_pct',             label: 'Motor Ligado',             sub: '% do total · maior é melhor',        fmtFn: fmtPct,                    modeloKey: 'motor_ligado_pct_modelo',             higherIsBetter: true,  isPct: true  },
-  { key: 'motor_ocioso_pct',             label: 'Motor Ocioso',             sub: '% do motor ligado · menor é melhor', fmtFn: fmtPct,                    modeloKey: 'motor_ocioso_pct_modelo',             higherIsBetter: false, isPct: true  },
-  { key: 'sem_apontamento_pct',          label: 'Sem Apontamento',          sub: '% da parada · menor é melhor',       fmtFn: fmtPct,                    modeloKey: 'sem_apontamento_pct_modelo',          higherIsBetter: false, isPct: true  },
+  { key: 'rendimento_operacional_hah',   label: 'Rendimento Operacional',   sub: 'ha/h',              fmtFn: fmtHah,                    modeloKey: 'rendimento_operacional_hah_modelo',   higherIsBetter: true,  isPct: false },
+  { key: 'rendimento_real_hah',          label: 'Rendimento Real',          sub: 'ha/h',              fmtFn: fmtHah,                    modeloKey: 'rendimento_real_hah_modelo',          higherIsBetter: true,  isPct: false },
+  { key: 'velocidade_media_kmh',         label: 'Velocidade Média',         sub: 'km/h',              fmtFn: fmtKmh,                    modeloKey: 'velocidade_media_kmh_modelo',         higherIsBetter: true,  isPct: false },
+  { key: 'eficiencia_geral_pct',         label: 'Eficiência Geral',         sub: '%',                 fmtFn: fmtPct,                    modeloKey: 'eficiencia_geral_pct_modelo',         higherIsBetter: true,  isPct: true  },
+  { key: 'eficiencia_operacional_pct',   label: 'Eficiência Operacional',   sub: '%',                 fmtFn: fmtPct,                    modeloKey: 'eficiencia_operacional_pct_modelo',   higherIsBetter: true,  isPct: true  },
+  { key: 'disponibilidade_mecanica_pct', label: 'Disponibilidade Mecânica', sub: '%',                 fmtFn: fmtPct,                    modeloKey: 'disponibilidade_mecanica_pct_modelo', higherIsBetter: true,  isPct: true  },
+  { key: 'consumo_medio_lha',            label: 'Consumo Médio',            sub: 'L/ha',              fmtFn: (v) => fmt(v, 1, ' L/ha'), modeloKey: 'consumo_medio_lha_modelo',            higherIsBetter: false, isPct: false },
+  { key: 'consumo_medio_lh',             label: 'Consumo Médio',            sub: 'L/h',               fmtFn: fmtLh,                     modeloKey: 'consumo_medio_lh_modelo',             higherIsBetter: false, isPct: false },
+  { key: 'consumo_medio_efetivo_lha',    label: 'Consumo Efetivo Médio',    sub: 'L/ha',              fmtFn: (v) => fmt(v, 1, ' L/ha'), modeloKey: 'consumo_medio_efetivo_lha_modelo',    higherIsBetter: false, isPct: false },
+  { key: 'consumo_medio_efetivo_lh',     label: 'Consumo Efetivo',          sub: 'L/h',               fmtFn: (v) => fmt(v, 1, ' L/h'),  modeloKey: 'consumo_medio_efetivo_lh_modelo',     higherIsBetter: false, isPct: false },
+  { key: 'motor_ligado_pct',             label: 'Motor Ligado',             sub: '% do total',        fmtFn: fmtPct,                    modeloKey: 'motor_ligado_pct_modelo',             higherIsBetter: true,  isPct: true  },
+  { key: 'motor_ocioso_pct',             label: 'Motor Ocioso',             sub: '% do motor ligado', fmtFn: fmtPct,                    modeloKey: 'motor_ocioso_pct_modelo',             higherIsBetter: false, isPct: true  },
+  { key: 'sem_apontamento_pct',          label: 'Sem Apontamento',          sub: '% da parada',       fmtFn: fmtPct,                    modeloKey: 'sem_apontamento_pct_modelo',          higherIsBetter: false, isPct: true  },
   { key: 'rpm_medio',                    label: 'RPM Médio',                sub: 'RPM · referência por processo',      fmtFn: (v) => fmt(v, 0, ' rpm'),  modeloKey: 'rpm_medio_modelo',                   higherIsBetter: null,  isPct: false },
-  { key: 'area_por_linha_ha',            label: 'Área por Linha',           sub: 'ha · plantio · maior é melhor',      fmtFn: (v) => fmt(v, 4, ' ha'),   modeloKey: 'area_por_linha_ha_modelo',            higherIsBetter: true,  isPct: false },
+  { key: 'area_por_linha_ha',            label: 'Área por Linha',           sub: 'ha · plantio',      fmtFn: (v) => fmt(v, 4, ' ha'),   modeloKey: 'area_por_linha_ha_modelo',            higherIsBetter: true,  isPct: false },
 ]
 
 const DEFAULT_SELECTED_METRICS = new Set([
