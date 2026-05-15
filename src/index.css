@@ -79,7 +79,7 @@ body {
   /* ── Corpo ────────────────────────────────────────────────────────────────── */
   body {
     margin: 0;
-    padding: 15mm; /* espaçamento que antes era a margem do @page */
+    padding: 0 0 4mm 0;
     background: #fff !important;
     font-family: 'Inter', system-ui, sans-serif;
   }
