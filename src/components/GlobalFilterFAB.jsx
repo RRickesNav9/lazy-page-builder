@@ -37,8 +37,10 @@ const TIPO_PARADA_COLOR = {
   SEM_APONTAMENTO: '#6b7280',
 }
 
-export default function GlobalFilterFAB({ allowedProcessos = null, excludedProcessos = null, solinftecOnly = false }) {
-  const { filters, applyFilters, activeCount } = useFilters()
+export default function GlobalFilterFAB({ allowedProcessos = null, excludedProcessos = null, solinftecOnly = false, visibleFilters = {} }) {
+  const { filters, applyFilters } = useFilters()
+  // true quando a seção é aplicável nesta página (ausente = visível por padrão)
+  const show = (key) => visibleFilters[key] !== false
   const { rawRows } = useFilterOptionsRaw(solinftecOnly)
   const motivos     = useStopMotivos()
 
@@ -73,19 +75,19 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
   // compatíveis com todas as OUTRAS dimensões já selecionadas no painel.
   const cascadedOpts = useMemo(() => {
     const filter = (excludeDim) => pageRows.filter(r => {
-      if (excludeDim !== 'cliente'     && pending.cliente     && r.cliente     !== pending.cliente)     return false
-      if (excludeDim !== 'propriedade' && pending.propriedade && r.propriedade !== pending.propriedade) return false
-      if (excludeDim !== 'processo'    && pending.processo    && r.processo    !== pending.processo)    return false
-      if (excludeDim !== 'tipo_safra'  && pending.tipo_safra  && r.tipo_safra  !== pending.tipo_safra)  return false
+      if (excludeDim !== 'clientes'     && pending.clientes.length     && !pending.clientes.includes(r.cliente))       return false
+      if (excludeDim !== 'propriedades' && pending.propriedades.length && !pending.propriedades.includes(r.propriedade)) return false
+      if (excludeDim !== 'processos'    && pending.processos.length    && !pending.processos.includes(r.processo))      return false
+      if (excludeDim !== 'tipos_safra'  && pending.tipos_safra.length  && !pending.tipos_safra.includes(r.tipo_safra))  return false
       return true
     })
     return {
-      clientes:    [...new Set(filter('cliente').map(r => r.cliente).filter(Boolean))].sort(),
-      propriedades:[...new Set(filter('propriedade').map(r => r.propriedade).filter(Boolean))].sort(),
-      processos:   [...new Set(filter('processo').map(r => r.processo).filter(Boolean))].sort(),
-      tipos_safra: [...new Set(filter('tipo_safra').map(r => r.tipo_safra).filter(Boolean))].sort(),
+      clientes:    [...new Set(filter('clientes').map(r => r.cliente).filter(Boolean))].sort(),
+      propriedades:[...new Set(filter('propriedades').map(r => r.propriedade).filter(Boolean))].sort(),
+      processos:   [...new Set(filter('processos').map(r => r.processo).filter(Boolean))].sort(),
+      tipos_safra: [...new Set(filter('tipos_safra').map(r => r.tipo_safra).filter(Boolean))].sort(),
     }
-  }, [pageRows, pending.cliente, pending.propriedade, pending.processo, pending.tipo_safra])
+  }, [pageRows, pending.clientes, pending.propriedades, pending.processos, pending.tipos_safra])
 
   // Abre o painel quando outro componente dispara o evento 'openFilterFAB'
   useEffect(() => {
@@ -103,13 +105,17 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
   useEffect(() => {
     if (!open) return
     const updates = {}
-    if (pending.cliente     && !cascadedOpts.clientes.includes(pending.cliente))         updates.cliente = ''
-    if (pending.propriedade && !cascadedOpts.propriedades.includes(pending.propriedade)) updates.propriedade = ''
-    if (pending.processo    && !cascadedOpts.processos.includes(pending.processo))       updates.processo = ''
-    if (pending.tipo_safra  && !cascadedOpts.tipos_safra.includes(pending.tipo_safra))   updates.tipo_safra = ''
+    const validClientes    = pending.clientes.filter(c => cascadedOpts.clientes.includes(c))
+    const validProprias    = pending.propriedades.filter(p => cascadedOpts.propriedades.includes(p))
+    const validProcessos   = pending.processos.filter(p => cascadedOpts.processos.includes(p))
+    const validTipos       = pending.tipos_safra.filter(t => cascadedOpts.tipos_safra.includes(t))
+    if (validClientes.length  !== pending.clientes.length)     updates.clientes    = validClientes
+    if (validProprias.length  !== pending.propriedades.length) updates.propriedades = validProprias
+    if (validProcessos.length !== pending.processos.length)    updates.processos   = validProcessos
+    if (validTipos.length     !== pending.tipos_safra.length)  updates.tipos_safra = validTipos
     if (Object.keys(updates).length > 0) setPending(p => ({ ...p, ...updates }))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending.cliente, pending.propriedade, pending.processo, pending.tipo_safra, open])
+  }, [pending.clientes, pending.propriedades, pending.processos, pending.tipos_safra, open])
 
   useEffect(() => {
     if (!open) return
@@ -136,10 +142,11 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
   function handleClear() {
     const cleared = {
       periodo: '7dias', dataInicio: null, dataFim: null,
-      cliente: '', propriedade: '', processo: '', tipo_safra: '',
+      clientes: [], propriedades: [], processos: [], tipos_safra: [],
       excludedMotivos: [],
       showGroupAvg: false,
       metricFilter: { field: '', operator: '>=', value: '' },
+      filterMode: 'padrao',
     }
     setPending(cleared); applyFilters(cleared); setOpen(false)
   }
@@ -157,6 +164,22 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
   }, [motivos, motivoSearch])
 
   const nExcluded = pending.excludedMotivos.length
+
+  // Conta apenas filtros visíveis na página atual para o badge do FAB
+  const pageActiveCount = useMemo(() => {
+    let c = 0
+    if (filters.periodo !== '7dias') c++
+    if (show('cliente')         && filters.clientes.length)        c++
+    if (show('propriedade')     && filters.propriedades.length)    c++
+    if (show('processo')        && filters.processos.length)       c++
+    if (show('cultura')         && filters.tipos_safra.length)     c++
+    if (show('excludedMotivos') && filters.excludedMotivos.length) c++
+    if (show('showGroupAvg')    && filters.showGroupAvg)           c++
+    if (show('metricFilter')    && filters.metricFilter?.field)    c++
+    if (solinftecOnly           && filters.filterMode !== 'padrao') c++
+    return c
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, visibleFilters, solinftecOnly])
 
   const fabBase = {
     position: 'fixed', right: 24, zIndex: 1000,
@@ -190,7 +213,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
           data-pdf-exclude="true"
           style={{
             ...fabBase, bottom: 84,
-            background: activeCount > 0 ? '#2d4a2d' : '#4a6741',
+            background: pageActiveCount > 0 ? '#2d4a2d' : '#4a6741',
             color: '#fff',
           }}
           title="Filtros"
@@ -198,7 +221,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
           </svg>
-          {activeCount > 0 && (
+          {pageActiveCount > 0 && (
             <span style={{
               position: 'absolute', top: -4, right: -4,
               width: 18, height: 18, borderRadius: '50%',
@@ -206,7 +229,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
               fontSize: 10, fontWeight: 700,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              {activeCount}
+              {pageActiveCount}
             </span>
           )}
         </button>
@@ -270,90 +293,102 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
           )}
 
           {/* ── Dimensões ────────────────────────────────────────────── */}
-          <Label>Cliente</Label>
-          <SearchableSelect
-            value={pending.cliente}
-            onChange={val => set('cliente', val)}
-            placeholder="Todos"
-            options={[{ value: '', label: 'Todos' }, ...cascadedOpts.clientes.map(c => ({ value: c, label: c }))]}
-          />
+          {show('cliente') && <>
+            <Label>Cliente</Label>
+            <MultiSelect
+              values={pending.clientes}
+              onChange={vals => set('clientes', vals)}
+              placeholder="Todos"
+              options={cascadedOpts.clientes.map(c => ({ value: c, label: c }))}
+            />
+          </>}
 
-          <Label>Propriedade</Label>
-          <SearchableSelect
-            value={pending.propriedade}
-            onChange={val => set('propriedade', val)}
-            placeholder="Todas"
-            options={[{ value: '', label: 'Todas' }, ...cascadedOpts.propriedades.map(p => ({ value: p, label: p }))]}
-          />
+          {show('propriedade') && <>
+            <Label>Propriedade</Label>
+            <MultiSelect
+              values={pending.propriedades}
+              onChange={vals => set('propriedades', vals)}
+              placeholder="Todas"
+              options={cascadedOpts.propriedades.map(p => ({ value: p, label: p }))}
+            />
+          </>}
 
-          <Label>Processo / Operação</Label>
-          <SearchableSelect
-            value={pending.processo}
-            onChange={val => set('processo', val)}
-            placeholder="Todos"
-            options={[{ value: '', label: 'Todos' }, ...cascadedOpts.processos.map(p => ({ value: p, label: p }))]}
-          />
+          {show('processo') && <>
+            <Label>Processo / Operação</Label>
+            <MultiSelect
+              values={pending.processos}
+              onChange={vals => set('processos', vals)}
+              placeholder="Todos"
+              options={cascadedOpts.processos.map(p => ({ value: p, label: p }))}
+            />
+          </>}
 
-          <Label>Cultura</Label>
-          <SearchableSelect
-            value={pending.tipo_safra}
-            onChange={val => set('tipo_safra', val)}
-            placeholder="Todas"
-            options={[{ value: '', label: 'Todas' }, ...cascadedOpts.tipos_safra.map(t => ({ value: t, label: t }))]}
-          />
+          {show('cultura') && <>
+            <Label>Cultura</Label>
+            <MultiSelect
+              values={pending.tipos_safra}
+              onChange={vals => set('tipos_safra', vals)}
+              placeholder="Todas"
+              options={cascadedOpts.tipos_safra.map(t => ({ value: t, label: t }))}
+            />
+          </>}
 
-          {/* ── Comparar com grupo ────────────────────────────────���──── */}
-          <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14, marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b6560' }}>Comparar com grupo</div>
-              <div style={{ fontSize: 11, color: '#8a9a85', marginTop: 2 }}>Referências na tabela e gráficos</div>
+          {/* ── Comparar com grupo ───────────────────────────────────── */}
+          {show('showGroupAvg') && (
+            <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14, marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b6560' }}>Comparar com grupo</div>
+                <div style={{ fontSize: 11, color: '#8a9a85', marginTop: 2 }}>Referências na tabela e gráficos</div>
+              </div>
+              <Toggle checked={pending.showGroupAvg ?? false} onChange={v => set('showGroupAvg', v)} />
             </div>
-            <Toggle checked={pending.showGroupAvg ?? false} onChange={v => set('showGroupAvg', v)} />
-          </div>
+          )}
 
           {/* ── Filtro de Métrica ─────────────────────────────────────── */}
-          <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14, marginBottom: 14 }}>
-            <Label>Filtrar por Métrica</Label>
-            <select
-              value={pending.metricFilter?.field ?? ''}
-              onChange={e => setPending(p => ({ ...p, metricFilter: { ...(p.metricFilter ?? {}), field: e.target.value, value: '' } }))}
-              style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, marginBottom: 8, color: '#1a1a1a', background: '#fff' }}
-            >
-              <option value="">Nenhum</option>
-              {METRIC_FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            {pending.metricFilter?.field && (
-              <div style={{ display: 'flex', gap: 6 }}>
-                <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9', flexShrink: 0 }}>
-                  {['>=', '<=', '='].map(op => (
-                    <button
-                      key={op}
-                      onClick={() => setPending(p => ({ ...p, metricFilter: { ...(p.metricFilter ?? {}), operator: op } }))}
-                      style={{
-                        padding: '6px 10px', fontSize: 12, border: 'none',
-                        background: (pending.metricFilter?.operator ?? '>=') === op ? '#2d4a2d' : '#fff',
-                        color: (pending.metricFilter?.operator ?? '>=') === op ? '#fff' : '#4a3728',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {op}
-                    </button>
-                  ))}
+          {show('metricFilter') && (
+            <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14, marginBottom: 14 }}>
+              <Label>Filtrar por Métrica</Label>
+              <select
+                value={pending.metricFilter?.field ?? ''}
+                onChange={e => setPending(p => ({ ...p, metricFilter: { ...(p.metricFilter ?? {}), field: e.target.value, value: '' } }))}
+                style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, marginBottom: 8, color: '#1a1a1a', background: '#fff' }}
+              >
+                <option value="">Nenhum</option>
+                {METRIC_FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              {pending.metricFilter?.field && (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9', flexShrink: 0 }}>
+                    {['>=', '<=', '='].map(op => (
+                      <button
+                        key={op}
+                        onClick={() => setPending(p => ({ ...p, metricFilter: { ...(p.metricFilter ?? {}), operator: op } }))}
+                        style={{
+                          padding: '6px 10px', fontSize: 12, border: 'none',
+                          background: (pending.metricFilter?.operator ?? '>=') === op ? '#2d4a2d' : '#fff',
+                          color: (pending.metricFilter?.operator ?? '>=') === op ? '#fff' : '#4a3728',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {op}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={pending.metricFilter?.value ?? ''}
+                    onChange={e => setPending(p => ({ ...p, metricFilter: { ...(p.metricFilter ?? {}), value: e.target.value } }))}
+                    placeholder="Valor..."
+                    style={{ flex: 1, padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13 }}
+                  />
                 </div>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={pending.metricFilter?.value ?? ''}
-                  onChange={e => setPending(p => ({ ...p, metricFilter: { ...(p.metricFilter ?? {}), value: e.target.value } }))}
-                  placeholder="Valor..."
-                  style={{ flex: 1, padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13 }}
-                />
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* ── Motivos de parada — dropdown com busca ───────────────── */}
-          {motivos.length > 0 && (
+          {show('excludedMotivos') && motivos.length > 0 && (
             <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <Label>Excluir Motivos de Parada</Label>
@@ -440,6 +475,26 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
             </div>
           )}
 
+          {/* ── Qualidade dos dados — só em páginas Solinftec ────────── */}
+          {solinftecOnly && (
+            <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14, marginBottom: 14 }}>
+              <Label>Qualidade dos dados</Label>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                <Chip active={pending.filterMode !== 'detalhado'} onClick={() => set('filterMode', 'padrao')}>
+                  Padrão
+                </Chip>
+                <Chip active={pending.filterMode === 'detalhado'} onClick={() => set('filterMode', 'detalhado')}>
+                  Detalhado
+                </Chip>
+              </div>
+              <p style={{ fontSize: 11, color: '#6b6560', margin: 0 }}>
+                {pending.filterMode === 'detalhado'
+                  ? 'Exclui sessões sem área trabalhada e sem consumo registrado.'
+                  : 'Dados brutos — todas as sessões incluídas.'}
+              </p>
+            </div>
+          )}
+
           <button
             onClick={handleApply}
             style={{
@@ -466,81 +521,87 @@ function Label({ children }) {
   )
 }
 
-// options: [{ value, label }] — primeiro item é sempre a opção "todos" (value='')
-// Usa onBlur+setTimeout em vez de document listener para não conflitar com o handler do painel.
-function SearchableSelect({ value, onChange, placeholder, options }) {
+// Multi-select com busca e checkboxes — permite selecionar N valores simultaneamente.
+function MultiSelect({ values, onChange, placeholder, options }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const inputRef = useRef(null)
+  const ref = useRef(null)
 
-  const selectedLabel = options.find(o => o.value === value)?.label ?? ''
   const filtered = options.filter(o => !search || o.label.toLowerCase().includes(search.toLowerCase()))
 
-  function selectOption(val) {
-    onChange(val)
-    setSearch('')
-    setOpen(false)
+  function toggle(val) {
+    onChange(values.includes(val) ? values.filter(v => v !== val) : [...values, val])
   }
 
+  useEffect(() => {
+    if (!open) return
+    function handle(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [open])
+
+  const label = values.length === 0 ? placeholder
+    : values.length === 1 ? values[0]
+    : `${values.length} selecionados`
+
   return (
-    <div style={{ marginBottom: open ? 0 : 12 }}>
-      <div style={{ position: 'relative' }}>
-        <input
-          ref={inputRef}
-          type="text"
-          value={open ? search : selectedLabel}
-          onChange={e => { setSearch(e.target.value); setOpen(true) }}
-          onFocus={() => { setOpen(true); setSearch('') }}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-          placeholder={placeholder}
-          style={{
-            width: '100%', padding: '6px 28px 6px 10px', boxSizing: 'border-box',
-            border: '1px solid #d4cfc9', borderRadius: open ? '6px 6px 0 0' : 6,
-            fontSize: 13, color: '#1a1a1a', background: '#fff', outline: 'none',
-          }}
-        />
-        <span
-          onMouseDown={e => {
-            e.preventDefault() // mantém o foco no input
-            if (value) {
-              onChange('')
-              setSearch('')
-              setOpen(false)
-            } else {
-              if (!open) { setSearch(''); inputRef.current?.focus() }
-              else inputRef.current?.blur()
-            }
-          }}
-          style={{
-            position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-            cursor: 'pointer', color: '#6b6560',
-            fontSize: value ? 16 : 10, lineHeight: 1, userSelect: 'none',
-          }}
-        >
-          {value ? '×' : '▼'}
+    <div ref={ref} style={{ marginBottom: 12 }}>
+      <button
+        onClick={() => { setOpen(o => !o); setSearch('') }}
+        style={{
+          width: '100%', padding: '6px 10px',
+          border: '1px solid #d4cfc9',
+          borderRadius: open ? '6px 6px 0 0' : 6,
+          fontSize: 13, color: values.length ? '#1a1a1a' : '#6b6560',
+          background: '#fff', textAlign: 'left', cursor: 'pointer',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6,
+        }}
+      >
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {label}
         </span>
-      </div>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          {values.length > 0 && (
+            <span
+              onMouseDown={e => { e.stopPropagation(); onChange([]) }}
+              style={{ color: '#6b6560', fontSize: 16, lineHeight: 1, cursor: 'pointer' }}
+            >×</span>
+          )}
+          <span style={{ color: '#6b6560', fontSize: 10 }}>{open ? '▲' : '▼'}</span>
+        </span>
+      </button>
       {open && (
         <div style={{
           border: '1px solid #d4cfc9', borderTop: 'none', borderRadius: '0 0 6px 6px',
-          background: '#fff', maxHeight: 160, overflowY: 'auto', marginBottom: 12,
+          background: '#fff', maxHeight: 180, overflowY: 'auto',
         }}>
+          <div style={{ padding: '6px 8px', borderBottom: '1px solid #e0dbd4', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
+            <input
+              type="text"
+              placeholder="Buscar..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              autoFocus
+              style={{
+                width: '100%', padding: '4px 8px', boxSizing: 'border-box',
+                border: '1px solid #d4cfc9', borderRadius: 4, fontSize: 12,
+              }}
+            />
+          </div>
           {filtered.length === 0 ? (
             <div style={{ padding: '8px 10px', fontSize: 12, color: '#6b6560' }}>Nenhum resultado</div>
           ) : filtered.map(o => (
-            <div
-              key={o.value === '' ? '__all__' : o.value}
-              onMouseDown={e => e.preventDefault()} // previne blur antes do click
-              onClick={() => selectOption(o.value)}
-              style={{
-                padding: '6px 10px', fontSize: 13, cursor: 'pointer',
-                color: o.value === value ? '#1e4d1e' : (o.value === '' ? '#6b6560' : '#1a1a1a'),
-                background: o.value === value ? '#edf5ed' : 'transparent',
-                fontStyle: o.value === '' ? 'italic' : 'normal',
-              }}
-            >
-              {o.label}
-            </div>
+            <label key={o.value} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={values.includes(o.value)}
+                onChange={() => toggle(o.value)}
+                style={{ accentColor: '#2d4a2d', flexShrink: 0 }}
+              />
+              <span style={{ fontSize: 13, color: '#1a1a1a' }}>{o.label}</span>
+            </label>
           ))}
         </div>
       )}

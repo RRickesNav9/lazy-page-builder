@@ -591,7 +591,7 @@ export default function BenchmarkEquipamentoPage() {
 
   // O filtro global já garante que processo é Colheita ou Plantio nesta página (via App.jsx + cascade do FAB).
   // processoFiltro é apenas o valor normalizado para passar aos hooks.
-  const processoFiltro = filters.processo || null
+  const processoFiltro = filters.processos?.[0] || null
 
   function toggleMetric(key) {
     setSelectedMetrics(prev => {
@@ -626,9 +626,10 @@ export default function BenchmarkEquipamentoPage() {
   // allowedProcessos restringe a busca a Colheita/Plantio mesmo sem processo específico selecionado.
   const { equipamentos } = useAllEquipamentos({
     ...(processoFiltro     && { processo:      processoFiltro }),
-    ...(filters.tipo_safra && { tipo_safra:    filters.tipo_safra }),
+    ...(filters.tipos_safra?.[0] && { tipo_safra:    filters.tipos_safra?.[0] }),
     allowedProcessos: ['Colheita', 'Plantio'],
     solinftecOnly: true,
+    filterMode: filters.filterMode,
   })
 
   // ── Tab 1: Máquina vs. Modelo ──────────────────────────────────────────────
@@ -637,15 +638,16 @@ export default function BenchmarkEquipamentoPage() {
   const { metricas: maqMetricas, loading: loadingMaq } = useMaquinaMetricas({
     ...(tab1Cod && { equipamento_cod: tab1Cod }),
     ...(processoFiltro && { processo: processoFiltro }),
-    ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
+    ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
     safra: currentSafra,
     ...(queryFilters.dataInicio && { dataInicio: queryFilters.dataInicio }),
     ...(queryFilters.dataFim    && { dataFim:    queryFilters.dataFim    }),
+    filterMode: filters.filterMode,
   })
   const { data: modeloData1, loading: loadingModelo1 } = useEquipamentoBenchmark({
     ...(maqInfo1?.modelo && { modelo_equipamento: maqInfo1.modelo }),
     ...(processoFiltro && { processo: processoFiltro }),
-    ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
+    ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
     safra: currentSafra,
   })
   const modeloNorm1 = useMemo(() => normalizarModeloRow(modeloData1[0] ?? null), [modeloData1])
@@ -655,16 +657,18 @@ export default function BenchmarkEquipamentoPage() {
   const tab2FiltersA = sideA.cod ? {
     equipamento_cod: sideA.cod,
     ...(processoFiltro && { processo: processoFiltro }),
-    ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
+    ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
     ...(sideA.dataInicio   && { dataInicio: sideA.dataInicio }),
     ...(sideA.dataFim      && { dataFim:    sideA.dataFim    }),
+    filterMode: filters.filterMode,
   } : {}
   const tab2FiltersB = sideB.cod ? {
     equipamento_cod: sideB.cod,
     ...(processoFiltro && { processo: processoFiltro }),
-    ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
+    ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
     ...(sideB.dataInicio   && { dataInicio: sideB.dataInicio }),
     ...(sideB.dataFim      && { dataFim:    sideB.dataFim    }),
+    filterMode: filters.filterMode,
   } : {}
   const { dataA, dataB, loading: loadingEquip } = useEquipamentoComparativo(tab2FiltersA, tab2FiltersB)
   const metricasEquipA = useMemo(() => computeWeightedAvg(dataA), [dataA])
@@ -683,7 +687,7 @@ export default function BenchmarkEquipamentoPage() {
 
   const { data: allModelosData, loading: loadingModelos } = useEquipamentoBenchmark({
     ...(processoFiltro && { processo: processoFiltro }),
-    ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
+    ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
     safra: currentSafra,
   })
   const modeloOptions = useMemo(
@@ -695,8 +699,9 @@ export default function BenchmarkEquipamentoPage() {
 
   const modeloStatsFilters = {
     ...(processoFiltro && { processo: processoFiltro }),
-    ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
+    ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
     safra: currentSafra,
+    filterMode: filters.filterMode,
   }
   const { stats: statsA } = useModeloStats({ ...modeloStatsFilters, ...(modeloA && { modelo_equipamento: modeloA }) })
   const { stats: statsB } = useModeloStats({ ...modeloStatsFilters, ...(modeloB && { modelo_equipamento: modeloB }) })
@@ -728,7 +733,7 @@ export default function BenchmarkEquipamentoPage() {
 
           <DynamicHeader
             processo={processoFiltro}
-            tipoSafra={filters.tipo_safra}
+            tipoSafra={filters.tipos_safra?.[0]}
             safra={currentSafra}
             extraFields={[
               { label: 'Equipamento', value: maqInfo1 ? `${maqInfo1.equipamento_cod} — ${maqInfo1.equipamento}` : '—' },
@@ -818,7 +823,7 @@ export default function BenchmarkEquipamentoPage() {
 
           <DynamicHeader
             processo={processoFiltro}
-            tipoSafra={filters.tipo_safra}
+            tipoSafra={filters.tipos_safra?.[0]}
             safra={currentSafra}
             extraFields={[
               { label: 'Equip. A', value: maqInfoA ? `${maqInfoA.equipamento_cod} — ${maqInfoA.equipamento}` : '—' },
@@ -876,7 +881,7 @@ export default function BenchmarkEquipamentoPage() {
 
           <DynamicHeader
             processo={processoFiltro}
-            tipoSafra={filters.tipo_safra}
+            tipoSafra={filters.tipos_safra?.[0]}
             safra={currentSafra}
             extraFields={[
               { label: 'Modelo A', value: modeloA || '—' },

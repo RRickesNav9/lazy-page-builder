@@ -263,6 +263,7 @@ export function useClienteBenchmark(filters = {}) {
           .neq('cliente', 'Média Porteira')
           .neq('data_provider_id', JD_ID)
 
+        if (filters.filterMode === 'detalhado') query = query.gt('area_ha', 0).gt('consumo_total_l', 0)
         if (filters.cliente)    query = query.eq('cliente',    filters.cliente)
         if (filters.processo)   query = query.eq('processo',   filters.processo)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
@@ -372,6 +373,7 @@ export function useAllClientesBenchmark(filters = {}) {
           .neq('cliente', 'Média Porteira')
           .neq('data_provider_id', JD_ID)
 
+        if (filters.filterMode === 'detalhado') query = query.gt('area_ha', 0).gt('consumo_total_l', 0)
         if (filters.processo)   query = query.eq('processo',   filters.processo)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
         if (filters.safra)      query = query.eq('safra',      filters.safra)
@@ -551,6 +553,7 @@ export function useMaquinaMetricas(filters = {}) {
           .from('dashboard_operational_view')
           .select('rendimento_operacional_hah,rendimento_real_hah,eficiencia_geral_pct,eficiencia_operacional_pct,consumo_medio_efetivo_lha,consumo_medio_efetivo_lh,consumo_medio_lh,consumo_medio_lha,disponibilidade_mecanica_pct,velocidade_media_kmh,rpm_medio,motor_ligado_pct,motor_ocioso_pct,sem_apontamento_pct,area_por_linha_ha,tempo_produtivo_h,tempo_efetivo_h,tempo_total_h,area_ha,tempo_motor_ligado_h,tempo_parada_h')
           .eq('equipamento_cod', filters.equipamento_cod)
+        if (filters.filterMode === 'detalhado') query = query.gt('area_ha', 0).gt('consumo_total_l', 0)
         if (filters.processo)   query = query.eq('processo',   filters.processo)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
         if (filters.safra)      query = query.eq('safra',      filters.safra)
@@ -599,6 +602,7 @@ export function useAllEquipamentos(filters = {}) {
         else if (filters.allowedProcessos?.length) query = query.in('processo', filters.allowedProcessos)
         if (filters.tipo_safra)    query = query.eq('tipo_safra', filters.tipo_safra)
         if (filters.solinftecOnly) query = query.neq('data_provider_id', JD_ID)
+        if (filters.filterMode === 'detalhado') query = query.gt('area_ha', 0)
         // Deduplica em memória — select de apenas 4 colunas mantém o payload pequeno
         let all = [], from = 0
         while (true) {
@@ -653,6 +657,7 @@ export function useModeloStats(filters = {}) {
           .from('dashboard_operational_view')
           .select('equipamento_cod,rendimento_operacional_hah,rendimento_real_hah,eficiencia_geral_pct,eficiencia_operacional_pct,consumo_medio_efetivo_lha,consumo_medio_efetivo_lh,consumo_medio_lh,consumo_medio_lha,disponibilidade_mecanica_pct,velocidade_media_kmh,rpm_medio,motor_ligado_pct,motor_ocioso_pct,sem_apontamento_pct,area_por_linha_ha,tempo_produtivo_h,tempo_efetivo_h,tempo_total_h,area_ha,tempo_motor_ligado_h,tempo_parada_h')
           .eq('modelo_equipamento', filters.modelo_equipamento)
+        if (filters.filterMode === 'detalhado') query = query.gt('area_ha', 0).gt('consumo_total_l', 0)
         if (filters.processo)   query = query.eq('processo',   filters.processo)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
         if (filters.safra)      query = query.eq('safra',      filters.safra)
@@ -884,6 +889,7 @@ export function useEquipamentoComparativo(filterA, filterB) {
 
   async function fetchFor(filters) {
     let query = supabase.from('dashboard_operational_view').select('*')
+    if (filters.filterMode === 'detalhado') query = query.gt('area_ha', 0).gt('consumo_total_l', 0)
     if (filters.equipamento_cod) query = query.eq('equipamento_cod', filters.equipamento_cod)
     if (filters.cliente)         query = query.eq('cliente', filters.cliente)
     if (filters.processo)        query = query.eq('processo', filters.processo)

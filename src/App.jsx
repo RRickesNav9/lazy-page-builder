@@ -39,6 +39,29 @@ const PAGE_SOLINFTEC = {
   'bench-jd':    false,
 }
 
+// Seções do FAB visíveis por página — false oculta a seção e não conta no badge
+const PAGE_VISIBLE_FILTERS = {
+  analise: {
+    cliente: true, propriedade: true, processo: true, cultura: true,
+    showGroupAvg: true, metricFilter: true, excludedMotivos: true,
+  },
+  benchmark: {
+    // processo controlado pelas abas da página (Colheita / Plantio / Geral)
+    // showGroupAvg não tem efeito aqui — o grupo é sempre exibido por design
+    cliente: true, propriedade: false, processo: false, cultura: true,
+    showGroupAvg: false, metricFilter: false, excludedMotivos: false,
+  },
+  'bench-equip': {
+    // cliente e propriedade não se aplicam: mostra equipamentos de todo o grupo
+    cliente: false, propriedade: false, processo: true, cultura: true,
+    showGroupAvg: false, metricFilter: false, excludedMotivos: false,
+  },
+  'bench-jd': {
+    cliente: true, propriedade: false, processo: true, cultura: true,
+    showGroupAvg: false, metricFilter: false, excludedMotivos: false,
+  },
+}
+
 
 function Breadcrumb() {
   const { filters } = useFilters()
@@ -164,7 +187,12 @@ function AppInner({ onLogout }) {
         }
       </div>
 
-      <GlobalFilterFAB allowedProcessos={allowedProcessos} excludedProcessos={excludedProcessos} solinftecOnly={solinftecOnly} />
+      <GlobalFilterFAB
+        allowedProcessos={allowedProcessos}
+        excludedProcessos={excludedProcessos}
+        solinftecOnly={solinftecOnly}
+        visibleFilters={PAGE_VISIBLE_FILTERS[activePage] ?? {}}
+      />
     </div>
   )
 }

@@ -4,14 +4,15 @@ export const DEFAULT_FILTERS = {
   periodo: '7dias',
   dataInicio: null,
   dataFim: null,
-  cliente: '',
-  propriedade: '',
-  processo: '',
-  tipo_safra: '',
+  clientes: [],
+  propriedades: [],
+  processos: [],
+  tipos_safra: [],
   excludedMotivos: [],
   showBenchmark: false,
   showGroupAvg: false,
   metricFilter: { field: '', operator: '>=', value: '' },
+  filterMode: 'padrao',
 }
 
 function dateRangeForPeriodo(periodo) {
@@ -63,10 +64,11 @@ export function FilterProvider({ children }) {
       : dateRangeForPeriodo(filters.periodo)
     return {
       ...dateRange,
-      ...(filters.cliente    && { cliente:    filters.cliente }),
-      ...(filters.propriedade && { propriedade: filters.propriedade }),
-      ...(filters.processo   && { processo:   filters.processo }),
-      ...(filters.tipo_safra && { tipo_safra: filters.tipo_safra }),
+      ...(filters.clientes.length    && { clientes:    filters.clientes }),
+      ...(filters.propriedades.length && { propriedades: filters.propriedades }),
+      ...(filters.processos.length   && { processos:   filters.processos }),
+      ...(filters.tipos_safra.length && { tipos_safra: filters.tipos_safra }),
+      filterMode: filters.filterMode,
     }
   }, [filters])
 
@@ -81,15 +83,16 @@ export function FilterProvider({ children }) {
 
   const activeCount = useMemo(() => {
     let count = 0
-    if (filters.cliente)               count++
-    if (filters.propriedade)           count++
-    if (filters.processo)              count++
-    if (filters.tipo_safra)            count++
+    if (filters.clientes.length)        count++
+    if (filters.propriedades.length)   count++
+    if (filters.processos.length)      count++
+    if (filters.tipos_safra.length)    count++
     if (filters.excludedMotivos.length) count++
     if (filters.showBenchmark)         count++
     if (filters.showGroupAvg)          count++
     if (filters.periodo !== '7dias')   count++
     if (filters.metricFilter?.field)   count++
+    if (filters.filterMode !== 'padrao') count++
     return count
   }, [filters])
 

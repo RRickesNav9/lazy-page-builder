@@ -710,10 +710,10 @@ export default function BenchmarkClientePage({ onTabChange }) {
     })
   }, [])
 
-  const cliente   = filters.cliente    || ''
-  const tipoSafra = filters.tipo_safra || ''
+  const cliente   = filters.clientes?.[0]    || ''
+  const tipoSafra = filters.tipos_safra?.[0] || ''
   // Colheita/Plantio são fixos por aba; Geral usa o processo do filtro global
-  const processo  = activeTab === 'geral' ? (filters.processo || null) : TAB_PROCESSO[activeTab]
+  const processo  = activeTab === 'geral' ? (filters.processos?.[0] || null) : TAB_PROCESSO[activeTab]
 
   // Filtros para os hooks — processo sempre vem do tab ativo, não do filtro global
   const benchFilters = {
@@ -723,12 +723,14 @@ export default function BenchmarkClientePage({ onTabChange }) {
     safra: currentSafra,
     ...(queryFilters.dataInicio && { dataInicio: queryFilters.dataInicio }),
     ...(queryFilters.dataFim    && { dataFim:    queryFilters.dataFim    }),
+    filterMode: filters.filterMode,
   }
 
   const grupoFilters = {
     processo,
     ...(tipoSafra && { tipo_safra: tipoSafra }),
     safra: currentSafra,
+    filterMode: filters.filterMode,
   }
 
   // Dados do cliente — desnecessário quando nenhum cliente está selecionado
