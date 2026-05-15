@@ -38,7 +38,7 @@ const TIPO_PARADA_COLOR = {
 }
 
 export default function GlobalFilterFAB({ allowedProcessos = null, excludedProcessos = null, solinftecOnly = false, visibleFilters = {} }) {
-  const { filters, applyFilters } = useFilters()
+  const { filters, applyFilters, clearFilters } = useFilters()
   // true quando a seção é aplicável nesta página (ausente = visível por padrão)
   const show = (key) => visibleFilters[key] !== false
 
@@ -245,13 +245,27 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
         </button>
       )}
 
+      {/* FAB — Limpar filtros (visível quando expandido e há filtros ativos) */}
+      {expanded && pageActiveCount > 0 && (
+        <button
+          onClick={() => { clearFilters(); setOpen(false) }}
+          data-pdf-exclude="true"
+          title="Limpar filtros"
+          style={{ ...fabBase, bottom: 144, background: '#8b2020', color: '#fff' }}
+        >
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+
       {/* FAB — Exportar PDF (visível quando expandido) */}
       {expanded && (
         <button
           onClick={() => window.print()}
           data-pdf-exclude="true"
           title="Exportar PDF"
-          style={{ ...fabBase, bottom: 144, background: '#2d5016', color: '#fff' }}
+          style={{ ...fabBase, bottom: pageActiveCount > 0 ? 204 : 144, background: '#2d5016', color: '#fff' }}
         >
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a1 1 0 001 1h16a1 1 0 001-1v-3M7 7V4a1 1 0 011-1h8a1 1 0 011 1v3" />
@@ -262,7 +276,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
       {/* Painel de filtros */}
       {open && expanded && (
         <div ref={panelRef} data-pdf-exclude="true" style={{
-          position: 'fixed', bottom: 204, right: 24, zIndex: 999,
+          position: 'fixed', bottom: pageActiveCount > 0 ? 264 : 204, right: 24, zIndex: 999,
           width: 320, maxHeight: '80vh', overflowY: 'auto',
           background: '#fff', border: '1px solid #e0dbd4', borderRadius: 12,
           boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: 20,

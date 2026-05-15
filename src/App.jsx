@@ -63,36 +63,6 @@ const PAGE_VISIBLE_FILTERS = {
 }
 
 
-function Breadcrumb() {
-  const { filters } = useFilters()
-  function fmtArr(arr, none, many = 'selecionados') {
-    if (!arr?.length) return none
-    if (arr.length === 1) return arr[0]
-    return `${arr.length} ${many}`
-  }
-  const items = [
-    { label: 'Cliente',     value: fmtArr(filters.clientes,    'Todos') },
-    { label: 'Propriedade', value: fmtArr(filters.propriedades,'Todas') },
-    { label: 'Operação',    value: fmtArr(filters.processos,   'Todas') },
-    { label: 'Cultura',     value: fmtArr(filters.tipos_safra, 'Todas') },
-  ]
-
-  return (
-    <div className="no-print" style={{
-      background: '#f7f5f2', borderBottom: '1px solid #e0dbd4',
-      padding: '8px 24px', fontSize: 12, display: 'flex', alignItems: 'center',
-      gap: 4, flexWrap: 'wrap',
-    }}>
-      {items.map((item, i) => (
-        <span key={item.label}>
-          {i > 0 && <span style={{ color: '#6b6560', margin: '0 6px' }}>·</span>}
-          <span style={{ color: '#6b6560' }}>{item.label}: </span>
-          <span style={{ color: '#4a3728', fontWeight: 500 }}>{item.value}</span>
-        </span>
-      ))}
-    </div>
-  )
-}
 
 function AppInner({ onLogout }) {
   const [activePage, setActivePage] = useState('analise')
