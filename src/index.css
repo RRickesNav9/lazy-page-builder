@@ -6,6 +6,8 @@
 
 * { box-sizing: border-box; }
 
+@keyframes spin { to { transform: rotate(360deg); } }
+
 :root {
   --pa-primary: #2d4a2d;
   --pa-secondary: #4a3728;

@@ -4,10 +4,11 @@
 // Métricas disponíveis: rendimento, velocidade, consumo L/h, consumo L/ha, área por linha (Plantio), turno.
 // Não aparece nas páginas de Análise Geral, Benchmark Equipamento ou Benchmark Cliente.
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useFilters } from '../lib/FilterContext'
 import { useClienteBenchmarkJD, useAllClientesBenchmarkJD } from '../hooks/useData'
 import MetricSelectorFAB from '../components/MetricSelectorFAB'
+import { exportBenchmarkJD } from '../lib/export'
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
 
@@ -534,7 +535,7 @@ function MetricasTable({ clienteMetricas, grupoMetricas, zoneThresholds, activeC
 // ─── PÁGINA ───────────────────────────────────────────────────────────────────
 
 export default function BenchmarkJohnDeerePage() {
-  const { filters, queryFilters, benchmarkSafra } = useFilters()
+  const { filters, queryFilters, benchmarkSafra, registerExportFn } = useFilters()
   const [activeTab,       setActiveTab]       = useState('plantio')
   const [selectedMetrics, setSelectedMetrics] = useState([...DEFAULT_SELECTED_METRICS])
 
@@ -604,6 +605,17 @@ export default function BenchmarkJohnDeerePage() {
 
   const loading  = cliente ? (loadingCliente || loadingAllClientes) : loadingAllClientes
   const semDados = !loading && cliente && !clienteMetricas
+
+  const exportRef = useRef({})
+  exportRef.current = {
+    allClientesData,
+    grupoMetricas,
+    fetchFilters: { jdOnly: true, processo, tipo_safra: tipoSafra || undefined, safra: benchmarkSafra },
+  }
+  useEffect(() => {
+    registerExportFn(() => exportBenchmarkJD(exportRef.current))
+    return () => registerExportFn(null)
+  }, [registerExportFn])
 
   return (
     <>

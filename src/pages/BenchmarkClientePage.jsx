@@ -2,10 +2,11 @@
 // Compara métricas de um cliente específico contra a média do grupo Porteira.
 // Seleção de cliente via filtro global. Export via window.print() (FAB global).
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useFilters } from '../lib/FilterContext'
 import { useClienteBenchmark, useAllClientesBenchmark } from '../hooks/useData'
 import MetricSelectorFAB from '../components/MetricSelectorFAB'
+import { exportBenchmarkCliente } from '../lib/export'
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
 
@@ -687,7 +688,7 @@ function MetricasTable({ metricas, zoneThresholds, activeConfig, onReorder }) {
 // ─── PÁGINA ───────────────────────────────────────────────────────────────────
 
 export default function BenchmarkClientePage({ onTabChange }) {
-  const { filters, queryFilters, benchmarkSafra } = useFilters()
+  const { filters, queryFilters, benchmarkSafra, registerExportFn } = useFilters()
   const [activeTab, setActiveTab]             = useState('colheita')
   const [selectedMetrics, setSelectedMetrics] = useState([...DEFAULT_SELECTED_METRICS])
 
@@ -772,10 +773,19 @@ export default function BenchmarkClientePage({ onTabChange }) {
 
   const activeConfig = selectedMetrics.map(key => ALL_METRICAS_CONFIG.find(m => m.key === key)).filter(Boolean)
 
-  // Quando não há cliente, aguardamos só os dados do grupo
   const loading  = cliente ? (loadingCliente || loadingAllClientes) : loadingAllClientes
   const semDados = !loading && cliente && !clienteMetricas
 
+  const exportRef = useRef({})
+  exportRef.current = {
+    allClientesData,
+    grupoMetricas,
+    fetchFilters: { processo, tipo_safra: tipoSafra || undefined, safra: benchmarkSafra },
+  }
+  useEffect(() => {
+    registerExportFn(() => exportBenchmarkCliente(exportRef.current))
+    return () => registerExportFn(null)
+  }, [registerExportFn])
 
   return (
     <>

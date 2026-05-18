@@ -5,6 +5,7 @@ import {
   aggregateRows, groupBy, applyStopExclusions, applyBreakdownFilter, calcTimeDistribution, calcStopDistribution,
   fmtHah, fmtHa, fmtKmh, fmtPct, fmtH, fmtLh, fmt,
 } from '../lib/utils'
+import { exportAnaliseGeral } from '../lib/export'
 
 /* ── Filtro de métrica — labels para o banner ────────────────────────────── */
 
@@ -672,7 +673,7 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
 /* ── Página principal ─────────────────────────────────────────────────────── */
 
 export default function AnaliseGeralPage() {
-  const { filters, queryFilters, benchmarkSafra } = useFilters()
+  const { filters, queryFilters, benchmarkSafra, registerExportFn } = useFilters()
   const { excludedMotivos, metricFilter, showGroupAvg } = filters
 
   const { data: raw, loading } = useOperationalData(queryFilters)
@@ -799,6 +800,14 @@ export default function AnaliseGeralPage() {
         }
       })
   }, [filteredData])
+
+  // ref mantém dados atualizados sem re-registrar o exportFn a cada render
+  const exportRef = useRef({})
+  exportRef.current = { filteredData, equipRows, operadorRows, queryFilters }
+  useEffect(() => {
+    registerExportFn(() => exportAnaliseGeral(exportRef.current))
+    return () => registerExportFn(null)
+  }, [registerExportFn])
 
   if (loading) return <div style={{ padding: 64, textAlign: 'center', color: '#6b6560' }}>Carregando...</div>
   if (!agg)    return <div style={{ padding: 64, textAlign: 'center', color: '#6b6560' }}>Nenhum dado para os filtros selecionados.</div>

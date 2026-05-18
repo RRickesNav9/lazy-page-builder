@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useMemo } from 'react'
+import { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react'
 
 export const DEFAULT_FILTERS = {
   periodo: '7dias',
@@ -48,6 +48,15 @@ export function FilterProvider({ children }) {
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [showFABs, setShowFABs] = useState(true)
+
+  // Página ativa registra sua função de exportação; FAB lê para exibir o botão.
+  // useRef evita que a troca de exportFn cause re-render em componentes que só lêem o ref.
+  const exportFnRef = useRef(null)
+  const [hasExportFn, setHasExportFn] = useState(false)
+  const registerExportFn = useCallback((fn) => {
+    exportFnRef.current = fn || null
+    setHasExportFn(!!fn)
+  }, [])
 
   const openDrawer  = useCallback(() => setDrawerOpen(true), [])
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
@@ -109,6 +118,7 @@ export function FilterProvider({ children }) {
       showFABs, setShowFABs,
       activeCount, DEFAULT_FILTERS,
       queryFilters, currentSafra, benchmarkSafra,
+      exportFnRef, hasExportFn, registerExportFn,
     }}>
       {children}
     </FilterContext.Provider>

@@ -2,7 +2,7 @@
 // Analisa desempenho de máquinas: individual vs. modelo, comparativo de períodos e modelos.
 // Dados reais via dashboard_operational_view e media_equipamentos_porteira.
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useFilters } from '../lib/FilterContext'
 import {
   useEquipamentoInterativo, useEquipamentoComparativo,
@@ -10,6 +10,7 @@ import {
   useAllEquipamentos, useModeloStats,
 } from '../hooks/useData'
 import MetricSelectorFAB from '../components/MetricSelectorFAB'
+import { exportBenchmarkEquip } from '../lib/export'
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
 
@@ -585,7 +586,7 @@ function ModeloMetricBar({ cfg, valA, valB, labelA, labelB, statsA, statsB }) {
 // ─── PÁGINA PRINCIPAL ─────────────────────────────────────────────────────────
 
 export default function BenchmarkEquipamentoPage() {
-  const { filters, queryFilters, benchmarkSafra } = useFilters()
+  const { filters, queryFilters, benchmarkSafra, registerExportFn } = useFilters()
 
   const [activeTab, setActiveTab] = useState('maquina-modelo')
   const [tab1Cod, setTab1Cod]     = useState('')
@@ -711,6 +712,30 @@ export default function BenchmarkEquipamentoPage() {
   }
   const { stats: statsA } = useModeloStats({ ...modeloStatsFilters, ...(modeloA && { modelo_equipamento: modeloA }) })
   const { stats: statsB } = useModeloStats({ ...modeloStatsFilters, ...(modeloB && { modelo_equipamento: modeloB }) })
+
+  const exportRef = useRef({})
+  exportRef.current = {
+    activeTab,
+    maqLabel: maqInfo1 ? `${maqInfo1.equipamento_cod} — ${maqInfo1.equipamento}` : 'Máquina',
+    modeloLabel: maqInfo1?.modelo || 'Referência Modelo',
+    maqMetricas,
+    modeloMetricas: modeloNorm1,
+    labelA: labelEquipA,
+    labelB: labelEquipB,
+    equipMetricasA: metricasEquipA,
+    equipMetricasB: metricasEquipB,
+    modeloMetricasA: modeloNormA,
+    modeloMetricasB: modeloNormB,
+    fetchFilters: {
+      safra: benchmarkSafra,
+      ...(processoFiltro && { processo: processoFiltro }),
+      ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra[0] }),
+    },
+  }
+  useEffect(() => {
+    registerExportFn(() => exportBenchmarkEquip(exportRef.current))
+    return () => registerExportFn(null)
+  }, [registerExportFn])
 
   return (
     <div style={{ padding: '24px', maxWidth: 1280, margin: '0 auto' }}>

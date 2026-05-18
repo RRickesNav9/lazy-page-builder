@@ -38,12 +38,13 @@ const TIPO_PARADA_COLOR = {
 }
 
 export default function GlobalFilterFAB({ allowedProcessos = null, excludedProcessos = null, solinftecOnly = false, visibleFilters = {} }) {
-  const { filters, applyFilters, clearFilters } = useFilters()
+  const { filters, applyFilters, clearFilters, exportFnRef, hasExportFn } = useFilters()
   // true quando a seção é aplicável nesta página (ausente = visível por padrão)
   const show = (key) => visibleFilters[key] !== false
 
   const [expanded,     setExpanded]     = useState(false)
   const [open,         setOpen]         = useState(false)
+  const [exporting,    setExporting]    = useState(false)
   const [pending,      setPending]      = useState(filters)
   const [motivosOpen,  setMotivosOpen]  = useState(false)
   const [motivoSearch, setMotivoSearch] = useState('')
@@ -149,6 +150,14 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
   }
 
   function handleApply() { applyFilters(pending); setOpen(false) }
+
+  async function handleExport() {
+    if (!exportFnRef.current || exporting) return
+    setExporting(true)
+    try { await exportFnRef.current() }
+    catch (err) { console.error('ERRO exportação:', err.message) }
+    finally { setExporting(false) }
+  }
 
   function handleClear() {
     const cleared = {
@@ -276,11 +285,46 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
         </button>
       )}
 
+      {/* FAB — Exportar XLSX (visível quando expandido e a página registrou função de exportação) */}
+      {expanded && hasExportFn && (
+        <button
+          onClick={handleExport}
+          data-pdf-exclude="true"
+          disabled={exporting}
+          title={exporting ? 'Exportando...' : 'Exportar XLSX'}
+          style={{
+            ...fabBase,
+            bottom: pageActiveCount > 0 ? 264 : 204,
+            background: exporting ? '#4a6741' : '#1a4a6b',
+            color: '#fff',
+            opacity: exporting ? 0.75 : 1,
+          }}
+        >
+          {exporting ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}
+              style={{ animation: 'spin 1s linear infinite' }}>
+              <path strokeLinecap="round" d="M12 3a9 9 0 1 0 9 9" />
+            </svg>
+          ) : (
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.9}>
+              <rect x="3" y="3" width="18" height="18" rx="2" strokeLinejoin="round" />
+              <line x1="3"  y1="9"  x2="21" y2="9"  />
+              <line x1="3"  y1="15" x2="21" y2="15" />
+              <line x1="9"  y1="3"  x2="9"  y2="21" />
+            </svg>
+          )}
+        </button>
+      )}
+
       {/* Painel de filtros */}
       {open && expanded && (
         <div ref={panelRef} data-pdf-exclude="true" style={{
-          position: 'fixed', bottom: pageActiveCount > 0 ? 264 : 204, right: 24, zIndex: 999,
-          width: 320, maxHeight: pageActiveCount > 0 ? 'calc(100vh - 284px)' : 'calc(100vh - 224px)', overflowY: 'auto',
+          position: 'fixed',
+          bottom: (pageActiveCount > 0 ? 264 : 204) + (hasExportFn ? 60 : 0),
+          right: 24, zIndex: 999,
+          width: 320,
+          maxHeight: `calc(100vh - ${(pageActiveCount > 0 ? 284 : 224) + (hasExportFn ? 60 : 0)}px)`,
+          overflowY: 'auto',
           background: '#fff', border: '1px solid #e0dbd4', borderRadius: 12,
           boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: 20,
         }}>
