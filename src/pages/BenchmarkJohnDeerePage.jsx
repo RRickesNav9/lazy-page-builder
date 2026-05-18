@@ -534,7 +534,7 @@ function MetricasTable({ clienteMetricas, grupoMetricas, zoneThresholds, activeC
 // ─── PÁGINA ───────────────────────────────────────────────────────────────────
 
 export default function BenchmarkJohnDeerePage() {
-  const { filters, queryFilters, currentSafra } = useFilters()
+  const { filters, queryFilters, benchmarkSafra } = useFilters()
   const [activeTab,       setActiveTab]       = useState('plantio')
   const [selectedMetrics, setSelectedMetrics] = useState([...DEFAULT_SELECTED_METRICS])
 
@@ -566,7 +566,7 @@ export default function BenchmarkJohnDeerePage() {
     ...(cliente   && { cliente }),
     processo,
     ...(tipoSafra && { tipo_safra: tipoSafra }),
-    safra: currentSafra,
+    safra: benchmarkSafra,
     ...(queryFilters.dataInicio && { dataInicio: queryFilters.dataInicio }),
     ...(queryFilters.dataFim    && { dataFim:    queryFilters.dataFim    }),
   }
@@ -574,7 +574,7 @@ export default function BenchmarkJohnDeerePage() {
   const grupoFilters = {
     processo,
     ...(tipoSafra && { tipo_safra: tipoSafra }),
-    safra: currentSafra,
+    safra: benchmarkSafra,
   }
 
   const { metricas: clienteMetricas, loading: loadingCliente, error: errorCliente } =

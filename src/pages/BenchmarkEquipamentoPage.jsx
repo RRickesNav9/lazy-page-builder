@@ -84,10 +84,16 @@ function badgeProps(status) {
   return MAP[status] ?? MAP.neutro
 }
 
-// Normaliza row de media_equipamentos_porteira para o mesmo shape das métricas (cfg.key → value)
+// Normaliza row de media_equipamentos_porteira para o mesmo shape das métricas (cfg.key → value).
+// pes_plataforma_24h não existe na tabela benchmark — lê o campo computado localmente (_modelo sufixo).
 function normalizarModeloRow(row) {
   if (!row) return null
-  return Object.fromEntries(METRICAS_CONFIG.map(cfg => [cfg.key, row[cfg.modeloKey] ?? 0]))
+  return Object.fromEntries(METRICAS_CONFIG.map(cfg => [
+    cfg.key,
+    cfg.modeloKey !== null
+      ? (row[cfg.modeloKey] ?? 0)
+      : (row[`${cfg.key}_modelo`] ?? row[cfg.key] ?? 0),
+  ]))
 }
 
 // ─── COMPONENTES COMPARTILHADOS ───────────────────────────────────────────────

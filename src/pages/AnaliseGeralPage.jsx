@@ -317,7 +317,7 @@ function MotivosParadaPanel({ stopRows }) {
                 flex: 1, padding: '5px 0', border: '1px dashed #d4cfc9', borderRadius: 4,
                 background: 'transparent', color: '#6b6560', fontSize: 12, cursor: 'pointer',
               }}>
-                + {Math.min(5, remaining)} de {remaining} restantes
+                + {Math.min(6, remaining)} de {remaining} restantes
               </button>
             )}
             {canReduce && (

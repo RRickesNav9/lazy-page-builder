@@ -227,6 +227,9 @@ export function useStopData(queryFilters = {}) {
           from += pageSize
         }
         setData(all)
+      } catch (err) {
+        console.error('ERRO: falha ao buscar stop data:', err.message)
+        setData([])
       } finally {
         setLoading(false)
       }
@@ -461,7 +464,7 @@ export function useAllClientesBenchmark(filters = {}) {
     }
     fetch()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.processo, filters.tipo_safra, filters.safra])
+  }, [filters.processo, filters.tipo_safra, filters.safra, filters.filterMode])
 
   return { data, loading }
 }

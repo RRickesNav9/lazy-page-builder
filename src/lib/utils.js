@@ -85,7 +85,7 @@ export function aggregateRows(rows) {
     consumo_total_l,
     consumo_efetivo_l,
     rendimento_operacional_hah: tempo_efetivo_h > 0 ? area_ha / tempo_efetivo_h : 0,
-    rendimento_real_hah: tempo_total_h > 0 ? area_ha / tempo_total_h : 0,
+    rendimento_real_hah: tempo_motor_ligado_h > 0 ? area_ha / tempo_motor_ligado_h : 0,
     eficiencia_geral_pct: hasExclusions
       ? (tempo_total_h > 0 ? (tempo_efetivo_h / tempo_total_h) * 100 : 0)
       : weightedAvg('eficiencia_geral_pct', 'tempo_total_h'),

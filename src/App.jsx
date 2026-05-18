@@ -185,10 +185,11 @@ function AppInner({ onLogout }) {
   )
 }
 
-const ALLOWED_DOMAINS = ['@porteiraadentro.com', '@dspartners.com.br']
+const ALLOWED_DOMAINS = ['porteiraadentro.com', 'dspartners.com.br']
 
 function isAllowedEmail(email) {
-  return ALLOWED_DOMAINS.some(d => (email || '').toLowerCase().endsWith(d))
+  const domain = (email || '').toLowerCase().split('@')[1]
+  return !!domain && ALLOWED_DOMAINS.includes(domain)
 }
 
 export default function App() {
