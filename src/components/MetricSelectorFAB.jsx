@@ -3,9 +3,11 @@
 // Renderizado pela própria página; data-pdf-exclude garante ausência no PDF.
 
 import { useState, useEffect, useRef } from 'react'
+import { useFilters } from '../lib/FilterContext'
 
 export default function MetricSelectorFAB({ config, selected, onToggle }) {
   const [open, setOpen] = useState(false)
+  const { hasExportFn } = useFilters()
   // sincroniza com o fold/unfold do GlobalFilterFAB via custom event
   const [fabExpanded, setFabExpanded] = useState(() => window.__fabExpanded ?? false)
   const panelRef = useRef(null)
@@ -30,6 +32,10 @@ export default function MetricSelectorFAB({ config, selected, onToggle }) {
 
   if (!fabExpanded) return null
 
+  // sobe 60px quando o botão de exportação está presente para não sobrepor
+  const btnBottom   = 204 + (hasExportFn ? 60 : 0)
+  const panelBottom = 264 + (hasExportFn ? 60 : 0)
+
   return (
     <>
       <button
@@ -37,7 +43,7 @@ export default function MetricSelectorFAB({ config, selected, onToggle }) {
         onClick={() => setOpen(o => !o)}
         title="Selecionar métricas"
         style={{
-          position: 'fixed', bottom: 204, right: 24, zIndex: 1000,
+          position: 'fixed', bottom: btnBottom, right: 24, zIndex: 1000,
           width: 48, height: 48, borderRadius: '50%',
           border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -61,7 +67,7 @@ export default function MetricSelectorFAB({ config, selected, onToggle }) {
           ref={panelRef}
           data-pdf-exclude="true"
           style={{
-            position: 'fixed', bottom: 264, right: 24, zIndex: 999,
+            position: 'fixed', bottom: panelBottom, right: 24, zIndex: 999,
             width: 340, maxHeight: '65vh', overflowY: 'auto',
             background: '#fff', border: '1px solid #e0dbd4', borderRadius: 12,
             boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: 20,
