@@ -218,7 +218,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
         onClick={toggleExpanded}
         data-pdf-exclude="true"
         title={expanded ? 'Ocultar botões' : 'Mostrar botões'}
-        style={{ ...fabBase, bottom: 24, background: '#8a9a85', color: '#fff' }}
+        style={{ ...fabBase, bottom: 24, background: '#4a6741', color: '#fff' }}
       >
         <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
           {expanded
@@ -263,7 +263,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
           onClick={() => { clearFilters(); setOpen(false) }}
           data-pdf-exclude="true"
           title="Limpar filtros"
-          style={{ ...fabBase, bottom: 144, background: '#8b2020', color: '#fff' }}
+          style={{ ...fabBase, bottom: 144, background: '#2d4a2d', color: '#fff' }}
         >
           <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -277,7 +277,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
           onClick={() => window.print()}
           data-pdf-exclude="true"
           title="Exportar PDF"
-          style={{ ...fabBase, bottom: pageActiveCount > 0 ? 204 : 144, background: '#2d5016', color: '#fff' }}
+          style={{ ...fabBase, bottom: pageActiveCount > 0 ? 204 : 144, background: '#4a6741', color: '#fff' }}
         >
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a1 1 0 001 1h16a1 1 0 001-1v-3M7 7V4a1 1 0 011-1h8a1 1 0 011 1v3" />
@@ -295,7 +295,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
           style={{
             ...fabBase,
             bottom: pageActiveCount > 0 ? 264 : 204,
-            background: exporting ? '#4a6741' : '#1d5c3a',
+            background: '#4a6741',
             color: '#fff',
             opacity: exporting ? 0.75 : 1,
           }}
