@@ -306,11 +306,9 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
               <path strokeLinecap="round" d="M12 3a9 9 0 1 0 9 9" />
             </svg>
           ) : (
-            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.9}>
-              <rect x="3" y="3" width="18" height="18" rx="2" strokeLinejoin="round" />
-              <line x1="3"  y1="9"  x2="21" y2="9"  />
-              <line x1="3"  y1="15" x2="21" y2="15" />
-              <line x1="9"  y1="3"  x2="9"  y2="21" />
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round"
+                d="M6 4h12a2 2 0 012 2v4H4V6a2 2 0 012-2zM4 10h16v8a2 2 0 01-2 2H6a2 2 0 01-2-2v-8zM9 10v10M15 10v10" />
             </svg>
           )}
         </button>
