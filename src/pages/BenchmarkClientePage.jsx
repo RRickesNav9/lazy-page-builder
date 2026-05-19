@@ -134,9 +134,17 @@ const ALL_METRICAS_CONFIG = [
     isPct: false,
   },
   {
+    key: 'area_por_linha_24h',
+    label: 'Área/Linha por 24h',
+    sub: 'ha/linha/dia · plantio',
+    fmt: (v) => v != null && v > 0 ? v.toFixed(3) : '—',
+    higherIsBetter: true,
+    isPct: false,
+  },
+  {
     key: 'pes_plataforma_24h',
     label: 'Pés Plat. por 24h',
-    sub: 'ha/linha/dia · plantio',
+    sub: 'ha/pé/dia · colheita',
     fmt: (v) => v != null && v > 0 ? v.toFixed(3) : '—',
     higherIsBetter: true,
     isPct: false,

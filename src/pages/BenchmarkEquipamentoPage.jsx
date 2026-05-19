@@ -30,8 +30,9 @@ const METRICAS_CONFIG = [
   { key: 'motor_ocioso_pct',             modeloKey: 'motor_ocioso_pct_modelo',             label: 'Motor Ocioso',             unit: '%',    d: 2, higherIsBetter: false },
   { key: 'sem_apontamento_pct',          modeloKey: 'sem_apontamento_pct_modelo',          label: 'Sem Apontamento',          unit: '%',    d: 2, higherIsBetter: false },
   { key: 'rpm_medio',                    modeloKey: 'rpm_medio_modelo',                    label: 'RPM Médio',                unit: 'RPM',  d: 0, higherIsBetter: null  },
-  { key: 'area_por_linha_ha',            modeloKey: 'area_por_linha_ha_modelo',            label: 'Área por Linha',           unit: 'ha',       d: 4, higherIsBetter: true  },
-  { key: 'pes_plataforma_24h',           modeloKey: null,                                  label: 'Pés Plat. por 24h',        unit: 'ha/linha/dia', d: 3, higherIsBetter: true  },
+  { key: 'area_por_linha_ha',            modeloKey: 'area_por_linha_ha_modelo',            label: 'Área por Linha',           unit: 'ha',           d: 4, higherIsBetter: true  },
+  { key: 'area_por_linha_24h',           modeloKey: null,                                  label: 'Área/Linha por 24h',       unit: 'ha/linha/dia',  d: 3, higherIsBetter: true  },
+  { key: 'pes_plataforma_24h',           modeloKey: null,                                  label: 'Pés Plat. por 24h',        unit: 'ha/pé/dia',     d: 3, higherIsBetter: true  },
 ]
 
 const DEFAULT_SELECTED_METRICS = new Set([
@@ -86,7 +87,7 @@ function badgeProps(status) {
 }
 
 // Normaliza row de media_equipamentos_porteira para o mesmo shape das métricas (cfg.key → value).
-// pes_plataforma_24h não existe na tabela benchmark — lê o campo computado localmente (_modelo sufixo).
+// pes_plataforma_24h e area_por_linha_24h são computados em memória — não existem na tabela benchmark.
 function normalizarModeloRow(row) {
   if (!row) return null
   return Object.fromEntries(METRICAS_CONFIG.map(cfg => [

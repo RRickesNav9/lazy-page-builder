@@ -263,7 +263,7 @@ export function useClienteBenchmark(filters = {}) {
             'eficiencia_operacional_pct', 'consumo_medio_efetivo_lha',
             'consumo_medio_lh', 'disponibilidade_mecanica_pct', 'velocidade_media_kmh',
             'rendimento_real_hah', 'consumo_medio_lha', 'consumo_medio_efetivo_lh',
-            'sem_apontamento_pct', 'motor_ocioso_pct', 'motor_ligado_pct', 'rpm_medio', 'area_por_linha_ha',
+            'sem_apontamento_pct', 'motor_ocioso_pct', 'motor_ligado_pct', 'rpm_medio', 'area_por_linha_ha', 'area_por_pe_ha',
             'tempo_produtivo_h', 'tempo_efetivo_h', 'tempo_total_h', 'area_ha', 'tempo_motor_ligado_h', 'tempo_parada_h',
           ].join(','))
           .neq('cliente', 'Média Porteira')
@@ -330,18 +330,21 @@ export function useClienteBenchmark(filters = {}) {
           ? all.reduce((s, r) => s + (r.tempo_total_h ?? 0), 0) / equipDays.size
           : 0
 
-        // pes_plataforma_24h: Σ(area_por_linha_ha / tempo_total_h * 24 * area_ha) / Σ(area_ha)
-        let pesNum = 0, pesDen = 0
+        // pes_plataforma_24h: Σ(area_por_pe_ha / tempo_total_h * 24 * area_ha) / Σ(area_ha) — colheita
+        // area_por_linha_24h: Σ(area_por_linha_ha / tempo_total_h * 24 * area_ha) / Σ(area_ha) — plantio
+        let pesNum = 0, pesDen = 0, linhaNum = 0, linhaDen = 0
         for (const row of all) {
-          const apl  = row.area_por_linha_ha
           const tt   = row.tempo_total_h
           const area = row.area_ha
-          if (apl != null && apl > 0 && tt != null && tt > 0 && area != null && area > 0) {
-            pesNum += apl / tt * 24 * area
-            pesDen += area
+          if (tt != null && tt > 0 && area != null && area > 0) {
+            const ppe = row.area_por_pe_ha
+            if (ppe != null && ppe > 0) { pesNum += ppe / tt * 24 * area; pesDen += area }
+            const apl = row.area_por_linha_ha
+            if (apl != null && apl > 0) { linhaNum += apl / tt * 24 * area; linhaDen += area }
           }
         }
         result['pes_plataforma_24h'] = pesDen > 0 ? pesNum / pesDen : 0
+        result['area_por_linha_24h'] = linhaDen > 0 ? linhaNum / linhaDen : 0
 
         setMetricas(result)
       } catch (err) {
@@ -376,7 +379,7 @@ export function useAllClientesBenchmark(filters = {}) {
             'eficiencia_operacional_pct', 'consumo_medio_efetivo_lha',
             'consumo_medio_lh', 'disponibilidade_mecanica_pct', 'velocidade_media_kmh',
             'rendimento_real_hah', 'consumo_medio_lha', 'consumo_medio_efetivo_lh',
-            'sem_apontamento_pct', 'motor_ocioso_pct', 'motor_ligado_pct', 'rpm_medio', 'area_por_linha_ha',
+            'sem_apontamento_pct', 'motor_ocioso_pct', 'motor_ligado_pct', 'rpm_medio', 'area_por_linha_ha', 'area_por_pe_ha',
             'tempo_produtivo_h', 'tempo_efetivo_h', 'tempo_total_h', 'area_ha', 'tempo_motor_ligado_h', 'tempo_parada_h',
           ].join(','))
           .neq('cliente', 'Média Porteira')
@@ -441,18 +444,21 @@ export function useAllClientesBenchmark(filters = {}) {
             ? rows.reduce((s, r) => s + (r.tempo_total_h ?? 0), 0) / equipDays.size
             : null
 
-          // pes_plataforma_24h: Σ(area_por_linha_ha / tempo_total_h * 24 * area_ha) / Σ(area_ha)
-          let pesNum = 0, pesDen = 0
+          // pes_plataforma_24h: colheita — area_por_pe_ha / tempo_total_h * 24
+          // area_por_linha_24h: plantio  — area_por_linha_ha / tempo_total_h * 24
+          let pesNum = 0, pesDen = 0, linhaNum = 0, linhaDen = 0
           for (const row of rows) {
-            const apl  = row.area_por_linha_ha
             const tt   = row.tempo_total_h
             const area = row.area_ha
-            if (apl != null && apl > 0 && tt != null && tt > 0 && area != null && area > 0) {
-              pesNum += apl / tt * 24 * area
-              pesDen += area
+            if (tt != null && tt > 0 && area != null && area > 0) {
+              const ppe = row.area_por_pe_ha
+              if (ppe != null && ppe > 0) { pesNum += ppe / tt * 24 * area; pesDen += area }
+              const apl = row.area_por_linha_ha
+              if (apl != null && apl > 0) { linhaNum += apl / tt * 24 * area; linhaDen += area }
             }
           }
           entry['pes_plataforma_24h'] = pesDen > 0 ? pesNum / pesDen : null
+          entry['area_por_linha_24h'] = linhaDen > 0 ? linhaNum / linhaDen : null
           result.push(entry)
         }
         setData(result)
@@ -578,19 +584,21 @@ export function computeWeightedAvg(rows) {
     }
     result[metrica] = sumPeso > 0 ? sumProd / sumPeso : 0
   }
-  // pes_plataforma_24h: Σ(area_por_linha_ha / tempo_total_h * 24 * area_ha) / Σ(area_ha)
-  // fórmula do Looker Studio — apenas sessões de plantio (area_por_linha_ha > 0)
-  let pesNum = 0, pesDen = 0
+  // pes_plataforma_24h: colheita — area_por_pe_ha / tempo_total_h * 24
+  // area_por_linha_24h: plantio  — area_por_linha_ha / tempo_total_h * 24
+  let pesNum = 0, pesDen = 0, linhaNum = 0, linhaDen = 0
   for (const row of rows) {
-    const apl  = row.area_por_linha_ha
     const tt   = row.tempo_total_h
     const area = row.area_ha
-    if (apl != null && apl > 0 && tt != null && tt > 0 && area != null && area > 0) {
-      pesNum += apl / tt * 24 * area
-      pesDen += area
+    if (tt != null && tt > 0 && area != null && area > 0) {
+      const ppe = row.area_por_pe_ha
+      if (ppe != null && ppe > 0) { pesNum += ppe / tt * 24 * area; pesDen += area }
+      const apl = row.area_por_linha_ha
+      if (apl != null && apl > 0) { linhaNum += apl / tt * 24 * area; linhaDen += area }
     }
   }
   result.pes_plataforma_24h = pesDen > 0 ? pesNum / pesDen : 0
+  result.area_por_linha_24h = linhaDen > 0 ? linhaNum / linhaDen : 0
   return result
 }
 
@@ -607,7 +615,7 @@ export function useMaquinaMetricas(filters = {}) {
       try {
         let query = supabase
           .from('dashboard_operational_view')
-          .select('rendimento_operacional_hah,rendimento_real_hah,eficiencia_geral_pct,eficiencia_operacional_pct,consumo_medio_efetivo_lha,consumo_medio_efetivo_lh,consumo_medio_lh,consumo_medio_lha,disponibilidade_mecanica_pct,velocidade_media_kmh,rpm_medio,motor_ligado_pct,motor_ocioso_pct,sem_apontamento_pct,area_por_linha_ha,tempo_produtivo_h,tempo_efetivo_h,tempo_total_h,area_ha,tempo_motor_ligado_h,tempo_parada_h')
+          .select('rendimento_operacional_hah,rendimento_real_hah,eficiencia_geral_pct,eficiencia_operacional_pct,consumo_medio_efetivo_lha,consumo_medio_efetivo_lh,consumo_medio_lh,consumo_medio_lha,disponibilidade_mecanica_pct,velocidade_media_kmh,rpm_medio,motor_ligado_pct,motor_ocioso_pct,sem_apontamento_pct,area_por_linha_ha,area_por_pe_ha,tempo_produtivo_h,tempo_efetivo_h,tempo_total_h,area_ha,tempo_motor_ligado_h,tempo_parada_h')
           .eq('equipamento_cod', filters.equipamento_cod)
         if (filters.processo)   query = query.eq('processo',   filters.processo)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)

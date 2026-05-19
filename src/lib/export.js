@@ -148,6 +148,7 @@ const BENCH_LABELS = {
   motor_ligado_pct:             'Motor Ligado (%)',
   rpm_medio:                    'RPM Médio',
   area_por_linha_ha:            'Área/Linha (ha)',
+  area_por_linha_24h:           'Área/Linha por 24h',
   pes_plataforma_24h:           'Pés Plat./24h',
   tempo_medio_turno_h:          'Turno Médio (h)',
 }
