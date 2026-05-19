@@ -295,7 +295,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
           style={{
             ...fabBase,
             bottom: pageActiveCount > 0 ? 264 : 204,
-            background: exporting ? '#4a6741' : '#1a4a6b',
+            background: exporting ? '#4a6741' : '#1d5c3a',
             color: '#fff',
             opacity: exporting ? 0.75 : 1,
           }}
