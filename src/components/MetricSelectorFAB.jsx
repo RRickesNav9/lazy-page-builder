@@ -68,41 +68,42 @@ export default function MetricSelectorFAB({ config, selected, onToggle }) {
           data-pdf-exclude="true"
           style={{
             position: 'fixed', bottom: panelBottom, right: 24, zIndex: 999,
-            width: 340, maxHeight: '65vh', overflowY: 'auto',
+            width: 300, maxHeight: '65vh', overflowY: 'auto',
             background: '#fff', border: '1px solid #e0dbd4', borderRadius: 12,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: 20,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: '16px 0',
           }}
         >
-          <div style={{ fontWeight: 600, fontSize: 13, color: '#1a1a1a', marginBottom: 4 }}>
+          <div style={{ fontWeight: 600, fontSize: 13, color: '#1a1a1a', padding: '0 16px 12px' }}>
             Métricas exibidas
           </div>
-          <div style={{
-            fontSize: 10, color: '#6b6560', marginBottom: 12,
-          }}>
-            Toque para ativar ou desativar. Ao menos uma métrica deve permanecer ativa.
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
             {config.map(cfg => {
               const active = selected.has(cfg.key)
-              // suporta tanto {unit} (BenchmarkEquipamentoPage) quanto {sub} (demais páginas)
               const unitLabel = cfg.unit || (cfg.sub ? cfg.sub.split('·')[0].trim() : '')
               return (
-                <button
+                <label
                   key={cfg.key}
-                  onClick={() => onToggle(cfg.key)}
                   style={{
-                    padding: '4px 10px', fontSize: 11, fontWeight: 500,
-                    borderRadius: 4, cursor: 'pointer',
-                    border: active ? '1px solid #2d4a2d' : '1px solid #d0cac4',
-                    background: active ? '#2d4a2d' : '#ffffff',
-                    color: active ? '#ffffff' : '#6b6560',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '8px 16px', cursor: 'pointer',
+                    background: active ? '#f2f6f0' : 'transparent',
+                    borderLeft: active ? '3px solid #4a6741' : '3px solid transparent',
+                    userSelect: 'none',
                   }}
                 >
-                  {cfg.label}
-                  {unitLabel && (
-                    <span style={{ fontSize: 9, marginLeft: 4, opacity: 0.7 }}>{unitLabel}</span>
-                  )}
-                </button>
+                  <input
+                    type="checkbox"
+                    checked={active}
+                    onChange={() => onToggle(cfg.key)}
+                    style={{ accentColor: '#4a6741', width: 15, height: 15, cursor: 'pointer', flexShrink: 0 }}
+                  />
+                  <span style={{ fontSize: 12, color: active ? '#1a1a1a' : '#6b6560', fontWeight: active ? 500 : 400 }}>
+                    {cfg.label}
+                    {unitLabel && (
+                      <span style={{ fontSize: 10, marginLeft: 4, opacity: 0.6 }}>{unitLabel}</span>
+                    )}
+                  </span>
+                </label>
               )
             })}
           </div>
