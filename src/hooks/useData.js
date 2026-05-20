@@ -512,13 +512,14 @@ function safraToDateRange(safra) {
   return { dataInicio: `${startYear}-06-01`, dataFim: `${startYear + 1}-05-31` }
 }
 
-// Calcula mediana de consumo_medio_lh por equipamento_cod a partir de rows já carregadas.
+// Calcula mediana de consumo_medio_lha (L/ha) por equipamento_cod a partir de rows já carregadas.
+// L/ha captura sessões onde combustível foi queimado sem trabalho proporcional (quebras, travamentos).
 // Retorna Map<equipamento_cod, { median, count }> — mesma estrutura de useMachineBaseline.
 function computeBreakdownBaseline(rows) {
   const byMachine = {}
   for (const row of rows) {
     if (!row.equipamento_cod) continue
-    const c = parseFloat(row.consumo_medio_lh) || 0
+    const c = parseFloat(row.consumo_medio_lha) || 0
     if (!c) continue
     if (!byMachine[row.equipamento_cod]) byMachine[row.equipamento_cod] = []
     byMachine[row.equipamento_cod].push(c)
@@ -538,13 +539,14 @@ function computeBreakdownBaseline(rows) {
 const BREAKDOWN_MULT      = 3.0
 const BREAKDOWN_MIN_COUNT = 5
 
-// Filtra rows com consumo_medio_lh acima de 3× a mediana da própria máquina na safra.
+// Filtra rows com consumo_medio_lha (L/ha) acima de 3× a mediana da própria máquina na safra.
+// Sessões com L/h alto mas área proporcionalmente alta (trabalho pesado legítimo) não são removidas.
 function filterBreakdown(rows, baseline) {
   if (!baseline || baseline.size === 0) return rows
   return rows.filter(r => {
     const ref    = baseline.get(r.equipamento_cod)
     if (!ref || ref.count < BREAKDOWN_MIN_COUNT) return true
-    const consumo = parseFloat(r.consumo_medio_lh) || 0
+    const consumo = parseFloat(r.consumo_medio_lha) || 0
     if (!consumo) return true
     return consumo <= ref.median * BREAKDOWN_MULT
   })
@@ -1112,7 +1114,7 @@ export function useGrupoInterativo(safra, processo, tipo_safra, enabled = false,
   return { metricas, loading }
 }
 
-// Calcula mediana de consumo_medio_lh por equipamento_cod ao longo da safra inteira (Solinftec).
+// Calcula mediana de consumo_medio_lha (L/ha) por equipamento_cod ao longo da safra inteira (Solinftec).
 // Usado pelo modo "Detalhado" para identificar sessões de quebra vs. operação normal.
 // Retorna Map<equipamento_cod, { median: number, count: number }>.
 export function useMachineBaseline(safra, enabled = false) {
@@ -1132,11 +1134,11 @@ export function useMachineBaseline(safra, enabled = false) {
       while (true) {
         const { data } = await supabase
           .from('operational_records')
-          .select('equipamento_cod, consumo_medio_lh')
+          .select('equipamento_cod, consumo_medio_lha')
           .eq('data_provider_id', SOLINFTEC_ID)
           .gte('data', dataInicio)
           .lte('data', dataFim)
-          .gt('consumo_medio_lh', 0)
+          .gt('consumo_medio_lha', 0)
           .range(from, from + 999)
         if (!data?.length) break
         all = all.concat(data)
@@ -1148,7 +1150,7 @@ export function useMachineBaseline(safra, enabled = false) {
       for (const row of all) {
         if (!row.equipamento_cod) continue
         if (!byMachine[row.equipamento_cod]) byMachine[row.equipamento_cod] = []
-        byMachine[row.equipamento_cod].push(parseFloat(row.consumo_medio_lh))
+        byMachine[row.equipamento_cod].push(parseFloat(row.consumo_medio_lha))
       }
 
       const map = new Map()
