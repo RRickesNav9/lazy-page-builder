@@ -687,6 +687,7 @@ export default function AnaliseGeralPage() {
     queryFilters.processos?.[0],
     queryFilters.tipos_safra?.[0],
     showGroupAvg,
+    filters.filterMode,
   )
 
   const isDetalhado = filters.filterMode === 'detalhado'

@@ -211,12 +211,13 @@ export function useStopData(queryFilters = {}) {
           .select('report_id, motivo_de_parada, tipo_parada, tempo_parado_h')
         if (queryFilters.dataInicio) query = query.gte('data', queryFilters.dataInicio)
         if (queryFilters.dataFim)    query = query.lte('data', queryFilters.dataFim)
-        if (queryFilters.clientes?.length)     query = query.in('cliente', queryFilters.clientes)
-        else if (queryFilters.cliente)        query = query.eq('cliente', queryFilters.cliente)
-        if (queryFilters.processos?.length)   query = query.in('processo', queryFilters.processos)
-        else if (queryFilters.processo)       query = query.eq('processo', queryFilters.processo)
-        if (queryFilters.tipos_safra?.length) query = query.in('tipo_safra', queryFilters.tipos_safra)
-        else if (queryFilters.tipo_safra)     query = query.eq('tipo_safra', queryFilters.tipo_safra)
+        if (queryFilters.clientes?.length)      query = query.in('cliente',     queryFilters.clientes)
+        else if (queryFilters.cliente)         query = query.eq('cliente',     queryFilters.cliente)
+        if (queryFilters.propriedades?.length) query = query.in('propriedade', queryFilters.propriedades)
+        if (queryFilters.processos?.length)    query = query.in('processo',    queryFilters.processos)
+        else if (queryFilters.processo)        query = query.eq('processo',    queryFilters.processo)
+        if (queryFilters.tipos_safra?.length)  query = query.in('tipo_safra',  queryFilters.tipos_safra)
+        else if (queryFilters.tipo_safra)      query = query.eq('tipo_safra',  queryFilters.tipo_safra)
         let all = [], from = 0
         const pageSize = 1000
         while (true) {
@@ -1070,7 +1071,7 @@ export function useEquipamentoInterativo(safra, processo, tipo_safra) {
 // Calcula média do grupo (todos os clientes Solinftec) para a safra inteira.
 // Aplica breakdown filter. Retorna objeto com as métricas ou null.
 // enabled=false → skip (evita fetch desnecessário quando showGroupAvg=false).
-export function useGrupoInterativo(safra, processo, tipo_safra, enabled = false) {
+export function useGrupoInterativo(safra, processo, tipo_safra, enabled = false, filterMode = 'padrao') {
   const [metricas, setMetricas] = useState(null)
   const [loading, setLoading]   = useState(false)
 
@@ -1098,13 +1099,15 @@ export function useGrupoInterativo(safra, processo, tipo_safra, enabled = false)
         from += 1000
       }
 
-      const baseline = computeBreakdownBaseline(all)
-      const clean    = filterBreakdown(all, baseline)
-      setMetricas(computeWeightedAvg(clean))
+      // aplica breakdown filter apenas quando "Detalhado" está ativo — espelha o comportamento dos dados individuais
+      const rows = filterMode === 'detalhado'
+        ? filterBreakdown(all, computeBreakdownBaseline(all))
+        : all
+      setMetricas(computeWeightedAvg(rows))
       setLoading(false)
     }
     run()
-  }, [safra, processo, tipo_safra, enabled])
+  }, [safra, processo, tipo_safra, enabled, filterMode])
 
   return { metricas, loading }
 }
