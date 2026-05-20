@@ -740,7 +740,7 @@ export default function BenchmarkEquipamentoPage() {
 
   return (
     <div style={{ padding: '24px', maxWidth: 1280, margin: '0 auto' }}>
-      {filters.metricFilter?.field && filters.metricFilter?.value !== '' && filters.metricFilter?.value != null && (
+      {(filters.metricFilters ?? []).some(f => f.field && f.value !== '' && f.value != null) && (
         <div style={{ background: '#edf5ed', border: '1px solid #4a6741', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#1e4d1e' }}>
           Filtro de métrica ativo nesta safra — os resultados refletem o período e dimensões selecionados.
         </div>

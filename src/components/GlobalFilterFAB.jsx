@@ -12,14 +12,18 @@ const PERIODOS = [
 ]
 
 const METRIC_FILTER_OPTIONS = [
-  { value: 'rendimento_operacional_hah', label: 'Rendimento Op. (ha/h)' },
-  { value: 'eficiencia_geral_pct',       label: 'Eficiência Geral (%)' },
-  { value: 'eficiencia_operacional_pct', label: 'Eficiência Op. (%)' },
-  { value: 'velocidade_media_kmh',       label: 'Velocidade (km/h)' },
-  { value: 'consumo_medio_efetivo_lha',  label: 'Consumo Ef. (l/ha)' },
-  { value: 'consumo_medio_lh',           label: 'Consumo Médio (l/h)' },
+  { value: 'area_ha',                      label: 'Área (ha)' },
+  { value: 'rendimento_operacional_hah',   label: 'Rendimento Op. (ha/h)' },
+  { value: 'velocidade_media_kmh',         label: 'Velocidade (km/h)' },
+  { value: 'eficiencia_geral_pct',         label: 'Eficiência Geral (%)' },
+  { value: 'eficiencia_operacional_pct',   label: 'Eficiência Op. (%)' },
   { value: 'disponibilidade_mecanica_pct', label: 'Disponibilidade (%)' },
-  { value: 'area_ha',                    label: 'Área (ha)' },
+  { value: 'consumo_medio_efetivo_lha',    label: 'Consumo Ef. (l/ha)' },
+  { value: 'consumo_medio_lh',             label: 'Consumo Médio (l/h)' },
+  { value: 'tempo_produtivo_h',            label: 'T. Efetivo (h)' },
+  { value: 'tempo_deslocamento_h',         label: 'T. Deslocamento (h)' },
+  { value: 'tempo_parada_h',              label: 'T. Parada (h)' },
+  { value: 'tempo_total_h',               label: 'T. Total (h)' },
 ]
 
 const TIPO_PARADA_LABEL = {
@@ -165,7 +169,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
       clientes: [], propriedades: [], processos: [], tipos_safra: [],
       excludedMotivos: [],
       showGroupAvg: false,
-      metricFilter: { field: '', operator: '>=', value: '' },
+      metricFilters: [],
       filterMode: 'padrao',
       referenciaSafra: '',
     }
@@ -196,7 +200,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
     if (show('cultura')         && filters.tipos_safra.length)     c++
     if (show('excludedMotivos') && filters.excludedMotivos.length) c++
     if (show('showGroupAvg')    && filters.showGroupAvg)           c++
-    if (show('metricFilter')    && filters.metricFilter?.field)    c++
+    if (show('metricFilter') && (filters.metricFilters ?? []).some(f => f.field && f.value !== '')) c++
     if (solinftecOnly           && filters.filterMode !== 'padrao') c++
     if (solinftecOnly           && filters.referenciaSafra)         c++
     return c
@@ -318,10 +322,9 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
       {open && expanded && (
         <div ref={panelRef} data-pdf-exclude="true" style={{
           position: 'fixed',
-          bottom: (pageActiveCount > 0 ? 264 : 204) + (hasExportFn ? 60 : 0),
-          right: 24, zIndex: 999,
+          top: 16, bottom: 80, right: 80,
+          zIndex: 999,
           width: 320,
-          maxHeight: `calc(100vh - ${(pageActiveCount > 0 ? 284 : 224) + (hasExportFn ? 60 : 0)}px)`,
           overflowY: 'auto',
           background: '#fff', border: '1px solid #e0dbd4', borderRadius: 12,
           boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: 20,
@@ -413,46 +416,59 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
             </div>
           )}
 
-          {/* ── Filtro de Métrica ─────────────────────────────────────── */}
+          {/* ── Filtros de Métrica ────────────────────────────────────── */}
           {show('metricFilter') && (
             <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14, marginBottom: 14 }}>
               <Label>Filtrar por Métrica</Label>
-              <select
-                value={pending.metricFilter?.field ?? ''}
-                onChange={e => setPending(p => ({ ...p, metricFilter: { ...(p.metricFilter ?? {}), field: e.target.value, value: '' } }))}
-                style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, marginBottom: 8, color: '#1a1a1a', background: '#fff' }}
-              >
-                <option value="">Nenhum</option>
-                {METRIC_FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-              {pending.metricFilter?.field && (
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9', flexShrink: 0 }}>
-                    {['>=', '<=', '='].map(op => (
-                      <button
-                        key={op}
-                        onClick={() => setPending(p => ({ ...p, metricFilter: { ...(p.metricFilter ?? {}), operator: op } }))}
-                        style={{
-                          padding: '6px 10px', fontSize: 12, border: 'none',
-                          background: (pending.metricFilter?.operator ?? '>=') === op ? '#2d4a2d' : '#fff',
-                          color: (pending.metricFilter?.operator ?? '>=') === op ? '#fff' : '#4a3728',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {op}
-                      </button>
-                    ))}
+              {(pending.metricFilters ?? []).map((mf, idx) => (
+                <div key={idx} style={{ marginBottom: 10 }}>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 5 }}>
+                    <select
+                      value={mf.field}
+                      onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, field: e.target.value, value: '' } : f) }))}
+                      style={{ flex: 1, padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 12, color: '#1a1a1a', background: '#fff' }}
+                    >
+                      <option value="">Escolher métrica…</option>
+                      {METRIC_FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                    <button
+                      onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.filter((_, i) => i !== idx) }))}
+                      style={{ width: 26, height: 32, border: 'none', background: 'none', cursor: 'pointer', color: '#8b6560', fontSize: 18, padding: 0, flexShrink: 0 }}
+                    >×</button>
                   </div>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={pending.metricFilter?.value ?? ''}
-                    onChange={e => setPending(p => ({ ...p, metricFilter: { ...(p.metricFilter ?? {}), value: e.target.value } }))}
-                    placeholder="Valor..."
-                    style={{ flex: 1, padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13 }}
-                  />
+                  {mf.field && (
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9', flexShrink: 0 }}>
+                        {['>=', '<=', '='].map(op => (
+                          <button
+                            key={op}
+                            onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, operator: op } : f) }))}
+                            style={{
+                              padding: '5px 8px', fontSize: 12, border: 'none',
+                              background: (mf.operator ?? '>=') === op ? '#2d4a2d' : '#fff',
+                              color: (mf.operator ?? '>=') === op ? '#fff' : '#4a3728',
+                              cursor: 'pointer',
+                            }}
+                          >{op}</button>
+                        ))}
+                      </div>
+                      <input
+                        type="number" step="0.1"
+                        value={mf.value ?? ''}
+                        onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, value: e.target.value } : f) }))}
+                        placeholder="Valor…"
+                        style={{ flex: 1, padding: '5px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 12 }}
+                      />
+                    </div>
+                  )}
                 </div>
-              )}
+              ))}
+              <button
+                onClick={() => setPending(p => ({ ...p, metricFilters: [...(p.metricFilters ?? []), { field: '', operator: '>=', value: '' }] }))}
+                style={{ width: '100%', padding: '6px 0', fontSize: 12, fontWeight: 500, border: '1px dashed #4a6741', borderRadius: 6, background: 'none', color: '#4a6741', cursor: 'pointer' }}
+              >
+                + Adicionar filtro
+              </button>
             </div>
           )}
 

@@ -11,7 +11,7 @@ export const DEFAULT_FILTERS = {
   excludedMotivos: [],
   showBenchmark: false,
   showGroupAvg: false,
-  metricFilter: { field: '', operator: '>=', value: '' },
+  metricFilters: [],
   filterMode: 'padrao',
   referenciaSafra: '',
 }
@@ -105,7 +105,7 @@ export function FilterProvider({ children }) {
     if (filters.showBenchmark)         count++
     if (filters.showGroupAvg)          count++
     if (filters.periodo !== '7dias')   count++
-    if (filters.metricFilter?.field)   count++
+    if ((filters.metricFilters ?? []).some(f => f.field && f.value !== '')) count++
     if (filters.filterMode !== 'padrao') count++
     if (filters.referenciaSafra)        count++
     return count

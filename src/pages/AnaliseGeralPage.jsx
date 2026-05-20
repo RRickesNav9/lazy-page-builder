@@ -10,14 +10,18 @@ import { exportAnaliseGeral } from '../lib/export'
 /* ── Filtro de métrica — labels para o banner ────────────────────────────── */
 
 const METRIC_FILTER_LABELS = {
-  rendimento_operacional_hah: 'Rendimento Op. (ha/h)',
-  eficiencia_geral_pct:       'Eficiência Geral (%)',
-  eficiencia_operacional_pct: 'Eficiência Op. (%)',
-  velocidade_media_kmh:       'Velocidade (km/h)',
-  consumo_medio_efetivo_lha:  'Consumo Ef. (l/ha)',
-  consumo_medio_lh:           'Consumo Médio (l/h)',
+  area_ha:                      'Área (ha)',
+  rendimento_operacional_hah:   'Rendimento Op. (ha/h)',
+  velocidade_media_kmh:         'Velocidade (km/h)',
+  eficiencia_geral_pct:         'Eficiência Geral (%)',
+  eficiencia_operacional_pct:   'Eficiência Op. (%)',
   disponibilidade_mecanica_pct: 'Disponibilidade (%)',
-  area_ha:                    'Área (ha)',
+  consumo_medio_efetivo_lha:    'Consumo Ef. (l/ha)',
+  consumo_medio_lh:             'Consumo Médio (l/h)',
+  tempo_produtivo_h:            'T. Efetivo (h)',
+  tempo_deslocamento_h:         'T. Deslocamento (h)',
+  tempo_parada_h:               'T. Parada (h)',
+  tempo_total_h:                'T. Total (h)',
 }
 
 /* ── Constantes da Tabela de Dimensões ────────────────────────────────────── */
@@ -674,7 +678,7 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
 
 export default function AnaliseGeralPage() {
   const { filters, queryFilters, benchmarkSafra, registerExportFn } = useFilters()
-  const { excludedMotivos, metricFilter, showGroupAvg } = filters
+  const { excludedMotivos, metricFilters, showGroupAvg } = filters
 
   const { data: raw, loading } = useOperationalData(queryFilters)
   const { data: stopRows }     = useStopData(queryFilters)
@@ -700,12 +704,10 @@ export default function AnaliseGeralPage() {
     return withStop.length - data.length
   }, [raw, stopRows, excludedMotivos, isDetalhado, baseline, data])
 
-  // Filtro de métrica: mantém apenas sessões de equipamentos cuja média agregada passa o limiar
+  // Filtro de métrica: mantém apenas sessões de equipamentos que passam em TODOS os filtros ativos
   const filteredData = useMemo(() => {
-    const { field, operator, value } = metricFilter ?? {}
-    if (!field || value === '' || value == null) return data
-    const num = parseFloat(value)
-    if (isNaN(num)) return data
+    const active = (metricFilters ?? []).filter(f => f.field && f.value !== '' && f.value != null && !isNaN(parseFloat(f.value)))
+    if (!active.length) return data
     const byEquip = new Map()
     for (const r of data) {
       if ((parseFloat(r.area_ha) || 0) <= 0) continue
@@ -717,12 +719,15 @@ export default function AnaliseGeralPage() {
     for (const [lbl, rows] of byEquip) {
       const eq = aggregateRows(rows)
       if (!eq) continue
-      const v = eq[field] ?? 0
-      const passes = operator === '>=' ? v >= num : operator === '<=' ? v <= num : Math.abs(v - num) < 0.001
+      const passes = active.every(({ field, operator, value }) => {
+        const num = parseFloat(value)
+        const v = eq[field] ?? 0
+        return operator === '>=' ? v >= num : operator === '<=' ? v <= num : Math.abs(v - num) < 0.001
+      })
       if (passes) passingLabels.add(lbl)
     }
     return data.filter(r => passingLabels.has(equipLabel(r)))
-  }, [data, metricFilter])
+  }, [data, metricFilters])
 
   const agg      = useMemo(() => aggregateRows(filteredData), [filteredData])
   const timeDist = useMemo(() => calcTimeDistribution(filteredData), [filteredData])
@@ -860,10 +865,12 @@ export default function AnaliseGeralPage() {
         </div>
       )}
 
-      {/* Banner de filtro de métrica ativo */}
-      {metricFilter?.field && metricFilter?.value !== '' && metricFilter?.value != null && (
+      {/* Banner de filtros de métrica ativos */}
+      {(metricFilters ?? []).some(f => f.field && f.value !== '' && f.value != null) && (
         <div style={{ background: '#edf5ed', border: '1px solid #4a6741', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#1e4d1e' }}>
-          Filtro de métrica: {METRIC_FILTER_LABELS[metricFilter.field] ?? metricFilter.field} {metricFilter.operator} {metricFilter.value} — {equipRows.length} equipamento(s) exibido(s)
+          {(metricFilters ?? []).filter(f => f.field && f.value !== '' && f.value != null).map((f, i) => (
+            <span key={i}>{i > 0 ? ' · ' : ''}{METRIC_FILTER_LABELS[f.field] ?? f.field} {f.operator} {f.value}</span>
+          ))} — {equipRows.length} equipamento(s) exibido(s)
         </div>
       )}
 
