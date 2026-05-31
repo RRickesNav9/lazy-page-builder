@@ -73,10 +73,18 @@ body {
   margin: 0; /* zera margem para suprimir URL/título do browser no rodapé/cabeçalho */
 }
 
+/* ── Respiro para FABs (só na tela — não afeta o PDF) ────────────────────── */
+@media screen {
+  #pdf-content { padding-right: 80px; }
+}
+
 @media print {
   /* ── Ocultar chrome da aplicação ──────────────────────────────────────────── */
   .no-print,
   [data-pdf-exclude="true"] { display: none !important; }
+
+  /* ── Remover deslocamento da sidebar ─────────────────────────────────────── */
+  .content-wrapper { margin-left: 0 !important; padding-right: 0 !important; }
 
   /* ── Corpo ────────────────────────────────────────────────────────────────── */
   body {

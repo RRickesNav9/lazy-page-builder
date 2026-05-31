@@ -67,7 +67,6 @@ const TIPO_PARADA_COLOR = {
 
 export default function GlobalFilterFAB({ allowedProcessos = null, excludedProcessos = null, solinftecOnly = false, visibleFilters = {} }) {
   const { filters, applyFilters, clearFilters, exportFnRef, hasExportFn, fabExpanded, setFabExpanded } = useFilters()
-  // true quando a seção é aplicável nesta página (ausente = visível por padrão)
   const show = (key) => visibleFilters[key] !== false
 
   const [open,         setOpen]         = useState(false)
@@ -78,8 +77,6 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
   const [avancadoOpen, setAvancadoOpen] = useState(false)
   const stripRef = useRef(null)
 
-  // Range de datas do estado pending — atualiza em tempo real enquanto o usuário
-  // navega pelas opções do painel, antes de clicar em Aplicar
   const pendingDateRange = useMemo(() => {
     if (pending.periodo === 'custom') {
       return { dataInicio: pending.dataInicio, dataFim: pending.dataFim }
@@ -98,7 +95,6 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
     setFabExpanded(next)
   }
 
-  // Linhas restritas ao escopo da página (null = irrestrito)
   const pageRows = useMemo(() => {
     if (rawRows.length === 0) return rawRows
     let rows = rawRows
@@ -107,14 +103,12 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
     return rows
   }, [rawRows, allowedProcessos, excludedProcessos])
 
-  // Opções cascateadas: cada dimensão mostra só valores que existem nas linhas
-  // compatíveis com todas as OUTRAS dimensões já selecionadas no painel.
   const cascadedOpts = useMemo(() => {
     const filter = (excludeDim) => pageRows.filter(r => {
-      if (excludeDim !== 'clientes'     && pending.clientes.length     && !pending.clientes.includes(r.cliente))       return false
+      if (excludeDim !== 'clientes'     && pending.clientes.length     && !pending.clientes.includes(r.cliente))        return false
       if (excludeDim !== 'propriedades' && pending.propriedades.length && !pending.propriedades.includes(r.propriedade)) return false
-      if (excludeDim !== 'processos'    && pending.processos.length    && !pending.processos.includes(r.processo))      return false
-      if (excludeDim !== 'tipos_safra'  && pending.tipos_safra.length  && !pending.tipos_safra.includes(r.tipo_safra))  return false
+      if (excludeDim !== 'processos'    && pending.processos.length    && !pending.processos.includes(r.processo))       return false
+      if (excludeDim !== 'tipos_safra'  && pending.tipos_safra.length  && !pending.tipos_safra.includes(r.tipo_safra))   return false
       return true
     })
     return {
@@ -125,35 +119,32 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
     }
   }, [pageRows, pending.clientes, pending.propriedades, pending.processos, pending.tipos_safra])
 
-  // Abre o painel quando outro componente dispara o evento 'openFilterFAB'
   useEffect(() => {
     function handle() { setOpen(true) }
     window.addEventListener('openFilterFAB', handle)
     return () => window.removeEventListener('openFilterFAB', handle)
   }, [])
 
-  // Ao abrir o painel, sincroniza pending com os filtros ativos
   useEffect(() => {
     if (open) { setPending(filters); setMotivosOpen(false); setMotivoSearch(''); setAvancadoOpen(false) }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-limpa valores pendentes que deixaram de ter dados após uma mudança em cascata
   useEffect(() => {
     if (!open) return
     const updates = {}
-    const validClientes    = pending.clientes.filter(c => cascadedOpts.clientes.includes(c))
-    const validProprias    = pending.propriedades.filter(p => cascadedOpts.propriedades.includes(p))
-    const validProcessos   = pending.processos.filter(p => cascadedOpts.processos.includes(p))
-    const validTipos       = pending.tipos_safra.filter(t => cascadedOpts.tipos_safra.includes(t))
-    if (validClientes.length  !== pending.clientes.length)     updates.clientes    = validClientes
+    const validClientes  = pending.clientes.filter(c => cascadedOpts.clientes.includes(c))
+    const validProprias  = pending.propriedades.filter(p => cascadedOpts.propriedades.includes(p))
+    const validProcessos = pending.processos.filter(p => cascadedOpts.processos.includes(p))
+    const validTipos     = pending.tipos_safra.filter(t => cascadedOpts.tipos_safra.includes(t))
+    if (validClientes.length  !== pending.clientes.length)     updates.clientes     = validClientes
     if (validProprias.length  !== pending.propriedades.length) updates.propriedades = validProprias
-    if (validProcessos.length !== pending.processos.length)    updates.processos   = validProcessos
-    if (validTipos.length     !== pending.tipos_safra.length)  updates.tipos_safra = validTipos
+    if (validProcessos.length !== pending.processos.length)    updates.processos    = validProcessos
+    if (validTipos.length     !== pending.tipos_safra.length)  updates.tipos_safra  = validTipos
     if (Object.keys(updates).length > 0) setPending(p => ({ ...p, ...updates }))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending.clientes, pending.propriedades, pending.processos, pending.tipos_safra, open, cascadedOpts])
 
-  // Esc fecha a faixa; trava scroll do body enquanto aberta
+  // Esc fecha; trava scroll do body enquanto aberta
   useEffect(() => {
     if (!open) return
     function handleKey(e) { if (e.key === 'Escape') setOpen(false) }
@@ -168,7 +159,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
   // Foco no primeiro campo ao abrir
   useEffect(() => {
     if (open && stripRef.current) {
-      const first = stripRef.current.querySelector('button, input, select, [tabindex]')
+      const first = stripRef.current.querySelector('button, input, select')
       first?.focus()
     }
   }, [open])
@@ -198,7 +189,6 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
     setPending(DEFAULT_FILTERS); applyFilters(DEFAULT_FILTERS); setOpen(false)
   }
 
-  // motivos agrupados + filtrados pela busca
   const filteredMotivosByTipo = useMemo(() => {
     const search = motivoSearch.toLowerCase()
     return motivos.reduce((acc, m) => {
@@ -212,7 +202,6 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
 
   const nExcluded = pending.excludedMotivos.length
 
-  // Conta apenas filtros visíveis na página atual para o badge do FAB
   const pageActiveCount = useMemo(() => {
     let c = 0
     if (filters.periodo !== '7dias') c++
@@ -232,7 +221,6 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, visibleFilters, solinftecOnly])
 
-  // Se há seções avançadas disponíveis nesta página
   const hasAvancado = show('metricFilter') || show('showGroupAvg') || show('excludedMotivos') || solinftecOnly
 
   const fabBase = {
@@ -243,15 +231,6 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
     boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
   }
 
-  // Alturas fixas para cada FAB — o slot "Limpar" é sempre reservado, só visibility muda
-  const FAB_BOTTOM = {
-    chevron: 24,
-    filtro:  84,
-    limpar:  144,
-    pdf:     204,
-    xlsx:    264,
-  }
-
   return (
     <>
       {/* FAB — Chevron toggle (sempre visível) */}
@@ -259,9 +238,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
         onClick={toggleExpanded}
         data-pdf-exclude="true"
         title={fabExpanded ? 'Ocultar botões' : 'Mostrar botões'}
-        aria-label={fabExpanded ? 'Ocultar botões' : 'Mostrar botões'}
-        aria-expanded={fabExpanded}
-        style={{ ...fabBase, bottom: FAB_BOTTOM.chevron, background: '#4a6741', color: '#fff' }}
+        style={{ ...fabBase, bottom: 24, background: '#4a6741', color: '#fff' }}
       >
         <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
           {fabExpanded
@@ -269,18 +246,6 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
             : <path strokeLinecap="round" strokeLinejoin="round" d="M5 9l7 7 7-7" />
           }
         </svg>
-        {/* badge de filtros ativos no chevron quando recolhido */}
-        {!fabExpanded && pageActiveCount > 0 && (
-          <span style={{
-            position: 'absolute', top: -4, right: -4,
-            width: 18, height: 18, borderRadius: '50%',
-            background: '#d97706', color: '#fff',
-            fontSize: 10, fontWeight: 700,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            {pageActiveCount}
-          </span>
-        )}
       </button>
 
       {/* FAB — Filtros (visível quando expandido) */}
@@ -288,10 +253,8 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
         <button
           onClick={() => setOpen(o => !o)}
           data-pdf-exclude="true"
-          aria-label="Abrir filtros"
-          aria-expanded={open}
           style={{
-            ...fabBase, bottom: FAB_BOTTOM.filtro,
+            ...fabBase, bottom: 84,
             background: pageActiveCount > 0 ? '#2d4a2d' : '#4a6741',
             color: '#fff',
           }}
@@ -314,22 +277,13 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
         </button>
       )}
 
-      {/* FAB — Limpar filtros (slot fixo: visível quando expandido e há filtros) */}
-      {fabExpanded && (
+      {/* FAB — Limpar filtros (visível quando expandido e há filtros ativos) */}
+      {fabExpanded && pageActiveCount > 0 && (
         <button
-          onClick={pageActiveCount > 0 ? () => { clearFilters(); setOpen(false) } : undefined}
+          onClick={() => { clearFilters(); setOpen(false) }}
           data-pdf-exclude="true"
-          title={pageActiveCount > 0 ? 'Limpar filtros' : undefined}
-          aria-label="Limpar filtros"
-          style={{
-            ...fabBase,
-            bottom: FAB_BOTTOM.limpar,
-            background: '#2d4a2d',
-            color: '#fff',
-            opacity: pageActiveCount > 0 ? 1 : 0,
-            pointerEvents: pageActiveCount > 0 ? 'auto' : 'none',
-            transition: 'opacity 0.15s',
-          }}
+          title="Limpar filtros"
+          style={{ ...fabBase, bottom: 144, background: '#2d4a2d', color: '#fff' }}
         >
           <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -343,8 +297,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
           onClick={() => window.print()}
           data-pdf-exclude="true"
           title="Exportar PDF"
-          aria-label="Exportar PDF"
-          style={{ ...fabBase, bottom: FAB_BOTTOM.pdf, background: '#4a6741', color: '#fff' }}
+          style={{ ...fabBase, bottom: pageActiveCount > 0 ? 204 : 144, background: '#4a6741', color: '#fff' }}
         >
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a1 1 0 001 1h16a1 1 0 001-1v-3M7 7V4a1 1 0 011-1h8a1 1 0 011 1v3" />
@@ -359,10 +312,9 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
           data-pdf-exclude="true"
           disabled={exporting}
           title={exporting ? 'Exportando...' : 'Exportar XLSX'}
-          aria-label={exporting ? 'Exportando...' : 'Exportar XLSX'}
           style={{
             ...fabBase,
-            bottom: FAB_BOTTOM.xlsx,
+            bottom: pageActiveCount > 0 ? 264 : 204,
             background: '#4a6741',
             color: '#fff',
             opacity: exporting ? 0.75 : 1,
@@ -437,10 +389,10 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                 </button>
                 <button
                   onClick={() => setOpen(false)}
-                  aria-label="Fechar filtros"
                   style={{
                     background: 'none', border: 'none', cursor: 'pointer', color: '#6b6560',
-                    width: 28, height: 28, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 28, height: 28, borderRadius: 4,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
                 >
                   <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -559,7 +511,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
             {hasAvancado && avancadoOpen && (
               <div style={{ borderTop: '1px solid #f0ede8', padding: '16px 24px', display: 'flex', flexWrap: 'wrap', gap: 24 }}>
 
-                {/* Ver mais: Equipamento / Operador / Modelo / Implemento */}
+                {/* Equipamento / Operador / Modelo / Implemento + Filtrar por Métrica */}
                 {show('metricFilter') && (
                   <div style={{ flexBasis: 600, flexGrow: 2, minWidth: 280 }}>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
@@ -629,20 +581,13 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                               <div style={{ display: 'flex', gap: 6, marginBottom: 5 }}>
                                 <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9', flexShrink: 0 }}>
                                   {['>=', '<=', '='].map(op => (
-                                    <button
-                                      key={op}
+                                    <button key={op}
                                       onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, operator: op } : f) }))}
-                                      style={{
-                                        padding: '5px 8px', fontSize: 12, border: 'none',
-                                        background: (mf.operator ?? '>=') === op ? '#2d4a2d' : '#fff',
-                                        color: (mf.operator ?? '>=') === op ? '#fff' : '#4a3728',
-                                        cursor: 'pointer',
-                                      }}
+                                      style={{ padding: '5px 8px', fontSize: 12, border: 'none', background: (mf.operator ?? '>=') === op ? '#2d4a2d' : '#fff', color: (mf.operator ?? '>=') === op ? '#fff' : '#4a3728', cursor: 'pointer' }}
                                     >{op}</button>
                                   ))}
                                 </div>
-                                <input
-                                  type="number" step="0.1"
+                                <input type="number" step="0.1"
                                   value={mf.value ?? ''}
                                   onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, value: e.target.value } : f) }))}
                                   placeholder="Valor…"
@@ -653,23 +598,16 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                                 <span style={{ fontSize: 10, color: '#6b6560' }}>Modo:</span>
                                 <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9' }}>
                                   {[{ v: 'geral', l: 'Geral' }, { v: 'diario', l: 'Diária' }, { v: 'sessao', l: 'Sessão' }].map(({ v, l }) => (
-                                    <button
-                                      key={v}
+                                    <button key={v}
                                       onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, mode: v } : f) }))}
-                                      style={{
-                                        padding: '4px 10px', fontSize: 11, border: 'none',
-                                        background: (mf.mode ?? 'geral') === v ? '#2d4a2d' : '#fff',
-                                        color: (mf.mode ?? 'geral') === v ? '#fff' : '#4a3728',
-                                        cursor: 'pointer',
-                                      }}
+                                      style={{ padding: '4px 10px', fontSize: 11, border: 'none', background: (mf.mode ?? 'geral') === v ? '#2d4a2d' : '#fff', color: (mf.mode ?? 'geral') === v ? '#fff' : '#4a3728', cursor: 'pointer' }}
                                     >{l}</button>
                                   ))}
                                 </div>
                                 {(mf.mode ?? 'geral') !== 'sessao' && (
                                   <>
                                     <span style={{ fontSize: 10, color: '#6b6560' }}>por:</span>
-                                    <select
-                                      value={mf.dim ?? 'equipamento'}
+                                    <select value={mf.dim ?? 'equipamento'}
                                       onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, dim: e.target.value } : f) }))}
                                       style={{ padding: '3px 6px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 11, color: '#1a1a1a', background: '#fff', fontFamily: 'inherit' }}
                                     >
@@ -694,10 +632,9 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                   </div>
                 )}
 
-                {/* Coluna direita: Comparar, Motivos, Safra */}
+                {/* Comparar com grupo + Motivos + Safra */}
                 <div style={{ flexBasis: 260, flexGrow: 1, minWidth: 220, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-                  {/* Comparar com grupo */}
                   {show('showGroupAvg') && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
@@ -708,16 +645,13 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                     </div>
                   )}
 
-                  {/* Excluir Motivos de Parada */}
                   {show('excludedMotivos') && motivos.length > 0 && (
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                         <Label>Excluir Motivos de Parada</Label>
                         {nExcluded > 0 && (
-                          <button
-                            onClick={() => set('excludedMotivos', [])}
-                            style={{ fontSize: 11, color: '#8b2020', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 5, fontFamily: 'inherit' }}
-                          >
+                          <button onClick={() => set('excludedMotivos', [])}
+                            style={{ fontSize: 11, color: '#8b2020', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 5, fontFamily: 'inherit' }}>
                             limpar ({nExcluded})
                           </button>
                         )}
@@ -725,84 +659,50 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                       <p style={{ fontSize: 11, color: '#6b6560', marginBottom: 8, marginTop: 0 }}>
                         O tempo desses motivos será removido dos totais.
                       </p>
-
-                      {/* Trigger */}
-                      <button
-                        onClick={() => setMotivosOpen(o => !o)}
-                        style={{
-                          width: '100%', padding: '7px 10px', textAlign: 'left',
-                          border: '1px solid #d4cfc9',
-                          borderRadius: motivosOpen ? '6px 6px 0 0' : 6,
-                          background: '#fff', fontSize: 13, cursor: 'pointer',
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                          fontFamily: 'inherit',
-                        }}
+                      <button onClick={() => setMotivosOpen(o => !o)}
+                        style={{ width: '100%', padding: '7px 10px', textAlign: 'left', border: '1px solid #d4cfc9', borderRadius: motivosOpen ? '6px 6px 0 0' : 6, background: '#fff', fontSize: 13, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}
                       >
                         <span style={{ color: nExcluded > 0 ? '#1a1a1a' : '#6b6560' }}>
                           {nExcluded === 0 ? 'Nenhum excluído' : `${nExcluded} selecionado${nExcluded > 1 ? 's' : ''}`}
                         </span>
                         <span style={{ fontSize: 10, color: '#6b6560' }}>{motivosOpen ? '▲' : '▼'}</span>
                       </button>
-
                       {motivosOpen && (
-                        <div style={{
-                          border: '1px solid #d4cfc9', borderTop: 'none',
-                          borderRadius: '0 0 6px 6px', background: '#fff',
-                          maxHeight: 200, overflowY: 'auto',
-                        }}>
+                        <div style={{ border: '1px solid #d4cfc9', borderTop: 'none', borderRadius: '0 0 6px 6px', background: '#fff', maxHeight: 200, overflowY: 'auto' }}>
                           <div style={{ padding: '8px 10px', borderBottom: '1px solid #e0dbd4', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
-                            <input
-                              type="text"
-                              placeholder="Buscar motivo..."
-                              value={motivoSearch}
-                              onChange={e => setMotivoSearch(e.target.value)}
-                              autoFocus
-                              style={{ width: '100%', padding: '5px 8px', boxSizing: 'border-box', border: '1px solid #d4cfc9', borderRadius: 4, fontSize: 12, fontFamily: 'inherit' }}
-                            />
+                            <input type="text" placeholder="Buscar motivo..." value={motivoSearch}
+                              onChange={e => setMotivoSearch(e.target.value)} autoFocus
+                              style={{ width: '100%', padding: '5px 8px', boxSizing: 'border-box', border: '1px solid #d4cfc9', borderRadius: 4, fontSize: 12, fontFamily: 'inherit' }} />
                           </div>
-                          {Object.keys(filteredMotivosByTipo).length === 0 ? (
-                            <div style={{ padding: '10px 12px', fontSize: 12, color: '#6b6560' }}>Nenhum resultado.</div>
-                          ) : (
-                            Object.entries(filteredMotivosByTipo).map(([tipo, lista]) => (
+                          {Object.keys(filteredMotivosByTipo).length === 0
+                            ? <div style={{ padding: '10px 12px', fontSize: 12, color: '#6b6560' }}>Nenhum resultado.</div>
+                            : Object.entries(filteredMotivosByTipo).map(([tipo, lista]) => (
                               <div key={tipo}>
-                                <div style={{
-                                  padding: '6px 10px 2px', fontSize: 10, fontWeight: 700,
-                                  textTransform: 'uppercase', letterSpacing: '0.06em',
-                                  color: TIPO_PARADA_COLOR[tipo] || '#6b6560',
-                                }}>
+                                <div style={{ padding: '6px 10px 2px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: TIPO_PARADA_COLOR[tipo] || '#6b6560' }}>
                                   {TIPO_PARADA_LABEL[tipo] || tipo}
                                 </div>
                                 {lista.map(m => (
                                   <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px 4px 20px', cursor: 'pointer' }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={pending.excludedMotivos.includes(m)}
-                                      onChange={() => toggleMotivo(m)}
-                                      style={{ accentColor: '#2d4a2d' }}
-                                    />
+                                    <input type="checkbox" checked={pending.excludedMotivos.includes(m)} onChange={() => toggleMotivo(m)} style={{ accentColor: '#2d4a2d' }} />
                                     <span style={{ fontSize: 12, color: '#1a1a1a' }}>{m}</span>
                                   </label>
                                 ))}
                               </div>
                             ))
-                          )}
+                          }
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* Safra de referência */}
                   {solinftecOnly && safras.length > 0 && (
                     <div>
                       <Label>Safra de referência</Label>
                       <p style={{ fontSize: 11, color: '#6b6560', marginBottom: 8, marginTop: 0 }}>
                         Janela usada para benchmarks e detecção de quebra. Padrão: safra do período ativo.
                       </p>
-                      <select
-                        value={pending.referenciaSafra ?? ''}
-                        onChange={e => set('referenciaSafra', e.target.value)}
-                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, color: '#1a1a1a', background: '#fff', fontFamily: 'inherit' }}
-                      >
+                      <select value={pending.referenciaSafra ?? ''} onChange={e => set('referenciaSafra', e.target.value)}
+                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, color: '#1a1a1a', background: '#fff', fontFamily: 'inherit' }}>
                         <option value="">Automático (safra do período)</option>
                         {safras.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
@@ -812,13 +712,8 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
               </div>
             )}
 
-            {/* ── Rodapé da faixa ─────────────────────────────────────────── */}
-            <div style={{
-              padding: '12px 24px',
-              borderTop: '1px solid #e0dbd4',
-              position: 'sticky', bottom: 0,
-              background: '#fff',
-            }}>
+            {/* ── Rodapé ──────────────────────────────────────────────────── */}
+            <div style={{ padding: '12px 24px', borderTop: '1px solid #e0dbd4', position: 'sticky', bottom: 0, background: '#fff' }}>
               <button
                 onClick={handleApply}
                 style={{
@@ -848,7 +743,6 @@ function Label({ children }) {
   )
 }
 
-// Multi-select com busca e checkboxes — permite selecionar N valores simultaneamente.
 function MultiSelect({ values, onChange, placeholder, options }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -877,8 +771,6 @@ function MultiSelect({ values, onChange, placeholder, options }) {
     <div ref={ref} style={{ marginBottom: 0 }}>
       <button
         onClick={() => { setOpen(o => !o); setSearch('') }}
-        aria-expanded={open}
-        aria-haspopup="listbox"
         style={{
           width: '100%', padding: '6px 10px',
           border: '1px solid #d4cfc9',
@@ -894,45 +786,28 @@ function MultiSelect({ values, onChange, placeholder, options }) {
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
           {values.length > 0 && (
-            <span
-              onMouseDown={e => { e.stopPropagation(); onChange([]) }}
-              style={{ color: '#6b6560', fontSize: 16, lineHeight: 1, cursor: 'pointer' }}
-            >×</span>
+            <span onMouseDown={e => { e.stopPropagation(); onChange([]) }}
+              style={{ color: '#6b6560', fontSize: 16, lineHeight: 1, cursor: 'pointer' }}>×</span>
           )}
           <span style={{ color: '#6b6560', fontSize: 10 }}>{open ? '▲' : '▼'}</span>
         </span>
       </button>
       {open && (
-        <div role="listbox" style={{
-          border: '1px solid #d4cfc9', borderTop: 'none', borderRadius: '0 0 6px 6px',
-          background: '#fff', maxHeight: 180, overflowY: 'auto',
-        }}>
+        <div style={{ border: '1px solid #d4cfc9', borderTop: 'none', borderRadius: '0 0 6px 6px', background: '#fff', maxHeight: 180, overflowY: 'auto' }}>
           <div style={{ padding: '6px 8px', borderBottom: '1px solid #e0dbd4', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
-            <input
-              type="text"
-              placeholder="Buscar..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              autoFocus
-              style={{
-                width: '100%', padding: '4px 8px', boxSizing: 'border-box',
-                border: '1px solid #d4cfc9', borderRadius: 4, fontSize: 12, fontFamily: 'inherit',
-              }}
-            />
+            <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} autoFocus
+              style={{ width: '100%', padding: '4px 8px', boxSizing: 'border-box', border: '1px solid #d4cfc9', borderRadius: 4, fontSize: 12, fontFamily: 'inherit' }} />
           </div>
-          {filtered.length === 0 ? (
-            <div style={{ padding: '8px 10px', fontSize: 12, color: '#6b6560' }}>Nenhum resultado</div>
-          ) : filtered.map(o => (
-            <label key={o.value} role="option" aria-selected={values.includes(o.value)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={values.includes(o.value)}
-                onChange={() => toggle(o.value)}
-                style={{ accentColor: '#2d4a2d', flexShrink: 0 }}
-              />
-              <span style={{ fontSize: 13, color: '#1a1a1a' }}>{o.label}</span>
-            </label>
-          ))}
+          {filtered.length === 0
+            ? <div style={{ padding: '8px 10px', fontSize: 12, color: '#6b6560' }}>Nenhum resultado</div>
+            : filtered.map(o => (
+              <label key={o.value} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', cursor: 'pointer' }}>
+                <input type="checkbox" checked={values.includes(o.value)} onChange={() => toggle(o.value)}
+                  style={{ accentColor: '#2d4a2d', flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: '#1a1a1a' }}>{o.label}</span>
+              </label>
+            ))
+          }
         </div>
       )}
     </div>
@@ -941,18 +816,14 @@ function MultiSelect({ values, onChange, placeholder, options }) {
 
 function Chip({ active, onClick, children }) {
   return (
-    <button
-      onClick={onClick}
-      aria-pressed={active}
-      style={{
-        padding: '5px 12px', borderRadius: 20, fontSize: 12,
-        border: active ? '1.5px solid #2d4a2d' : '1px solid #d4cfc9',
-        background: active ? '#edf5ed' : '#fff',
-        color: active ? '#1e4d1e' : '#4a3728',
-        fontWeight: active ? 600 : 400, cursor: 'pointer',
-        fontFamily: 'inherit',
-      }}
-    >
+    <button onClick={onClick} style={{
+      padding: '5px 12px', borderRadius: 20, fontSize: 12,
+      border: active ? '1.5px solid #2d4a2d' : '1px solid #d4cfc9',
+      background: active ? '#edf5ed' : '#fff',
+      color: active ? '#1e4d1e' : '#4a3728',
+      fontWeight: active ? 600 : 400, cursor: 'pointer',
+      fontFamily: 'inherit',
+    }}>
       {children}
     </button>
   )
@@ -960,16 +831,11 @@ function Chip({ active, onClick, children }) {
 
 function Toggle({ checked, onChange }) {
   return (
-    <button
-      onClick={() => onChange(!checked)}
-      role="switch"
-      aria-checked={checked}
-      style={{
-        width: 40, height: 22, borderRadius: 11, border: 'none',
-        background: checked ? '#2d4a2d' : '#d4cfc9',
-        position: 'relative', cursor: 'pointer', flexShrink: 0,
-      }}
-    >
+    <button onClick={() => onChange(!checked)} style={{
+      width: 40, height: 22, borderRadius: 11, border: 'none',
+      background: checked ? '#2d4a2d' : '#d4cfc9',
+      position: 'relative', cursor: 'pointer', flexShrink: 0,
+    }}>
       <div style={{
         position: 'absolute', top: 3, left: checked ? 21 : 3,
         width: 16, height: 16, borderRadius: '50%', background: '#fff',
