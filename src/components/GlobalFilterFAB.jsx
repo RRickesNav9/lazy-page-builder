@@ -490,7 +490,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ fontSize: 10, color: '#6b6560' }}>Modo:</span>
                         <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9' }}>
-                          {[{ v: 'geral', l: 'Geral' }, { v: 'sessao', l: 'Sessão' }].map(({ v, l }) => (
+                          {[{ v: 'geral', l: 'Geral' }, { v: 'diario', l: 'Diária' }, { v: 'sessao', l: 'Sessão' }].map(({ v, l }) => (
                             <button
                               key={v}
                               onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, mode: v } : f) }))}

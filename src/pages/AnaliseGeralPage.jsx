@@ -770,32 +770,50 @@ export default function AnaliseGeralPage() {
 
   const data = dataComExclusoes
 
-  // Filtro de métrica em dois modos — aplicados em cadeia:
-  // 1. Sessão: exclui registros individuais que não passam (afeta Período Operacional)
-  // 2. Geral: exclui equipamentos cujo agregado não passa (padrão, preserva todas sessões do equipamento)
+  // Filtro de métrica em três modos — aplicados em cadeia:
+  // 1. Sessão: exclui registros individuais que não passam
+  // 2. Diária: exclui todas as sessões de um equipamento num dia se o agregado diário não passa
+  // 3. Geral: exclui equipamentos cujo agregado no período inteiro não passa (padrão)
   const filteredData = useMemo(() => {
     const active = (metricFilters ?? []).filter(f => f.field && f.value !== '' && f.value != null && !isNaN(parseFloat(f.value)))
     if (!active.length) return data
 
-    const sessaoFilters = active.filter(f => f.mode === 'sessao')
-    const geralFilters  = active.filter(f => f.mode !== 'sessao')  // 'geral' ou undefined → padrão
+    const sessaoFilters  = active.filter(f => f.mode === 'sessao')
+    const diarioFilters  = active.filter(f => f.mode === 'diario')
+    const geralFilters   = active.filter(f => f.mode !== 'sessao' && f.mode !== 'diario')  // 'geral' ou undefined → padrão
+
+    const check = (filters, val) => filters.every(({ field, operator, value }) => {
+      const num = parseFloat(value)
+      const v   = parseFloat(val[field]) ?? 0
+      if (operator === '>=') return v >= num
+      if (operator === '<=') return v <= num
+      return Math.abs(v - num) < 0.001
+    })
 
     let result = data
 
     // Fase 1 — filtro por sessão individual
     if (sessaoFilters.length) {
-      result = result.filter(r =>
-        sessaoFilters.every(({ field, operator, value }) => {
-          const num = parseFloat(value)
-          const v   = parseFloat(r[field]) ?? 0
-          if (operator === '>=') return v >= num
-          if (operator === '<=') return v <= num
-          return Math.abs(v - num) < 0.001
-        })
-      )
+      result = result.filter(r => check(sessaoFilters, r))
     }
 
-    // Fase 2 — filtro geral por agregado de equipamento
+    // Fase 2 — filtro diário: agrega por (equipamento × dia), exclui sessões que não passam
+    if (diarioFilters.length) {
+      const byEquipDay = new Map()
+      for (const r of result) {
+        const k = `${equipLabel(r)}|||${r.data}`
+        if (!byEquipDay.has(k)) byEquipDay.set(k, [])
+        byEquipDay.get(k).push(r)
+      }
+      const passingKeys = new Set()
+      for (const [k, rows] of byEquipDay) {
+        const eq = aggregateRows(rows)
+        if (eq && check(diarioFilters, eq)) passingKeys.add(k)
+      }
+      result = result.filter(r => passingKeys.has(`${equipLabel(r)}|||${r.data}`))
+    }
+
+    // Fase 3 — filtro geral por agregado de equipamento no período
     if (geralFilters.length) {
       const byEquip = new Map()
       for (const r of result) {
@@ -807,13 +825,7 @@ export default function AnaliseGeralPage() {
       const passingLabels = new Set()
       for (const [lbl, rows] of byEquip) {
         const eq = aggregateRows(rows)
-        if (!eq) continue
-        const passes = geralFilters.every(({ field, operator, value }) => {
-          const num = parseFloat(value)
-          const v   = eq[field] ?? 0
-          return operator === '>=' ? v >= num : operator === '<=' ? v <= num : Math.abs(v - num) < 0.001
-        })
-        if (passes) passingLabels.add(lbl)
+        if (eq && check(geralFilters, eq)) passingLabels.add(lbl)
       }
       result = result.filter(r => passingLabels.has(equipLabel(r)))
     }
@@ -972,7 +984,7 @@ export default function AnaliseGeralPage() {
               {i > 0 ? ' · ' : ''}
               {METRIC_FILTER_LABELS[f.field] ?? f.field} {f.operator} {f.value}
               <span style={{ fontSize: 10, marginLeft: 4, opacity: 0.75 }}>
-                [{f.mode === 'sessao' ? 'sessão' : 'geral'}]
+                [{f.mode === 'sessao' ? 'sessão' : f.mode === 'diario' ? 'diária' : 'geral'}]
               </span>
             </span>
           ))} — {equipRows.length} equipamento(s) exibido(s)
