@@ -437,44 +437,48 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                     >×</button>
                   </div>
                   {mf.field && (
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9', flexShrink: 0 }}>
-                        {['>=', '<=', '='].map(op => (
-                          <button
-                            key={op}
-                            onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, operator: op } : f) }))}
-                            style={{
-                              padding: '5px 8px', fontSize: 12, border: 'none',
-                              background: (mf.operator ?? '>=') === op ? '#2d4a2d' : '#fff',
-                              color: (mf.operator ?? '>=') === op ? '#fff' : '#4a3728',
-                              cursor: 'pointer',
-                            }}
-                          >{op}</button>
-                        ))}
+                    <>
+                      <div style={{ display: 'flex', gap: 6, marginBottom: 5 }}>
+                        <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9', flexShrink: 0 }}>
+                          {['>=', '<=', '='].map(op => (
+                            <button
+                              key={op}
+                              onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, operator: op } : f) }))}
+                              style={{
+                                padding: '5px 8px', fontSize: 12, border: 'none',
+                                background: (mf.operator ?? '>=') === op ? '#2d4a2d' : '#fff',
+                                color: (mf.operator ?? '>=') === op ? '#fff' : '#4a3728',
+                                cursor: 'pointer',
+                              }}
+                            >{op}</button>
+                          ))}
+                        </div>
+                        <input
+                          type="number" step="0.1"
+                          value={mf.value ?? ''}
+                          onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, value: e.target.value } : f) }))}
+                          placeholder="Valor…"
+                          style={{ flex: 1, padding: '5px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 12 }}
+                        />
                       </div>
-                      <input
-                        type="number" step="0.1"
-                        value={mf.value ?? ''}
-                        onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, value: e.target.value } : f) }))}
-                        placeholder="Valor…"
-                        style={{ flex: 1, padding: '5px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 12 }}
-                      />
-                      {/* Modo: Geral (agregado por equipamento) ou Sessão (por registro individual) */}
-                      <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9', flexShrink: 0 }}>
-                        {[{ v: 'geral', l: 'Geral' }, { v: 'sessao', l: 'Sessão' }].map(({ v, l }) => (
-                          <button
-                            key={v}
-                            onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, mode: v } : f) }))}
-                            style={{
-                              padding: '5px 8px', fontSize: 11, border: 'none',
-                              background: (mf.mode ?? 'geral') === v ? '#2d4a2d' : '#fff',
-                              color: (mf.mode ?? 'geral') === v ? '#fff' : '#4a3728',
-                              cursor: 'pointer',
-                            }}
-                          >{l}</button>
-                        ))}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 10, color: '#6b6560' }}>Modo:</span>
+                        <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9' }}>
+                          {[{ v: 'geral', l: 'Geral' }, { v: 'sessao', l: 'Sessão' }].map(({ v, l }) => (
+                            <button
+                              key={v}
+                              onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, mode: v } : f) }))}
+                              style={{
+                                padding: '4px 10px', fontSize: 11, border: 'none',
+                                background: (mf.mode ?? 'geral') === v ? '#2d4a2d' : '#fff',
+                                color: (mf.mode ?? 'geral') === v ? '#fff' : '#4a3728',
+                                cursor: 'pointer',
+                              }}
+                            >{l}</button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    </>
                   )}
                 </div>
               ))}
