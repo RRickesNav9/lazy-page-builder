@@ -22,10 +22,10 @@ const METRICAS_CONFIG = [
   { key: 'eficiencia_geral_pct',         modeloKey: 'eficiencia_geral_pct_modelo',         label: 'Eficiência Geral',         unit: '%',    d: 2, higherIsBetter: true  },
   { key: 'eficiencia_operacional_pct',   modeloKey: 'eficiencia_operacional_pct_modelo',   label: 'Eficiência Operacional',   unit: '%',    d: 2, higherIsBetter: true  },
   { key: 'disponibilidade_mecanica_pct', modeloKey: 'disponibilidade_mecanica_pct_modelo', label: 'Disponibilidade Mecânica', unit: '%',    d: 2, higherIsBetter: true  },
-  { key: 'consumo_medio_lha',            modeloKey: 'consumo_medio_lha_modelo',            label: 'Consumo Médio',            unit: 'L/ha', d: 2, higherIsBetter: false },
   { key: 'consumo_medio_lh',             modeloKey: 'consumo_medio_lh_modelo',             label: 'Consumo Médio',            unit: 'L/h',  d: 2, higherIsBetter: false },
-  { key: 'consumo_medio_efetivo_lha',    modeloKey: 'consumo_medio_efetivo_lha_modelo',    label: 'Consumo Efetivo Médio',    unit: 'L/ha', d: 2, higherIsBetter: false },
-  { key: 'consumo_medio_efetivo_lh',     modeloKey: 'consumo_medio_efetivo_lh_modelo',     label: 'Consumo Efetivo',          unit: 'L/h',  d: 2, higherIsBetter: false },
+  { key: 'consumo_medio_lha',            modeloKey: 'consumo_medio_lha_modelo',            label: 'Consumo Médio',            unit: 'L/ha', d: 2, higherIsBetter: false },
+  { key: 'consumo_medio_efetivo_lh',     modeloKey: 'consumo_medio_efetivo_lh_modelo',     label: 'Consumo Médio Efetivo',    unit: 'L/h',  d: 2, higherIsBetter: false },
+  { key: 'consumo_medio_efetivo_lha',    modeloKey: 'consumo_medio_efetivo_lha_modelo',    label: 'Consumo Médio Efetivo',    unit: 'L/ha', d: 2, higherIsBetter: false },
   { key: 'motor_ligado_pct',             modeloKey: 'motor_ligado_pct_modelo',             label: 'Motor Ligado',             unit: '%',    d: 2, higherIsBetter: true  },
   { key: 'motor_ocioso_pct',             modeloKey: 'motor_ocioso_pct_modelo',             label: 'Motor Ocioso',             unit: '%',    d: 2, higherIsBetter: false },
   { key: 'sem_apontamento_pct',          modeloKey: 'sem_apontamento_pct_modelo',          label: 'Sem Apontamento',          unit: '%',    d: 2, higherIsBetter: false },
@@ -507,7 +507,7 @@ function DynamicHeader({ processo, tipoSafra, safra, extraFields = [] }) {
       <div style={divStyle} />
       <div style={fieldStyle}>
         <span style={labelStyle}>Cultura</span>
-        <span style={valueStyle}>{tipoSafra || 'Não especificado'}</span>
+        <span style={valueStyle}>{tipoSafra || 'Todas'}</span>
       </div>
       <div style={divStyle} />
       <div style={fieldStyle}>

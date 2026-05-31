@@ -16,8 +16,8 @@ const METRIC_FILTER_LABELS = {
   eficiencia_geral_pct:         'Eficiência Geral (%)',
   eficiencia_operacional_pct:   'Eficiência Op. (%)',
   disponibilidade_mecanica_pct: 'Disponibilidade (%)',
-  consumo_medio_efetivo_lha:    'Consumo Ef. (l/ha)',
-  consumo_medio_lh:             'Consumo Médio (l/h)',
+  consumo_medio_efetivo_lha:    'Consumo Médio Ef. L/ha',
+  consumo_medio_lh:             'Consumo Médio L/h',
   tempo_efetivo_h:              'T. Efetivo (h)',
   tempo_deslocamento_h:         'T. Deslocamento (h)',
   tempo_parada_h:               'T. Parada (h)',
@@ -34,6 +34,7 @@ const DIMS = [
   { key: 'modelo_equipamento', label: 'Modelo' },
   { key: 'propriedade',        label: 'Propriedade' },
   { key: 'operador',           label: 'Operador' },
+  { key: 'data',               label: 'Dia' },
 ]
 
 const fmtL   = v => fmt(v, 1, ' l')
@@ -73,10 +74,10 @@ const ALL_METRICS_GROUPS = [
     { key: 'rpm_medio_parada',        label: 'RPM Parada',          fmt: fmtRpm },
   ]},
   { group: 'Consumo — Taxa', metrics: [
-    { key: 'consumo_medio_lh',          label: 'Cons. Médio (l/h)',  fmt: fmtLh  },
-    { key: 'consumo_medio_lha',         label: 'Cons. Médio (l/ha)', fmt: fmtLha },
-    { key: 'consumo_medio_efetivo_lha', label: 'Cons. Ef. (l/ha)',   fmt: fmtLha },
-    { key: 'consumo_medio_efetivo_lh',  label: 'Cons. Ef. (l/h)',    fmt: fmtLh  },
+    { key: 'consumo_medio_lh',          label: 'Cons. Médio L/h',      fmt: fmtLh  },
+    { key: 'consumo_medio_lha',         label: 'Cons. Médio L/ha',     fmt: fmtLha },
+    { key: 'consumo_medio_efetivo_lh',  label: 'Cons. Médio Ef. L/h',  fmt: fmtLh  },
+    { key: 'consumo_medio_efetivo_lha', label: 'Cons. Médio Ef. L/ha', fmt: fmtLha },
   ]},
   { group: 'Consumo — Volume', metrics: [
     { key: 'consumo_total_l',        label: 'Cons. Total (l)',         fmt: fmtL },
@@ -144,7 +145,11 @@ function buildGroups(rows, dims, level = 0) {
       agg: aggregateRows(children),
       children: dims.length > 1 ? buildGroups(children, dims.slice(1), level + 1) : [],
     }))
-    .sort((a, b) => (b.agg?.area_ha ?? 0) - (a.agg?.area_ha ?? 0))
+    .sort((a, b) =>
+      dim === 'data'
+        ? a.key.localeCompare(b.key)                               // Dia: cronológico
+        : (b.agg?.area_ha ?? 0) - (a.agg?.area_ha ?? 0)           // demais: maior área primeiro
+    )
 }
 
 function rendStatus(v, ref) {
@@ -370,7 +375,9 @@ function GroupRow({ node, path, expanded, onToggle, cols }) {
               <span style={{ display: 'inline-block', width: 18, flexShrink: 0 }} />
             )}
             <span style={{ fontSize: 13, color: node.level === 0 ? '#1a1a1a' : '#4a3728', fontWeight: node.level === 0 ? 500 : 400 }}>
-              {node.key}
+              {node.dim === 'data' && /^\d{4}-\d{2}-\d{2}$/.test(node.key)
+                ? `${node.key.slice(8)}/${node.key.slice(5, 7)}/${node.key.slice(0, 4)}`
+                : node.key}
             </span>
           </div>
         </td>
@@ -646,8 +653,8 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
                 </td>
                 {activeCols.map(col => (
                   <td key={col.key} style={{ padding: '7px 14px', textAlign: 'right', fontSize: 11, color: '#4a6741', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
-                    {AVG_GROUP_KEYS.has(col.key) && grupoRow[col.key + '_grupo'] != null
-                      ? col.fmt(grupoRow[col.key + '_grupo'])
+                    {AVG_GROUP_KEYS.has(col.key) && grupoRow[col.key] != null
+                      ? col.fmt(grupoRow[col.key])
                       : '—'}
                   </td>
                 ))}
@@ -827,9 +834,11 @@ export default function AnaliseGeralPage() {
   const processo  = filters.processos?.[0]   || ''
   const tipoSafra = filters.tipos_safra?.[0] || ''
 
-  const clienteLabel   = filters.clientes.length > 1    ? `${filters.clientes.length} clientes`   : cliente   || 'Todos'
-  const processoLabel  = filters.processos.length > 1   ? `${filters.processos.length} processos`  : processo  || 'Todos'
-  const tipoSafraLabel = filters.tipos_safra.length > 1 ? `${filters.tipos_safra.length} culturas`  : tipoSafra || 'Não especificado'
+  const clienteLabel     = filters.clientes.length > 1      ? `${filters.clientes.length} clientes`        : cliente   || 'Todos'
+  const processoLabel    = filters.processos.length > 1     ? `${filters.processos.length} processos`       : processo  || 'Todos'
+  const tipoSafraLabel   = filters.tipos_safra.length > 1   ? `${filters.tipos_safra.length} culturas`      : tipoSafra || 'Todas'
+  const propriedadeLabel = filters.propriedades.length === 1 ? filters.propriedades[0]
+    : filters.propriedades.length > 1 ? `${filters.propriedades.length} propriedades` : null
 
   const fmtDate = (iso) => {
     if (!iso) return ''
@@ -853,7 +862,8 @@ export default function AnaliseGeralPage() {
           { label: 'Cliente',  value: clienteLabel   },
           { label: 'Processo', value: processoLabel  },
           { label: 'Cultura',  value: tipoSafraLabel },
-          { label: 'Período',  value: periodo                           },
+          ...(propriedadeLabel ? [{ label: 'Propriedade', value: propriedadeLabel }] : []),
+          { label: 'Período',  value: periodo         },
         ].map(f => (
           <div key={f.label} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.6)' }}>
@@ -892,7 +902,7 @@ export default function AnaliseGeralPage() {
       {/* ── BLOCO 1: KPIs ────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap' }}>
         <KPICard label="Área Total"        value={fmtHa(agg.area_ha)} />
-        <KPICard label="Rendimento Médio"  value={fmtHah(agg.rendimento_operacional_hah)} sub={benchRend ? `Média do grupo = ${fmtHah(benchRend)}` : undefined} />
+        <KPICard label="Rend. Operacional" value={fmtHah(agg.rendimento_operacional_hah)} sub={benchRend ? `Média do grupo = ${fmtHah(benchRend)}` : undefined} />
         <KPICard label="Velocidade Média"  value={fmtKmh(agg.velocidade_media_kmh)} sub={benchVel ? `Média do grupo = ${fmtKmh(benchVel)}` : undefined} />
         <KPICard label="Eficiência Geral"  value={fmtPct(agg.eficiencia_geral_pct)} />
         <KPICard label="Tempo Efetivo"     value={fmtH(agg.tempo_efetivo_h)} />
@@ -936,7 +946,7 @@ export default function AnaliseGeralPage() {
                 <HBar key={e.equip} label={e.label} value={e.velocidade_media_kmh} maxVal={maxVel} barColor="#4a6741" displayValue={fmtKmh(e.velocidade_media_kmh)} refLine={!!benchVel} refValue={benchVel} />
               ))}
             </MiniPanel>
-            <MiniPanel title="Consumo Médio (l/h)">
+            <MiniPanel title="Consumo Médio L/h">
               {byComb.slice(0, vis2).map(e => (
                 <HBar key={e.equip} label={e.label} value={e.consumo_medio_lh} maxVal={maxComb} barColor="#c8960c" displayValue={fmt(e.consumo_medio_lh, 1, ' l/h')} />
               ))}
@@ -976,7 +986,7 @@ export default function AnaliseGeralPage() {
       )}
 
       {/* ── BLOCO 4: Distribuição de Tempo + Motivos de Parada ─────────── */}
-      <SectionTitle>Eficiência e Disponibilidade Mecânica</SectionTitle>
+      <SectionTitle>Distribuição de Tempo e Paradas</SectionTitle>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28, alignItems: 'start' }}>
 
         <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, overflow: 'hidden' }}>

@@ -52,7 +52,7 @@ function drawHeader(pdf, { cliente, processo, tipoSafra }) {
   const fields = [
     { label: 'Cliente',  value: cliente   || '—',                xOff: 0  },
     { label: 'Processo', value: processo  || '—',                xOff: 36 },
-    { label: 'Cultura',  value: tipoSafra || 'Não especificado', xOff: 72 },
+    { label: 'Cultura',  value: tipoSafra || 'Todas', xOff: 72 },
   ]
   const baseX = x + 76
   const MAX_W = 32  // mm por campo

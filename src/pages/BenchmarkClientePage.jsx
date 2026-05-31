@@ -62,9 +62,9 @@ const ALL_METRICAS_CONFIG = [
     isPct: true,
   },
   {
-    key: 'consumo_medio_efetivo_lha',
-    label: 'Consumo Efetivo Médio',
-    sub: 'L/ha',
+    key: 'consumo_medio_lh',
+    label: 'Consumo Médio',
+    sub: 'L/h',
     fmt: (v) => v.toFixed(2),
     higherIsBetter: false,
     isPct: false,
@@ -78,17 +78,17 @@ const ALL_METRICAS_CONFIG = [
     isPct: false,
   },
   {
-    key: 'consumo_medio_lh',
-    label: 'Consumo Médio',
+    key: 'consumo_medio_efetivo_lh',
+    label: 'Consumo Médio Efetivo',
     sub: 'L/h',
     fmt: (v) => v.toFixed(2),
     higherIsBetter: false,
     isPct: false,
   },
   {
-    key: 'consumo_medio_efetivo_lh',
-    label: 'Consumo Efetivo',
-    sub: 'L/h',
+    key: 'consumo_medio_efetivo_lha',
+    label: 'Consumo Médio Efetivo',
+    sub: 'L/ha',
     fmt: (v) => v.toFixed(2),
     higherIsBetter: false,
     isPct: false,
@@ -297,7 +297,7 @@ function DynamicHeader({ cliente, processo, tipoSafra }) {
       <div style={dividerStyle} />
       <div style={fieldStyle}>
         <span style={labelStyle}>Tipo de cultura</span>
-        <span style={valueStyle}>{tipoSafra || 'Não especificado'}</span>
+        <span style={valueStyle}>{tipoSafra || 'Todas'}</span>
       </div>
     </div>
   )
