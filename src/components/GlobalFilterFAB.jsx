@@ -459,12 +459,27 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                         placeholder="Valor…"
                         style={{ flex: 1, padding: '5px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 12 }}
                       />
+                      {/* Modo: Geral (agregado por equipamento) ou Sessão (por registro individual) */}
+                      <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9', flexShrink: 0 }}>
+                        {[{ v: 'geral', l: 'Geral' }, { v: 'sessao', l: 'Sessão' }].map(({ v, l }) => (
+                          <button
+                            key={v}
+                            onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, mode: v } : f) }))}
+                            style={{
+                              padding: '5px 8px', fontSize: 11, border: 'none',
+                              background: (mf.mode ?? 'geral') === v ? '#2d4a2d' : '#fff',
+                              color: (mf.mode ?? 'geral') === v ? '#fff' : '#4a3728',
+                              cursor: 'pointer',
+                            }}
+                          >{l}</button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
               ))}
               <button
-                onClick={() => setPending(p => ({ ...p, metricFilters: [...(p.metricFilters ?? []), { field: '', operator: '>=', value: '' }] }))}
+                onClick={() => setPending(p => ({ ...p, metricFilters: [...(p.metricFilters ?? []), { field: '', operator: '>=', value: '', mode: 'geral' }] }))}
                 style={{ width: '100%', padding: '6px 0', fontSize: 12, fontWeight: 500, border: '1px dashed #4a6741', borderRadius: 6, background: 'none', color: '#4a6741', cursor: 'pointer' }}
               >
                 + Adicionar filtro

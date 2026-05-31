@@ -758,20 +758,55 @@ export default function AnaliseGeralPage() {
     return dataComExclusoes.length - data.length
   }, [dataComExclusoes, data, isDetalhado, baseline])
 
-  // Filtro de sessão: filtra registro a registro — dias sem nenhuma sessão qualificada
-  // são excluídos automaticamente do Período Operacional e dos demais cálculos
+  // Filtro de métrica em dois modos — aplicados em cadeia:
+  // 1. Sessão: exclui registros individuais que não passam (afeta Período Operacional)
+  // 2. Geral: exclui equipamentos cujo agregado não passa (padrão, preserva todas sessões do equipamento)
   const filteredData = useMemo(() => {
     const active = (metricFilters ?? []).filter(f => f.field && f.value !== '' && f.value != null && !isNaN(parseFloat(f.value)))
     if (!active.length) return data
-    return data.filter(r =>
-      active.every(({ field, operator, value }) => {
-        const num = parseFloat(value)
-        const v   = parseFloat(r[field]) ?? 0
-        if (operator === '>=') return v >= num
-        if (operator === '<=') return v <= num
-        return Math.abs(v - num) < 0.001
-      })
-    )
+
+    const sessaoFilters = active.filter(f => f.mode === 'sessao')
+    const geralFilters  = active.filter(f => f.mode !== 'sessao')  // 'geral' ou undefined → padrão
+
+    let result = data
+
+    // Fase 1 — filtro por sessão individual
+    if (sessaoFilters.length) {
+      result = result.filter(r =>
+        sessaoFilters.every(({ field, operator, value }) => {
+          const num = parseFloat(value)
+          const v   = parseFloat(r[field]) ?? 0
+          if (operator === '>=') return v >= num
+          if (operator === '<=') return v <= num
+          return Math.abs(v - num) < 0.001
+        })
+      )
+    }
+
+    // Fase 2 — filtro geral por agregado de equipamento
+    if (geralFilters.length) {
+      const byEquip = new Map()
+      for (const r of result) {
+        if ((parseFloat(r.area_ha) || 0) <= 0) continue
+        const lbl = equipLabel(r)
+        if (!byEquip.has(lbl)) byEquip.set(lbl, [])
+        byEquip.get(lbl).push(r)
+      }
+      const passingLabels = new Set()
+      for (const [lbl, rows] of byEquip) {
+        const eq = aggregateRows(rows)
+        if (!eq) continue
+        const passes = geralFilters.every(({ field, operator, value }) => {
+          const num = parseFloat(value)
+          const v   = eq[field] ?? 0
+          return operator === '>=' ? v >= num : operator === '<=' ? v <= num : Math.abs(v - num) < 0.001
+        })
+        if (passes) passingLabels.add(lbl)
+      }
+      result = result.filter(r => passingLabels.has(equipLabel(r)))
+    }
+
+    return result
   }, [data, metricFilters])
 
   const agg      = useMemo(() => aggregateRows(filteredData), [filteredData])
@@ -921,7 +956,13 @@ export default function AnaliseGeralPage() {
       {(metricFilters ?? []).some(f => f.field && f.value !== '' && f.value != null) && (
         <div style={{ background: '#edf5ed', border: '1px solid #4a6741', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#1e4d1e' }}>
           {(metricFilters ?? []).filter(f => f.field && f.value !== '' && f.value != null).map((f, i) => (
-            <span key={i}>{i > 0 ? ' · ' : ''}{METRIC_FILTER_LABELS[f.field] ?? f.field} {f.operator} {f.value}</span>
+            <span key={i}>
+              {i > 0 ? ' · ' : ''}
+              {METRIC_FILTER_LABELS[f.field] ?? f.field} {f.operator} {f.value}
+              <span style={{ fontSize: 10, marginLeft: 4, opacity: 0.75 }}>
+                [{f.mode === 'sessao' ? 'sessão' : 'geral'}]
+              </span>
+            </span>
           ))} — {equipRows.length} equipamento(s) exibido(s)
         </div>
       )}
