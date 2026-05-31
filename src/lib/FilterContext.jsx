@@ -9,7 +9,6 @@ export const DEFAULT_FILTERS = {
   processos: [],
   tipos_safra: [],
   excludedMotivos: [],
-  showBenchmark: false,
   showGroupAvg: false,
   metricFilters: [],
   equipamentos: [],
@@ -19,28 +18,36 @@ export const DEFAULT_FILTERS = {
   referenciaSafra: '',
 }
 
+// Formata Date para YYYY-MM-DD usando data local — evita deslize de dia em BRT tarde da noite
+function localDateStr(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export function dateRangeForPeriodo(periodo) {
   const end = new Date()
   const start = new Date()
   if (periodo === 'ontem') {
     const d = new Date(end)
     d.setDate(d.getDate() - 1)
-    const s = d.toISOString().split('T')[0]
+    const s = localDateStr(d)
     return { dataInicio: s, dataFim: s }
   }
   if (periodo === '7dias') {
     start.setDate(end.getDate() - 7)
-    return { dataInicio: start.toISOString().split('T')[0], dataFim: end.toISOString().split('T')[0] }
+    return { dataInicio: localDateStr(start), dataFim: localDateStr(end) }
   }
   if (periodo === '30dias') {
     start.setDate(end.getDate() - 30)
-    return { dataInicio: start.toISOString().split('T')[0], dataFim: end.toISOString().split('T')[0] }
+    return { dataInicio: localDateStr(start), dataFim: localDateStr(end) }
   }
   if (periodo === 'safra') {
     const year = end.getFullYear()
     const month = end.getMonth() + 1
     const safraStart = month >= 6 ? `${year}-06-01` : `${year - 1}-06-01`
-    return { dataInicio: safraStart, dataFim: end.toISOString().split('T')[0] }
+    return { dataInicio: safraStart, dataFim: localDateStr(end) }
   }
   return { dataInicio: null, dataFim: null }
 }
@@ -51,6 +58,7 @@ export function FilterProvider({ children }) {
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [showFABs, setShowFABs] = useState(true)
+  const [fabExpanded, setFabExpanded] = useState(false)
 
   // Página ativa registra sua função de exportação; FAB lê para exibir o botão.
   // useRef evita que a troca de exportFn cause re-render em componentes que só lêem o ref.
@@ -99,7 +107,10 @@ export function FilterProvider({ children }) {
 
   // Safra usada como janela de referência para benchmarks e baseline de quebra.
   // Quando o usuário seleciona explicitamente uma safra, usa ela; caso contrário usa a safra do período ativo.
-  const benchmarkSafra = filters.referenciaSafra || currentSafra
+  const benchmarkSafra = useMemo(
+    () => filters.referenciaSafra || currentSafra,
+    [filters.referenciaSafra, currentSafra]
+  )
 
   const activeCount = useMemo(() => {
     let count = 0
@@ -108,7 +119,6 @@ export function FilterProvider({ children }) {
     if (filters.processos.length)      count++
     if (filters.tipos_safra.length)    count++
     if (filters.excludedMotivos.length) count++
-    if (filters.showBenchmark)         count++
     if (filters.showGroupAvg)          count++
     if (filters.periodo !== '7dias')   count++
     if ((filters.metricFilters ?? []).some(f => f.field && f.value !== '')) count++
@@ -120,15 +130,23 @@ export function FilterProvider({ children }) {
     return count
   }, [filters])
 
+  const value = useMemo(() => ({
+    filters, setFilters, applyFilters, clearFilters,
+    drawerOpen, openDrawer, closeDrawer,
+    showFABs, setShowFABs,
+    activeCount, DEFAULT_FILTERS,
+    queryFilters, currentSafra, benchmarkSafra,
+    exportFnRef, hasExportFn, registerExportFn,
+    fabExpanded, setFabExpanded,
+  }), [
+    filters, drawerOpen, showFABs, hasExportFn,
+    activeCount, queryFilters, currentSafra, benchmarkSafra,
+    applyFilters, clearFilters, openDrawer, closeDrawer, registerExportFn,
+    fabExpanded,
+  ])
+
   return (
-    <FilterContext.Provider value={{
-      filters, setFilters, applyFilters, clearFilters,
-      drawerOpen, openDrawer, closeDrawer,
-      showFABs, setShowFABs,
-      activeCount, DEFAULT_FILTERS,
-      queryFilters, currentSafra, benchmarkSafra,
-      exportFnRef, hasExportFn, registerExportFn,
-    }}>
+    <FilterContext.Provider value={value}>
       {children}
     </FilterContext.Provider>
   )

@@ -7,19 +7,11 @@ import { useFilters } from '../lib/FilterContext'
 
 export default function MetricSelectorFAB({ config, selected, onToggle }) {
   const [open, setOpen] = useState(false)
-  const { hasExportFn } = useFilters()
-  // sincroniza com o fold/unfold do GlobalFilterFAB via custom event
-  const [fabExpanded, setFabExpanded] = useState(() => window.__fabExpanded ?? false)
+  const { hasExportFn, fabExpanded } = useFilters()
   const panelRef = useRef(null)
 
-  useEffect(() => {
-    function handle(e) {
-      setFabExpanded(e.detail.expanded)
-      if (!e.detail.expanded) setOpen(false)
-    }
-    window.addEventListener('fabToggle', handle)
-    return () => window.removeEventListener('fabToggle', handle)
-  }, [])
+  // fecha o painel local quando o FAB principal colapsa
+  useEffect(() => { if (!fabExpanded) setOpen(false) }, [fabExpanded])
 
   useEffect(() => {
     if (!open) return

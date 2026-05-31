@@ -3,7 +3,7 @@ import { useFilters } from '../lib/FilterContext'
 import { useOperationalData, useStopData, useGrupoInterativo } from '../hooks/useData'
 import {
   aggregateRows, groupBy, applyStopExclusions, calcTimeDistribution, calcStopDistribution,
-  fmtHah, fmtHa, fmtKmh, fmtPct, fmtH, fmtLh, fmt,
+  fmtHah, fmtHa, fmtKmh, fmtPct, fmtH, fmtLh, fmt, fmtDate,
 } from '../lib/utils'
 import { exportAnaliseGeral } from '../lib/export'
 
@@ -783,7 +783,7 @@ export default function AnaliseGeralPage() {
 
     const checkNum = (filters, row) => filters.every(({ field, operator, value }) => {
       const num = parseFloat(value)
-      const v   = parseFloat(row[field]) ?? 0
+      const v   = parseFloat(row[field]) || 0
       if (operator === '>=') return v >= num
       if (operator === '<=') return v <= num
       return Math.abs(v - num) < 0.001
@@ -875,8 +875,8 @@ export default function AnaliseGeralPage() {
     }))
   }, [filteredData])
 
-  // reset paginação quando os dados mudam
-  useEffect(() => { setVis1(6); setVis2(6); setVis3(6); setVisOp(6) }, [data])
+  // reset paginação quando a lista exibida muda (inclui mudança de metricFilters)
+  useEffect(() => { setVis1(6); setVis2(6); setVis3(6); setVisOp(6) }, [filteredData])
 
   // cada painel ordena pelo seu próprio critério (melhor → pior)
   const byArea  = useMemo(() => [...equipRows].sort((a, b) => b.area_ha - a.area_ha), [equipRows])
@@ -946,11 +946,6 @@ export default function AnaliseGeralPage() {
   const propriedadeLabel = filters.propriedades.length === 1 ? filters.propriedades[0]
     : filters.propriedades.length > 1 ? `${filters.propriedades.length} propriedades` : null
 
-  const fmtDate = (iso) => {
-    if (!iso) return ''
-    const [y, m, d] = iso.split('-')
-    return `${d}-${m}-${y}`
-  }
   const di = queryFilters.dataInicio
   const df = queryFilters.dataFim
   const periodo = di === df ? fmtDate(di) : `${fmtDate(di)} até ${fmtDate(df)}`

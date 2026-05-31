@@ -18,13 +18,21 @@ const FEATURES = [
 
 export default function LoginPage({ authError }) {
   const [loading, setLoading] = useState(false)
+  const [loginError, setLoginError] = useState(null)
 
   async function handleGoogleLogin() {
     setLoading(true)
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin },
-    })
+    setLoginError(null)
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
+      })
+      if (error) throw error
+    } catch (err) {
+      setLoginError(err.message || 'Falha ao iniciar login. Tente novamente.')
+      setLoading(false)
+    }
   }
 
   return (
@@ -145,9 +153,9 @@ export default function LoginPage({ authError }) {
             {loading ? 'Redirecionando…' : 'Entrar com Google'}
           </button>
 
-          {authError && (
+          {(authError || loginError) && (
             <div style={{ fontSize: 12, color: '#8b2020', lineHeight: 1.5 }}>
-              {authError}
+              {authError || loginError}
             </div>
           )}
 

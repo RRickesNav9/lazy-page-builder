@@ -124,6 +124,7 @@ export function aggregateRows(rows) {
     consumo_medio_lha: area_ha > 0 ? consumo_total_l / area_ha : 0,
     velocidade_media_kmh: weightedAvg('velocidade_media_kmh', 'tempo_produtivo_h'),
     sem_apontamento_pct: weightedAvg('sem_apontamento_pct', 'tempo_parada_h'),
+    // proxy: o denominador real exclui manutencao+climatico+admin (coluna sintética ausente na view)
     eficiencia_operacional_pct: weightedAvg('eficiencia_operacional_pct', 'tempo_total_h'),
     motor_ligado_pct: weightedAvg('motor_ligado_pct', 'tempo_total_h'),
     // motor_ocioso_pct: % do tempo de motor ligado — se não há motor ligado, é 0
@@ -220,20 +221,26 @@ export function calcStopDistribution(rows) {
   ].filter(d => d.value > 0).sort((a, b) => b.value - a.value)
 }
 
-// Distribui tempo total por estado operacional
+// Distribui tempo total por estado operacional.
+// Inclui tempo_desloc_desc_h (DESLOC P/ DESC) e tempo_abastecimento_h (DESLOC P/ REAB)
+// para que a soma das fatias feche com tempo_total_h.
 export function calcTimeDistribution(rows) {
   const sum = (key) => rows.reduce((a, r) => a + (parseFloat(r[key]) || 0), 0)
-  const produtivo     = sum('tempo_produtivo_h')
-  const parada        = sum('tempo_parada_h')
-  const manobra       = sum('tempo_manobra_h')
-  const deslocamento  = sum('tempo_deslocamento_h')
-  const total = produtivo + parada + manobra + deslocamento
+  const produtivo      = sum('tempo_produtivo_h')
+  const parada         = sum('tempo_parada_h')
+  const manobra        = sum('tempo_manobra_h')
+  const deslocamento   = sum('tempo_deslocamento_h')
+  const deslocDesc     = sum('tempo_desloc_desc_h')
+  const abastecimento  = sum('tempo_abastecimento_h')
+  const total = produtivo + parada + manobra + deslocamento + deslocDesc + abastecimento
   if (!total) return []
   return [
-    { label: 'Produtivo',     value: produtivo,    pct: (produtivo / total) * 100,    color: '#2d4a2d' },
-    { label: 'Parada',        value: parada,        pct: (parada / total) * 100,        color: '#8b2020' },
-    { label: 'Manobra',       value: manobra,       pct: (manobra / total) * 100,       color: '#c8960c' },
-    { label: 'Deslocamento',  value: deslocamento,  pct: (deslocamento / total) * 100,  color: '#4a6741' },
+    { label: 'Produtivo',      value: produtivo,     pct: (produtivo     / total) * 100, color: '#2d4a2d' },
+    { label: 'Parada',         value: parada,         pct: (parada        / total) * 100, color: '#8b2020' },
+    { label: 'Manobra',        value: manobra,        pct: (manobra       / total) * 100, color: '#c8960c' },
+    { label: 'Deslocamento',   value: deslocamento,   pct: (deslocamento  / total) * 100, color: '#4a6741' },
+    { label: 'Desloc. Desc.',  value: deslocDesc,     pct: (deslocDesc    / total) * 100, color: '#5d8c57' },
+    { label: 'Abastec.',       value: abastecimento,  pct: (abastecimento / total) * 100, color: '#8ab07e' },
   ].filter(d => d.value > 0)
 }
 
@@ -267,14 +274,22 @@ export function defaultSafra() {
   return month >= 6 ? `${year}/${year + 1}` : `${year - 1}/${year}`
 }
 
+// Formata Date para YYYY-MM-DD usando data local (não UTC) — evita deslize de dia em BRT tarde da noite
+function localDateStr(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 // Retorna range de datas padrão: últimos 7 dias
 export function defaultDateRange() {
   const end = new Date()
   const start = new Date()
   start.setDate(end.getDate() - 7)
   return {
-    dataInicio: start.toISOString().split('T')[0],
-    dataFim: end.toISOString().split('T')[0],
+    dataInicio: localDateStr(start),
+    dataFim:    localDateStr(end),
   }
 }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useFilters, dateRangeForPeriodo } from '../lib/FilterContext'
+import { useFilters, dateRangeForPeriodo, DEFAULT_FILTERS } from '../lib/FilterContext'
 import { useFilterOptionsRaw, useStopMotivos, useFilterOptions, useExtraFilterOptions } from '../hooks/useData'
 
 
@@ -66,11 +66,10 @@ const TIPO_PARADA_COLOR = {
 }
 
 export default function GlobalFilterFAB({ allowedProcessos = null, excludedProcessos = null, solinftecOnly = false, visibleFilters = {} }) {
-  const { filters, applyFilters, clearFilters, exportFnRef, hasExportFn } = useFilters()
+  const { filters, applyFilters, clearFilters, exportFnRef, hasExportFn, fabExpanded, setFabExpanded } = useFilters()
   // true quando a seção é aplicável nesta página (ausente = visível por padrão)
   const show = (key) => visibleFilters[key] !== false
 
-  const [expanded,     setExpanded]     = useState(false)
   const [open,         setOpen]         = useState(false)
   const [exporting,    setExporting]    = useState(false)
   const [pending,      setPending]      = useState(filters)
@@ -94,14 +93,9 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
   const extraOptions = useExtraFilterOptions()
 
   function toggleExpanded() {
-    setExpanded(e => {
-      const next = !e
-      if (!next) setOpen(false)
-      // informa MetricSelectorFAB (e outros) sobre o novo estado
-      window.__fabExpanded = next
-      window.dispatchEvent(new CustomEvent('fabToggle', { detail: { expanded: next } }))
-      return next
-    })
+    const next = !fabExpanded
+    if (!next) setOpen(false)
+    setFabExpanded(next)
   }
 
   // Linhas restritas ao escopo da página (null = irrestrito)
@@ -190,16 +184,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
   }
 
   function handleClear() {
-    const cleared = {
-      periodo: '7dias', dataInicio: null, dataFim: null,
-      clientes: [], propriedades: [], processos: [], tipos_safra: [],
-      excludedMotivos: [],
-      showGroupAvg: false,
-      metricFilters: [],
-      equipamentos: [], operadores: [], modelos: [], implementos: [],
-      referenciaSafra: '',
-    }
-    setPending(cleared); applyFilters(cleared); setOpen(false)
+    setPending(DEFAULT_FILTERS); applyFilters(DEFAULT_FILTERS); setOpen(false)
   }
 
   // motivos agrupados + filtrados pela busca
@@ -250,11 +235,11 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
       <button
         onClick={toggleExpanded}
         data-pdf-exclude="true"
-        title={expanded ? 'Ocultar botões' : 'Mostrar botões'}
+        title={fabExpanded ? 'Ocultar botões' : 'Mostrar botões'}
         style={{ ...fabBase, bottom: 24, background: '#4a6741', color: '#fff' }}
       >
         <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-          {expanded
+          {fabExpanded
             ? <path strokeLinecap="round" strokeLinejoin="round" d="M19 15l-7-7-7 7" />
             : <path strokeLinecap="round" strokeLinejoin="round" d="M5 9l7 7 7-7" />
           }
@@ -262,7 +247,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
       </button>
 
       {/* FAB — Filtros (visível quando expandido) */}
-      {expanded && (
+      {fabExpanded && (
         <button
           onClick={() => setOpen(o => !o)}
           data-pdf-exclude="true"
@@ -291,7 +276,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
       )}
 
       {/* FAB — Limpar filtros (visível quando expandido e há filtros ativos) */}
-      {expanded && pageActiveCount > 0 && (
+      {fabExpanded && pageActiveCount > 0 && (
         <button
           onClick={() => { clearFilters(); setOpen(false) }}
           data-pdf-exclude="true"
@@ -305,7 +290,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
       )}
 
       {/* FAB — Exportar PDF (visível quando expandido) */}
-      {expanded && (
+      {fabExpanded && (
         <button
           onClick={() => window.print()}
           data-pdf-exclude="true"
@@ -319,7 +304,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
       )}
 
       {/* FAB — Exportar XLSX (visível quando expandido e a página registrou função de exportação) */}
-      {expanded && hasExportFn && (
+      {fabExpanded && hasExportFn && (
         <button
           onClick={handleExport}
           data-pdf-exclude="true"
@@ -348,7 +333,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
       )}
 
       {/* Painel de filtros */}
-      {open && expanded && (
+      {open && fabExpanded && (
         <div ref={panelRef} data-pdf-exclude="true" style={{
           position: 'fixed',
           top: 16, bottom: 80, right: 80,

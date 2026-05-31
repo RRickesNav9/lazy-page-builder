@@ -221,7 +221,11 @@ export default function App() {
   }, [])
 
   // aguarda resolução do estado de auth para evitar flash de tela de login
-  if (session === undefined) return null
+  if (session === undefined) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9f7f5' }}>
+      <div style={{ color: '#6b6560', fontSize: 13 }}>Carregando…</div>
+    </div>
+  )
 
   if (!session) return <LoginPage authError={authError} />
 

@@ -55,7 +55,7 @@ async function fetchRawRows(filters = {}) {
   let all = [], from = 0
   while (true) {
     const { data: page, error } = await query.range(from, from + 999)
-    if (error) { console.error('ERRO exportação: falha ao buscar dados brutos:', error.message); break }
+    if (error) throw new Error(`Falha ao buscar dados brutos: ${error.message}`)
     if (!page?.length) break
     all = all.concat(page)
     if (page.length < 1000) break

@@ -13,6 +13,7 @@ export const METRIC_WEIGHT_MAP = {
   rendimento_operacional_hah:   'tempo_efetivo_h',
   rendimento_real_hah:          'tempo_motor_ligado_h',
   eficiencia_geral_pct:         'tempo_total_h',
+  // proxy: denominador real exclui manutencao+climatico+admin (coluna sintética ausente na view)
   eficiencia_operacional_pct:   'tempo_total_h',
   consumo_medio_efetivo_lha:    'area_ha',
   consumo_medio_efetivo_lh:     'tempo_efetivo_h',
@@ -125,64 +126,6 @@ export function useOperationalData(filters = {}, enabled = true) {
   return { data, loading, fetching, error, refetch: fetch }
 }
 
-// Busca benchmark por modelo de equipamento
-export function useEquipamentoBenchmark(filters = {}) {
-  const [data, setData] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-
-  useEffect(() => {
-    async function fetch() {
-      setLoading(true)
-      try {
-        let query = supabase.from('media_equipamentos_porteira').select('*')
-        if (filters.modelo_equipamento) query = query.eq('modelo_equipamento', filters.modelo_equipamento)
-        if (filters.processo)           query = query.eq('processo', filters.processo)
-        if (filters.tipo_safra)         query = query.eq('tipo_safra', filters.tipo_safra)
-        if (filters.safra)              query = query.eq('safra', filters.safra)
-        const { data, error } = await query
-        if (error) throw error
-        setData(data)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetch()
-  }, [filters.modelo_equipamento, filters.processo, filters.tipo_safra, filters.safra])
-
-  return { data, loading, error }
-}
-
-// Busca benchmark "Média Porteira" por grupo/processo
-export function useGrupoBenchmark(filters = {}) {
-  const [data, setData] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-
-  useEffect(() => {
-    async function fetch() {
-      setLoading(true)
-      try {
-        let query = supabase.from('media_grupo_porteira').select('*')
-        if (filters.processo)   query = query.eq('processo', filters.processo)
-        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
-        if (filters.safra)      query = query.eq('safra', filters.safra)
-        const { data, error } = await query
-        if (error) throw error
-        setData(data)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetch()
-  }, [filters.processo, filters.tipo_safra, filters.safra])
-
-  return { data, loading, error }
-}
 
 // Busca valores únicos para popular filtros dropdown — usa view dedicada para evitar limite de 1000 linhas
 export function useFilterOptions() {
@@ -466,7 +409,7 @@ export function useAllClientesBenchmark(filters = {}) {
     }
     fetch()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.processo, filters.tipo_safra, filters.safra])
+  }, [filters.processo, filters.tipo_safra, filters.safra, JSON.stringify(filters.not_processos)])
 
   return { data, loading }
 }
@@ -757,36 +700,6 @@ export function useModeloStats(filters = {}) {
   }, [JSON.stringify(filters)])
 
   return { stats, loading }
-}
-
-// Busca equipamentos disponíveis para um cliente específico (para o seletor de benchmark)
-export function useEquipamentoOptions(cliente) {
-  const [equipamentos, setEquipamentos] = useState([])
-
-  useEffect(() => {
-    if (!cliente) { setEquipamentos([]); return }
-    async function fetch() {
-      const { data } = await supabase
-        .from('dashboard_operational_view')
-        .select('equipamento, equipamento_cod, modelo_equipamento')
-        .eq('cliente', cliente)
-        .limit(1000)
-      if (!data) return
-      const seen = new Set()
-      const opts = []
-      for (const r of data) {
-        const k = r.equipamento_cod || r.equipamento
-        if (k && !seen.has(k)) {
-          seen.add(k)
-          opts.push({ equipamento: r.equipamento, equipamento_cod: r.equipamento_cod, modelo: r.modelo_equipamento })
-        }
-      }
-      setEquipamentos(opts.sort((a, b) => (a.equipamento || '').localeCompare(b.equipamento || '')))
-    }
-    fetch()
-  }, [cliente])
-
-  return equipamentos
 }
 
 // Busca dados de dois conjuntos de filtros em paralelo para comparativo de equipamentos
