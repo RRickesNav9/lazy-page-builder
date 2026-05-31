@@ -60,43 +60,6 @@ function safraToDateRange(safra) {
   return { dataInicio: `${startYear}-06-01`, dataFim: `${startYear + 1}-05-31` }
 }
 
-// Calcula mediana de consumo_medio_lha (L/ha) por equipamento_cod a partir de rows já carregadas.
-function computeBreakdownBaseline(rows) {
-  const byMachine = {}
-  for (const row of rows) {
-    if (!row.equipamento_cod) continue
-    const c = parseFloat(row.consumo_medio_lha) || 0
-    if (!c) continue
-    if (!byMachine[row.equipamento_cod]) byMachine[row.equipamento_cod] = []
-    byMachine[row.equipamento_cod].push(c)
-  }
-  const map = new Map()
-  for (const [cod, vals] of Object.entries(byMachine)) {
-    const sorted = vals.sort((a, b) => a - b)
-    const mid    = Math.floor(sorted.length / 2)
-    const median = sorted.length % 2 !== 0
-      ? sorted[mid]
-      : (sorted[mid - 1] + sorted[mid]) / 2
-    map.set(cod, { median, count: sorted.length })
-  }
-  return map
-}
-
-const BREAKDOWN_MULT      = 3.0
-const BREAKDOWN_MIN_COUNT = 5
-
-// Filtra rows com consumo_medio_lha acima de 3× a mediana da própria máquina na safra.
-function filterBreakdown(rows, baseline) {
-  if (!baseline || baseline.size === 0) return rows
-  return rows.filter(r => {
-    const ref    = baseline.get(r.equipamento_cod)
-    if (!ref || ref.count < BREAKDOWN_MIN_COUNT) return true
-    const consumo = parseFloat(r.consumo_medio_lha) || 0
-    if (!consumo) return true
-    return consumo <= ref.median * BREAKDOWN_MULT
-  })
-}
-
 // ─── HOOKS PÚBLICOS ───────────────────────────────────────────────────────────
 
 // Busca registros operacionais com filtros dinâmicos e paginação
@@ -359,11 +322,7 @@ export function useClienteBenchmark(filters = {}) {
           for (const p of filters.not_processos) query = query.neq('processo', p)
         }
 
-        let all = await fetchAllPages(query)
-
-        if (filters.filterMode === 'detalhado') {
-          all = filterBreakdown(all, computeBreakdownBaseline(all))
-        }
+        const all = await fetchAllPages(query)
 
         if (all.length === 0) { setMetricas(null); return }
 
@@ -447,11 +406,7 @@ export function useAllClientesBenchmark(filters = {}) {
           for (const p of filters.not_processos) query = query.neq('processo', p)
         }
 
-        let all = await fetchAllPages(query)
-
-        if (filters.filterMode === 'detalhado') {
-          all = filterBreakdown(all, computeBreakdownBaseline(all))
-        }
+        const all = await fetchAllPages(query)
 
         const byCliente = new Map()
         for (const row of all) {
@@ -500,7 +455,7 @@ export function useAllClientesBenchmark(filters = {}) {
     }
     fetch()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.processo, filters.tipo_safra, filters.safra, filters.filterMode])
+  }, [filters.processo, filters.tipo_safra, filters.safra])
 
   return { data, loading }
 }
@@ -681,10 +636,7 @@ export function useMaquinaMetricas(filters = {}) {
         if (filters.dataInicio) query = query.gte('data',      filters.dataInicio)
         if (filters.dataFim)    query = query.lte('data',      filters.dataFim)
 
-        let all = await fetchAllPages(query)
-        if (filters.filterMode === 'detalhado' && filters.baseline) {
-          all = filterBreakdown(all, filters.baseline)
-        }
+        const all = await fetchAllPages(query)
         setMetricas(computeWeightedAvg(all))
       } catch (err) {
         setError(err.message)
@@ -716,7 +668,6 @@ export function useAllEquipamentos(filters = {}) {
         else if (filters.allowedProcessos?.length) query = query.in('processo', filters.allowedProcessos)
         if (filters.tipo_safra)    query = query.eq('tipo_safra', filters.tipo_safra)
         if (filters.solinftecOnly) query = query.neq('data_provider_id', JD_ID)
-        if (filters.filterMode === 'detalhado') query = query.gt('area_ha', 0)
 
         const all = await fetchAllPages(query)
         const seen = new Set()
@@ -763,7 +714,6 @@ export function useModeloStats(filters = {}) {
           .from('dashboard_operational_view')
           .select('equipamento_cod,rendimento_operacional_hah,rendimento_real_hah,eficiencia_geral_pct,eficiencia_operacional_pct,consumo_medio_efetivo_lha,consumo_medio_efetivo_lh,consumo_medio_lh,consumo_medio_lha,disponibilidade_mecanica_pct,velocidade_media_kmh,rpm_medio,motor_ligado_pct,motor_ocioso_pct,sem_apontamento_pct,area_por_linha_ha,tempo_produtivo_h,tempo_efetivo_h,tempo_total_h,area_ha,tempo_motor_ligado_h,tempo_parada_h')
           .eq('modelo_equipamento', filters.modelo_equipamento)
-        if (filters.filterMode === 'detalhado') query = query.gt('area_ha', 0).gt('consumo_total_l', 0)
         if (filters.processo)   query = query.eq('processo',   filters.processo)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
         if (filters.safra)      query = query.eq('safra',      filters.safra)
@@ -837,7 +787,6 @@ export function useEquipamentoComparativo(filterA, filterB) {
 
   async function fetchFor(filters) {
     let query = supabase.from('dashboard_operational_view').select('*')
-    if (filters.filterMode === 'detalhado') query = query.gt('area_ha', 0).gt('consumo_total_l', 0)
     if (filters.equipamento_cod) query = query.eq('equipamento_cod', filters.equipamento_cod)
     if (filters.cliente)         query = query.eq('cliente', filters.cliente)
     if (filters.processo)        query = query.eq('processo', filters.processo)
@@ -900,11 +849,8 @@ export function useEquipamentoInterativo(safra, processo, tipo_safra) {
 
       const all = await fetchAllPages(query)
 
-      const baseline = computeBreakdownBaseline(all)
-      const clean    = filterBreakdown(all, baseline)
-
       const byModelo = new Map()
-      for (const row of clean) {
+      for (const row of all) {
         const m = row.modelo_equipamento
         if (!m) continue
         if (!byModelo.has(m)) byModelo.set(m, [])
@@ -932,7 +878,7 @@ export function useEquipamentoInterativo(safra, processo, tipo_safra) {
 
 // Calcula média do grupo (todos os clientes Solinftec) para a safra inteira.
 // enabled=false → skip (evita fetch desnecessário quando showGroupAvg=false).
-export function useGrupoInterativo(safra, processo, tipo_safra, enabled = false, filterMode = 'padrao') {
+export function useGrupoInterativo(safra, processo, tipo_safra, enabled = false) {
   const [metricas, setMetricas] = useState(null)
   const [loading, setLoading]   = useState(false)
 
@@ -952,66 +898,12 @@ export function useGrupoInterativo(safra, processo, tipo_safra, enabled = false,
       if (tipo_safra) query = query.eq('tipo_safra', tipo_safra)
 
       const all = await fetchAllPages(query)
-      // aplica breakdown filter apenas quando "Detalhado" está ativo
-      const rows = filterMode === 'detalhado'
-        ? filterBreakdown(all, computeBreakdownBaseline(all))
-        : all
-      setMetricas(computeWeightedAvg(rows))
+      setMetricas(computeWeightedAvg(all))
       setLoading(false)
     }
     run()
-  }, [safra, processo, tipo_safra, enabled, filterMode])
+  }, [safra, processo, tipo_safra, enabled])
 
   return { metricas, loading }
 }
 
-// Calcula mediana de consumo_medio_lha (L/ha) por equipamento_cod ao longo da safra inteira (Solinftec).
-// Retorna Map<equipamento_cod, { median: number, count: number }>.
-export function useMachineBaseline(safra, enabled = false) {
-  const [baseline, setBaseline] = useState(new Map())
-  const [loading, setLoading]   = useState(false)
-
-  useEffect(() => {
-    if (!enabled || !safra) { setBaseline(new Map()); return }
-
-    async function fetch() {
-      setLoading(true)
-      const startYear = parseInt(safra.split('/')[0])
-      const dataInicio = `${startYear}-06-01`
-      const dataFim    = `${startYear + 1}-05-31`
-
-      const query = supabase
-        .from('operational_records')
-        .select('equipamento_cod, consumo_medio_lha')
-        .eq('data_provider_id', SOLINFTEC_ID)
-        .gte('data', dataInicio)
-        .lte('data', dataFim)
-        .gt('consumo_medio_lha', 0)
-
-      const all = await fetchAllPages(query)
-
-      const byMachine = {}
-      for (const row of all) {
-        if (!row.equipamento_cod) continue
-        if (!byMachine[row.equipamento_cod]) byMachine[row.equipamento_cod] = []
-        byMachine[row.equipamento_cod].push(parseFloat(row.consumo_medio_lha))
-      }
-
-      const map = new Map()
-      for (const [cod, vals] of Object.entries(byMachine)) {
-        const sorted = vals.sort((a, b) => a - b)
-        const mid    = Math.floor(sorted.length / 2)
-        const median = sorted.length % 2 !== 0
-          ? sorted[mid]
-          : (sorted[mid - 1] + sorted[mid]) / 2
-        map.set(cod, { median, count: sorted.length })
-      }
-
-      setBaseline(map)
-      setLoading(false)
-    }
-    fetch()
-  }, [safra, enabled])
-
-  return { baseline, loading }
-}

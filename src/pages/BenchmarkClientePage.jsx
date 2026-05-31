@@ -735,7 +735,6 @@ export default function BenchmarkClientePage({ onTabChange }) {
     safra: benchmarkSafra,
     ...(queryFilters.dataInicio && { dataInicio: queryFilters.dataInicio }),
     ...(queryFilters.dataFim    && { dataFim:    queryFilters.dataFim    }),
-    filterMode: filters.filterMode,
     ...geralExclusion,
   }
 
@@ -743,7 +742,6 @@ export default function BenchmarkClientePage({ onTabChange }) {
     processo,
     ...(tipoSafra && { tipo_safra: tipoSafra }),
     safra: benchmarkSafra,
-    filterMode: filters.filterMode,
     ...geralExclusion,
   }
 

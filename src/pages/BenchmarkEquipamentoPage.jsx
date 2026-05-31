@@ -641,7 +641,6 @@ export default function BenchmarkEquipamentoPage() {
     ...(filters.tipos_safra?.[0] && { tipo_safra:    filters.tipos_safra?.[0] }),
     allowedProcessos: ['Colheita', 'Plantio'],
     solinftecOnly: true,
-    filterMode: filters.filterMode,
   })
 
   // Fetch único para todos os modelos da safra de referência (breakdown já aplicado internamente)
@@ -661,7 +660,6 @@ export default function BenchmarkEquipamentoPage() {
     safra: benchmarkSafra,
     ...(queryFilters.dataInicio && { dataInicio: queryFilters.dataInicio }),
     ...(queryFilters.dataFim    && { dataFim:    queryFilters.dataFim    }),
-    filterMode: filters.filterMode,
   })
   const modeloNorm1 = useMemo(
     () => normalizarModeloRow(allModelosData.find(r => r.modelo_equipamento === maqInfo1?.modelo) ?? null),
@@ -677,7 +675,6 @@ export default function BenchmarkEquipamentoPage() {
     ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
     ...(sideA.dataInicio   && { dataInicio: sideA.dataInicio }),
     ...(sideA.dataFim      && { dataFim:    sideA.dataFim    }),
-    filterMode: filters.filterMode,
   } : {}
   const tab2FiltersB = sideB.cod ? {
     equipamento_cod: sideB.cod,
@@ -685,7 +682,6 @@ export default function BenchmarkEquipamentoPage() {
     ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
     ...(sideB.dataInicio   && { dataInicio: sideB.dataInicio }),
     ...(sideB.dataFim      && { dataFim:    sideB.dataFim    }),
-    filterMode: filters.filterMode,
   } : {}
   const { dataA, dataB, loading: loadingEquip } = useEquipamentoComparativo(tab2FiltersA, tab2FiltersB)
   const metricasEquipA = useMemo(() => computeWeightedAvg(dataA), [dataA])
@@ -713,7 +709,6 @@ export default function BenchmarkEquipamentoPage() {
     ...(processoFiltro && { processo: processoFiltro }),
     ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
     safra: benchmarkSafra,
-    filterMode: filters.filterMode,
   }
   const { stats: statsA } = useModeloStats({ ...modeloStatsFilters, ...(modeloA && { modelo_equipamento: modeloA }) })
   const { stats: statsB } = useModeloStats({ ...modeloStatsFilters, ...(modeloB && { modelo_equipamento: modeloB }) })

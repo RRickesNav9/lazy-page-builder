@@ -1,8 +1,8 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { useFilters } from '../lib/FilterContext'
-import { useOperationalData, useStopData, useGrupoInterativo, useMachineBaseline } from '../hooks/useData'
+import { useOperationalData, useStopData, useGrupoInterativo } from '../hooks/useData'
 import {
-  aggregateRows, groupBy, applyStopExclusions, applyBreakdownFilter, calcTimeDistribution, calcStopDistribution,
+  aggregateRows, groupBy, applyStopExclusions, calcTimeDistribution, calcStopDistribution,
   fmtHah, fmtHa, fmtKmh, fmtPct, fmtH, fmtLh, fmt,
 } from '../lib/utils'
 import { exportAnaliseGeral } from '../lib/export'
@@ -761,26 +761,14 @@ export default function AnaliseGeralPage() {
     queryFilters.processos?.[0],
     queryFilters.tipos_safra?.[0],
     showGroupAvg,
-    filters.filterMode,
   )
-
-  const isDetalhado = filters.filterMode === 'detalhado'
-  const { baseline } = useMachineBaseline(benchmarkSafra, isDetalhado)
 
   const dataComExclusoes = useMemo(
     () => applyStopExclusions(raw, stopRows, excludedMotivos),
     [raw, stopRows, excludedMotivos]
   )
 
-  const data = useMemo(
-    () => isDetalhado ? applyBreakdownFilter(dataComExclusoes, baseline) : dataComExclusoes,
-    [dataComExclusoes, isDetalhado, baseline]
-  )
-
-  const breakdownRemovedCount = useMemo(() => {
-    if (!isDetalhado || baseline.size === 0) return 0
-    return dataComExclusoes.length - data.length
-  }, [dataComExclusoes, data, isDetalhado, baseline])
+  const data = dataComExclusoes
 
   // Filtro de métrica em dois modos — aplicados em cadeia:
   // 1. Sessão: exclui registros individuais que não passam (afeta Período Operacional)
@@ -988,13 +976,6 @@ export default function AnaliseGeralPage() {
               </span>
             </span>
           ))} — {equipRows.length} equipamento(s) exibido(s)
-        </div>
-      )}
-
-      {/* Banner de sessões de quebra removidas pelo modo Detalhado */}
-      {breakdownRemovedCount > 0 && (
-        <div style={{ background: '#fdf0f0', border: '1px solid #c0392b', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#8b2020' }}>
-          {breakdownRemovedCount} sess{breakdownRemovedCount === 1 ? 'ão removida' : 'ões removidas'} por consumo anormal (possível quebra de máquina) — modo Detalhado ativo
         </div>
       )}
 

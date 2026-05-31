@@ -12,7 +12,6 @@ export const DEFAULT_FILTERS = {
   showBenchmark: false,
   showGroupAvg: false,
   metricFilters: [],
-  filterMode: 'padrao',
   referenciaSafra: '',
 }
 
@@ -78,7 +77,6 @@ export function FilterProvider({ children }) {
       ...(filters.propriedades.length && { propriedades: filters.propriedades }),
       ...(filters.processos.length   && { processos:   filters.processos }),
       ...(filters.tipos_safra.length && { tipos_safra: filters.tipos_safra }),
-      filterMode: filters.filterMode,
     }
   }, [filters])
 
@@ -106,7 +104,6 @@ export function FilterProvider({ children }) {
     if (filters.showGroupAvg)          count++
     if (filters.periodo !== '7dias')   count++
     if ((filters.metricFilters ?? []).some(f => f.field && f.value !== '')) count++
-    if (filters.filterMode !== 'padrao') count++
     if (filters.referenciaSafra)        count++
     return count
   }, [filters])

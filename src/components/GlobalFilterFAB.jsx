@@ -194,7 +194,6 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
       excludedMotivos: [],
       showGroupAvg: false,
       metricFilters: [],
-      filterMode: 'padrao',
       referenciaSafra: '',
     }
     setPending(cleared); applyFilters(cleared); setOpen(false)
@@ -225,7 +224,6 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
     if (show('excludedMotivos') && filters.excludedMotivos.length) c++
     if (show('showGroupAvg')    && filters.showGroupAvg)           c++
     if (show('metricFilter') && (filters.metricFilters ?? []).some(f => f.field && f.value !== '')) c++
-    if (solinftecOnly           && filters.filterMode !== 'padrao') c++
     if (solinftecOnly           && filters.referenciaSafra)         c++
     return c
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -604,26 +602,6 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                   )}
                 </div>
               )}
-            </div>
-          )}
-
-          {/* ── Qualidade dos dados — só em páginas Solinftec ────────── */}
-          {solinftecOnly && (
-            <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14, marginBottom: 14 }}>
-              <Label>Qualidade dos dados</Label>
-              <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-                <Chip active={pending.filterMode !== 'detalhado'} onClick={() => set('filterMode', 'padrao')}>
-                  Padrão
-                </Chip>
-                <Chip active={pending.filterMode === 'detalhado'} onClick={() => set('filterMode', 'detalhado')}>
-                  Detalhado
-                </Chip>
-              </div>
-              <p style={{ fontSize: 11, color: '#6b6560', margin: 0 }}>
-                {pending.filterMode === 'detalhado'
-                  ? 'Remove sessões com consumo/hora anormal vs. o histórico da safra da máquina (indicativo de quebra).'
-                  : 'Dados brutos — todas as sessões incluídas.'}
-              </p>
             </div>
           )}
 
