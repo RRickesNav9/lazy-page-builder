@@ -623,7 +623,9 @@ export default function BenchmarkJohnDeerePage() {
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: '20px 24px' }}>
         <DynamicHeader cliente={cliente} processo={processo} tipoSafra={tipoSafraLabel} />
 
-        <TabControl tabs={JD_TABS} active={activeTab} onChange={setActiveTab} />
+        <div data-pdf-exclude="true">
+          <TabControl tabs={JD_TABS} active={activeTab} onChange={setActiveTab} />
+        </div>
 
         {queryFilters.dataInicio && (
           <div style={{ background: '#f7f5f2', border: '1px solid #d4cfc9', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 11, color: '#6b6560' }}>

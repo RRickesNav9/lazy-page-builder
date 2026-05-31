@@ -63,14 +63,21 @@ const PAGE_VISIBLE_FILTERS = {
   },
 }
 
+const HEADER_H = 80   // px — altura do header (logo 68px + padding 12px)
+const SIDEBAR_W = 240  // px — largura da sidebar expandida
+const SIDEBAR_W_COLLAPSED = 44  // px — só o botão de toggle
+
 
 
 function AppInner({ onLogout }) {
-  const [activePage, setActivePage] = useState('analise')
-  const [benchTab,   setBenchTab]   = useState('colheita')
+  const [activePage,   setActivePage]   = useState('analise')
+  const [benchTab,     setBenchTab]     = useState('colheita')
+  const [sidebarOpen,  setSidebarOpen]  = useState(true)
   const PageComponent  = PAGES[activePage]
   const { filters, applyFilters } = useFilters()
   const solinftecOnly = PAGE_SOLINFTEC[activePage] ?? false
+
+  const sidebarW = sidebarOpen ? SIDEBAR_W : SIDEBAR_W_COLLAPSED
 
   // Para benchmark: colheita/plantio restringem por aba; geral exclui colheita e plantio
   const allowedProcessos = useMemo(() => {
@@ -120,60 +127,156 @@ function AppInner({ onLogout }) {
   }, [activePage, benchTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="app-root" style={{ minHeight: '100vh', background: '#ffffff', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
-
-      <header className="no-print" style={{
-        background: '#ffffff', padding: '6px 24px',
-        borderBottom: '1px solid #e0dbd4',
-        display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center',
-      }}>
-        <div />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <img
-            src={logoPorteira}
-            alt="Porteira Adentro"
-            style={{ height: '68px', width: 'auto' }}
-          />
-          <div style={{ color: '#2d4a2d', fontSize: 14 }}>Relatório de Operações Agrícolas</div>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button
-            onClick={onLogout}
-            style={{
-              background: 'transparent', border: '1px solid #d4cec8',
-              borderRadius: 6, padding: '6px 14px', color: '#6b6560', fontSize: 12,
-              cursor: 'pointer', fontFamily: 'inherit',
-            }}
-          >
-            Sair
-          </button>
-        </div>
+    <div
+      className="app-root"
+      style={{
+        minHeight: '100vh',
+        background: '#ffffff',
+        fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+        '--sidebar-w': `${sidebarW}px`,
+        '--header-h': `${HEADER_H}px`,
+      }}
+    >
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <header
+        className="no-print"
+        style={{
+          background: '#ffffff',
+          borderBottom: '1px solid #e0dbd4',
+          padding: `6px 24px 6px ${sidebarW + 24}px`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          position: 'sticky',
+          top: 0,
+          zIndex: 200,
+          transition: 'padding-left 0.2s',
+        }}
+      >
+        <img
+          src={logoPorteira}
+          alt="Porteira Adentro"
+          style={{ height: '68px', width: 'auto' }}
+        />
+        <div style={{ color: '#2d4a2d', fontSize: 14 }}>Relatório de Operações Agrícolas</div>
       </header>
 
+      {/* ── Layout: sidebar + conteúdo ──────────────────────────────────────── */}
+      <div style={{ display: 'flex' }}>
 
-      <nav className="no-print" style={{ borderBottom: '1px solid #e0dbd4', padding: '0 24px', background: '#ffffff', display: 'flex' }}>
-        {NAV.map(item => (
+        {/* ── Sidebar ─────────────────────────────────────────────────────── */}
+        <aside
+          className="no-print"
+          style={{
+            width: sidebarW,
+            flexShrink: 0,
+            position: 'sticky',
+            top: HEADER_H,
+            height: `calc(100vh - ${HEADER_H}px)`,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            background: '#ffffff',
+            borderRight: '1px solid #e0dbd4',
+            display: 'flex',
+            flexDirection: 'column',
+            transition: 'width 0.2s',
+            zIndex: 100,
+          }}
+        >
+          {/* Toggle ☰ */}
           <button
-            key={item.id}
-            onClick={() => setActivePage(item.id)}
+            onClick={() => setSidebarOpen(o => !o)}
+            title={sidebarOpen ? 'Recolher menu' : 'Expandir menu'}
             style={{
-              padding: '10px 16px', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer',
-              fontWeight: activePage === item.id ? 600 : 400,
-              color: activePage === item.id ? '#2d4a2d' : '#6b6560',
-              borderBottom: `2px solid ${activePage === item.id ? '#2d4a2d' : 'transparent'}`,
-              transition: 'color 0.15s',
+              width: '100%',
+              height: 44,
+              flexShrink: 0,
+              background: 'none',
+              border: 'none',
+              borderBottom: '1px solid #e0dbd4',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: sidebarOpen ? 'flex-end' : 'center',
+              padding: sidebarOpen ? '0 14px' : 0,
+              color: '#6b6560',
             }}
           >
-            {item.label}
+            {sidebarOpen ? (
+              /* chevron left */
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            ) : (
+              /* hamburger */
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
           </button>
-        ))}
-      </nav>
 
-      <div id="pdf-content">
-        {activePage === 'benchmark'
-          ? <BenchmarkClientePage onTabChange={setBenchTab} />
-          : <PageComponent />
-        }
+          {/* Nav items — só quando expandida */}
+          {sidebarOpen && (
+            <>
+              <nav style={{ flex: 1, padding: '8px 0' }}>
+                {NAV.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => setActivePage(item.id)}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '11px 20px',
+                      background: 'none',
+                      border: 'none',
+                      borderLeft: `3px solid ${activePage === item.id ? '#2d4a2d' : 'transparent'}`,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: activePage === item.id ? 600 : 400,
+                      color: activePage === item.id ? '#2d4a2d' : '#6b6560',
+                      fontFamily: 'inherit',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+
+              <div style={{ padding: '16px 20px', borderTop: '1px solid #e0dbd4' }}>
+                <button
+                  onClick={onLogout}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid #d4cec8',
+                    borderRadius: 6,
+                    padding: '6px 14px',
+                    color: '#6b6560',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    width: '100%',
+                  }}
+                >
+                  Sair
+                </button>
+              </div>
+            </>
+          )}
+        </aside>
+
+        {/* ── Conteúdo ─────────────────────────────────────────────────────── */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div id="pdf-content">
+            {activePage === 'benchmark'
+              ? <BenchmarkClientePage onTabChange={setBenchTab} />
+              : <PageComponent />
+            }
+          </div>
+        </div>
       </div>
 
       <GlobalFilterFAB

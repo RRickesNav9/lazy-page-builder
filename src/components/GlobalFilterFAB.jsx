@@ -75,8 +75,8 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
   const [pending,      setPending]      = useState(filters)
   const [motivosOpen,  setMotivosOpen]  = useState(false)
   const [motivoSearch, setMotivoSearch] = useState('')
-  const [verMaisOpen,  setVerMaisOpen]  = useState(false)
-  const panelRef = useRef(null)
+  const [avancadoOpen, setAvancadoOpen] = useState(false)
+  const stripRef = useRef(null)
 
   // Range de datas do estado pending — atualiza em tempo real enquanto o usuário
   // navega pelas opções do painel, antes de clicar em Aplicar
@@ -134,7 +134,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
 
   // Ao abrir o painel, sincroniza pending com os filtros ativos
   useEffect(() => {
-    if (open) { setPending(filters); setMotivosOpen(false); setMotivoSearch('') }
+    if (open) { setPending(filters); setMotivosOpen(false); setMotivoSearch(''); setAvancadoOpen(false) }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-limpa valores pendentes que deixaram de ter dados após uma mudança em cascata
@@ -153,13 +153,24 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending.clientes, pending.propriedades, pending.processos, pending.tipos_safra, open, cascadedOpts])
 
+  // Esc fecha a faixa; trava scroll do body enquanto aberta
   useEffect(() => {
     if (!open) return
-    function handle(e) {
-      if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false)
+    function handleKey(e) { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', handleKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', handleKey)
+      document.body.style.overflow = ''
     }
-    document.addEventListener('mousedown', handle)
-    return () => document.removeEventListener('mousedown', handle)
+  }, [open])
+
+  // Foco no primeiro campo ao abrir
+  useEffect(() => {
+    if (open && stripRef.current) {
+      const first = stripRef.current.querySelector('button, input, select, [tabindex]')
+      first?.focus()
+    }
   }, [open])
 
   const set = (key, val) => setPending(p => ({ ...p, [key]: val }))
@@ -221,12 +232,24 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, visibleFilters, solinftecOnly])
 
+  // Se há seções avançadas disponíveis nesta página
+  const hasAvancado = show('metricFilter') || show('showGroupAvg') || show('excludedMotivos') || solinftecOnly
+
   const fabBase = {
     position: 'fixed', right: 24, zIndex: 1000,
     width: 48, height: 48, borderRadius: '50%',
     border: 'none', cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+  }
+
+  // Alturas fixas para cada FAB — o slot "Limpar" é sempre reservado, só visibility muda
+  const FAB_BOTTOM = {
+    chevron: 24,
+    filtro:  84,
+    limpar:  144,
+    pdf:     204,
+    xlsx:    264,
   }
 
   return (
@@ -236,7 +259,9 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
         onClick={toggleExpanded}
         data-pdf-exclude="true"
         title={fabExpanded ? 'Ocultar botões' : 'Mostrar botões'}
-        style={{ ...fabBase, bottom: 24, background: '#4a6741', color: '#fff' }}
+        aria-label={fabExpanded ? 'Ocultar botões' : 'Mostrar botões'}
+        aria-expanded={fabExpanded}
+        style={{ ...fabBase, bottom: FAB_BOTTOM.chevron, background: '#4a6741', color: '#fff' }}
       >
         <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
           {fabExpanded
@@ -244,6 +269,18 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
             : <path strokeLinecap="round" strokeLinejoin="round" d="M5 9l7 7 7-7" />
           }
         </svg>
+        {/* badge de filtros ativos no chevron quando recolhido */}
+        {!fabExpanded && pageActiveCount > 0 && (
+          <span style={{
+            position: 'absolute', top: -4, right: -4,
+            width: 18, height: 18, borderRadius: '50%',
+            background: '#d97706', color: '#fff',
+            fontSize: 10, fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {pageActiveCount}
+          </span>
+        )}
       </button>
 
       {/* FAB — Filtros (visível quando expandido) */}
@@ -251,8 +288,10 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
         <button
           onClick={() => setOpen(o => !o)}
           data-pdf-exclude="true"
+          aria-label="Abrir filtros"
+          aria-expanded={open}
           style={{
-            ...fabBase, bottom: 84,
+            ...fabBase, bottom: FAB_BOTTOM.filtro,
             background: pageActiveCount > 0 ? '#2d4a2d' : '#4a6741',
             color: '#fff',
           }}
@@ -275,13 +314,22 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
         </button>
       )}
 
-      {/* FAB — Limpar filtros (visível quando expandido e há filtros ativos) */}
-      {fabExpanded && pageActiveCount > 0 && (
+      {/* FAB — Limpar filtros (slot fixo: visível quando expandido e há filtros) */}
+      {fabExpanded && (
         <button
-          onClick={() => { clearFilters(); setOpen(false) }}
+          onClick={pageActiveCount > 0 ? () => { clearFilters(); setOpen(false) } : undefined}
           data-pdf-exclude="true"
-          title="Limpar filtros"
-          style={{ ...fabBase, bottom: 144, background: '#2d4a2d', color: '#fff' }}
+          title={pageActiveCount > 0 ? 'Limpar filtros' : undefined}
+          aria-label="Limpar filtros"
+          style={{
+            ...fabBase,
+            bottom: FAB_BOTTOM.limpar,
+            background: '#2d4a2d',
+            color: '#fff',
+            opacity: pageActiveCount > 0 ? 1 : 0,
+            pointerEvents: pageActiveCount > 0 ? 'auto' : 'none',
+            transition: 'opacity 0.15s',
+          }}
         >
           <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -295,7 +343,8 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
           onClick={() => window.print()}
           data-pdf-exclude="true"
           title="Exportar PDF"
-          style={{ ...fabBase, bottom: pageActiveCount > 0 ? 204 : 144, background: '#4a6741', color: '#fff' }}
+          aria-label="Exportar PDF"
+          style={{ ...fabBase, bottom: FAB_BOTTOM.pdf, background: '#4a6741', color: '#fff' }}
         >
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a1 1 0 001 1h16a1 1 0 001-1v-3M7 7V4a1 1 0 011-1h8a1 1 0 011 1v3" />
@@ -310,9 +359,10 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
           data-pdf-exclude="true"
           disabled={exporting}
           title={exporting ? 'Exportando...' : 'Exportar XLSX'}
+          aria-label={exporting ? 'Exportando...' : 'Exportar XLSX'}
           style={{
             ...fabBase,
-            bottom: pageActiveCount > 0 ? 264 : 204,
+            bottom: FAB_BOTTOM.xlsx,
             background: '#4a6741',
             color: '#fff',
             opacity: exporting ? 0.75 : 1,
@@ -332,366 +382,457 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
         </button>
       )}
 
-      {/* Painel de filtros */}
+      {/* ── Faixa de filtros ─────────────────────────────────────────────────── */}
       {open && fabExpanded && (
-        <div ref={panelRef} data-pdf-exclude="true" style={{
-          position: 'fixed',
-          top: 16, bottom: 80, right: 80,
-          zIndex: 999,
-          width: 320,
-          overflowY: 'auto',
-          background: '#fff', border: '1px solid #e0dbd4', borderRadius: 12,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: 20,
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <span style={{ fontWeight: 600, fontSize: 14, color: '#1a1a1a' }}>Filtros</span>
-            <button onClick={handleClear} style={{ fontSize: 12, color: '#8b2020', background: 'none', border: 'none', cursor: 'pointer' }}>
-              Limpar tudo
-            </button>
-          </div>
-
-          {/* ── Período ──────────────────────────────────────────────── */}
-          <Label>Período</Label>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: pending.periodo === 'custom' ? 10 : 14 }}>
-            {PERIODOS.map(p => (
-              <Chip key={p.value} active={pending.periodo === p.value} onClick={() => set('periodo', p.value)}>
-                {p.label}
-              </Chip>
-            ))}
-            <Chip active={pending.periodo === 'custom'} onClick={() => set('periodo', 'custom')}>
-              Personalizado
-            </Chip>
-          </div>
-
-          {pending.periodo === 'custom' && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-              <div style={{ flex: 1 }}>
-                <Label>De</Label>
-                <input type="date" value={pending.dataInicio || ''} onChange={e => set('dataInicio', e.target.value)}
-                  style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <Label>Até</Label>
-                <input type="date" value={pending.dataFim || ''} onChange={e => set('dataFim', e.target.value)}
-                  style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }} />
-              </div>
-            </div>
-          )}
-
-          {/* ── Dimensões ────────────────────────────────────────────── */}
-          {show('cliente') && <>
-            <Label>Cliente</Label>
-            <MultiSelect
-              values={pending.clientes}
-              onChange={vals => set('clientes', vals)}
-              placeholder="Todos"
-              options={cascadedOpts.clientes.map(c => ({ value: c, label: c }))}
-            />
-          </>}
-
-          {show('propriedade') && <>
-            <Label>Propriedade</Label>
-            <MultiSelect
-              values={pending.propriedades}
-              onChange={vals => set('propriedades', vals)}
-              placeholder="Todas"
-              options={cascadedOpts.propriedades.map(p => ({ value: p, label: p }))}
-            />
-          </>}
-
-          {show('processo') && <>
-            <Label>Processo / Operação</Label>
-            <MultiSelect
-              values={pending.processos}
-              onChange={vals => set('processos', vals)}
-              placeholder="Todos"
-              options={cascadedOpts.processos.map(p => ({ value: p, label: p }))}
-            />
-          </>}
-
-          {show('cultura') && <>
-            <Label>Cultura</Label>
-            <MultiSelect
-              values={pending.tipos_safra}
-              onChange={vals => set('tipos_safra', vals)}
-              placeholder="Todas"
-              options={cascadedOpts.tipos_safra.map(t => ({ value: t, label: t }))}
-            />
-          </>}
-
-          {/* ── Ver mais (Operador / Modelo / Implemento) ────────────── */}
-          {show('metricFilter') && (
-            <div style={{ marginBottom: 6 }}>
-              <button
-                onClick={() => setVerMaisOpen(v => !v)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#4a6741', fontWeight: 600, padding: '4px 0', display: 'flex', alignItems: 'center', gap: 4 }}
-              >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={2}>
-                  {verMaisOpen
-                    ? <path d="M1 7L5 3L9 7" />
-                    : <path d="M1 3L5 7L9 3" />}
-                </svg>
-                {verMaisOpen ? 'Ver menos' : 'Ver mais'}
-              </button>
-              {verMaisOpen && (
-                <div style={{ marginTop: 8 }}>
-                  <Label>Equipamento</Label>
-                  <MultiSelect
-                    values={pending.equipamentos ?? []}
-                    onChange={vals => set('equipamentos', vals)}
-                    placeholder="Todos"
-                    options={extraOptions.equipamentos}
-                  />
-                  <div style={{ marginTop: 10 }} />
-                  <Label>Operador</Label>
-                  <MultiSelect
-                    values={pending.operadores ?? []}
-                    onChange={vals => set('operadores', vals)}
-                    placeholder="Todos"
-                    options={extraOptions.operadores.map(o => ({ value: o, label: o }))}
-                  />
-                  <div style={{ marginTop: 10 }} />
-                  <Label>Modelo</Label>
-                  <MultiSelect
-                    values={pending.modelos ?? []}
-                    onChange={vals => set('modelos', vals)}
-                    placeholder="Todos"
-                    options={extraOptions.modelos.map(o => ({ value: o, label: o }))}
-                  />
-                  <div style={{ marginTop: 10 }} />
-                  <Label>Implemento</Label>
-                  <MultiSelect
-                    values={pending.implementos ?? []}
-                    onChange={vals => set('implementos', vals)}
-                    placeholder="Todos"
-                    options={extraOptions.implementos.map(o => ({ value: o, label: o }))}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Comparar com grupo ───────────────────────────────────── */}
-          {show('showGroupAvg') && (
-            <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14, marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b6560' }}>Comparar com grupo</div>
-                <div style={{ fontSize: 11, color: '#8a9a85', marginTop: 2 }}>Referências na tabela e gráficos</div>
-              </div>
-              <Toggle checked={pending.showGroupAvg ?? false} onChange={v => set('showGroupAvg', v)} />
-            </div>
-          )}
-
-          {/* ── Filtros de Métrica ────────────────────────────────────── */}
-          {show('metricFilter') && (
-            <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14, marginBottom: 14 }}>
-              <Label>Filtrar por Métrica</Label>
-              {(pending.metricFilters ?? []).map((mf, idx) => (
-                <div key={idx} style={{ marginBottom: 10 }}>
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 5 }}>
-                    <select
-                      value={mf.field}
-                      onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, field: e.target.value, value: '' } : f) }))}
-                      style={{ flex: 1, padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 12, color: '#1a1a1a', background: '#fff' }}
-                    >
-                      <option value="">Escolher métrica…</option>
-                      {METRIC_FILTER_OPTIONS.map(({ group, options }) => (
-                        <optgroup key={group} label={group}>
-                          {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </optgroup>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.filter((_, i) => i !== idx) }))}
-                      style={{ width: 26, height: 32, border: 'none', background: 'none', cursor: 'pointer', color: '#8b6560', fontSize: 18, padding: 0, flexShrink: 0 }}
-                    >×</button>
-                  </div>
-                  {mf.field && (
-                    <>
-                      <div style={{ display: 'flex', gap: 6, marginBottom: 5 }}>
-                        <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9', flexShrink: 0 }}>
-                          {['>=', '<=', '='].map(op => (
-                            <button
-                              key={op}
-                              onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, operator: op } : f) }))}
-                              style={{
-                                padding: '5px 8px', fontSize: 12, border: 'none',
-                                background: (mf.operator ?? '>=') === op ? '#2d4a2d' : '#fff',
-                                color: (mf.operator ?? '>=') === op ? '#fff' : '#4a3728',
-                                cursor: 'pointer',
-                              }}
-                            >{op}</button>
-                          ))}
-                        </div>
-                        <input
-                          type="number" step="0.1"
-                          value={mf.value ?? ''}
-                          onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, value: e.target.value } : f) }))}
-                          placeholder="Valor…"
-                          style={{ flex: 1, padding: '5px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 12 }}
-                        />
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 10, color: '#6b6560' }}>Modo:</span>
-                        <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9' }}>
-                          {[{ v: 'geral', l: 'Geral' }, { v: 'diario', l: 'Diária' }, { v: 'sessao', l: 'Sessão' }].map(({ v, l }) => (
-                            <button
-                              key={v}
-                              onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, mode: v } : f) }))}
-                              style={{
-                                padding: '4px 10px', fontSize: 11, border: 'none',
-                                background: (mf.mode ?? 'geral') === v ? '#2d4a2d' : '#fff',
-                                color: (mf.mode ?? 'geral') === v ? '#fff' : '#4a3728',
-                                cursor: 'pointer',
-                              }}
-                            >{l}</button>
-                          ))}
-                        </div>
-                        {(mf.mode ?? 'geral') !== 'sessao' && (
-                          <>
-                            <span style={{ fontSize: 10, color: '#6b6560' }}>por:</span>
-                            <select
-                              value={mf.dim ?? 'equipamento'}
-                              onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, dim: e.target.value } : f) }))}
-                              style={{ padding: '3px 6px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 11, color: '#1a1a1a', background: '#fff' }}
-                            >
-                              {[{ v: 'equipamento', l: 'Equipamento' }, { v: 'operador', l: 'Operador' }, { v: 'modelo_equipamento', l: 'Modelo' }, { v: 'implemento', l: 'Implemento' }].map(({ v, l }) => (
-                                <option key={v} value={v}>{l}</option>
-                              ))}
-                            </select>
-                          </>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
-              <button
-                onClick={() => setPending(p => ({ ...p, metricFilters: [...(p.metricFilters ?? []), { field: '', operator: '>=', value: '', mode: 'geral' }] }))}
-                style={{ width: '100%', padding: '6px 0', fontSize: 12, fontWeight: 500, border: '1px dashed #4a6741', borderRadius: 6, background: 'none', color: '#4a6741', cursor: 'pointer' }}
-              >
-                + Adicionar filtro
-              </button>
-            </div>
-          )}
-
-          {/* ── Motivos de parada — dropdown com busca ───────────────── */}
-          {show('excludedMotivos') && motivos.length > 0 && (
-            <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <Label>Excluir Motivos de Parada</Label>
-                {nExcluded > 0 && (
-                  <button
-                    onClick={() => set('excludedMotivos', [])}
-                    style={{ fontSize: 11, color: '#8b2020', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 5 }}
-                  >
-                    limpar ({nExcluded})
-                  </button>
-                )}
-              </div>
-              <p style={{ fontSize: 11, color: '#6b6560', marginBottom: 8 }}>
-                O tempo desses motivos será removido dos totais.
-              </p>
-
-              {/* Trigger */}
-              <button
-                onClick={() => setMotivosOpen(o => !o)}
-                style={{
-                  width: '100%', padding: '7px 10px', textAlign: 'left',
-                  border: '1px solid #d4cfc9',
-                  borderRadius: motivosOpen ? '6px 6px 0 0' : 6,
-                  background: '#fff', fontSize: 13, cursor: 'pointer',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                }}
-              >
-                <span style={{ color: nExcluded > 0 ? '#1a1a1a' : '#6b6560' }}>
-                  {nExcluded === 0 ? 'Nenhum excluído' : `${nExcluded} selecionado${nExcluded > 1 ? 's' : ''}`}
-                </span>
-                <span style={{ fontSize: 10, color: '#6b6560' }}>{motivosOpen ? '▲' : '▼'}</span>
-              </button>
-
-              {/* Dropdown list */}
-              {motivosOpen && (
-                <div style={{
-                  border: '1px solid #d4cfc9', borderTop: 'none',
-                  borderRadius: '0 0 6px 6px', background: '#fff',
-                  maxHeight: 200, overflowY: 'auto',
-                }}>
-                  {/* Busca */}
-                  <div style={{ padding: '8px 10px', borderBottom: '1px solid #e0dbd4', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
-                    <input
-                      type="text"
-                      placeholder="Buscar motivo..."
-                      value={motivoSearch}
-                      onChange={e => setMotivoSearch(e.target.value)}
-                      autoFocus
-                      style={{
-                        width: '100%', padding: '5px 8px', boxSizing: 'border-box',
-                        border: '1px solid #d4cfc9', borderRadius: 4, fontSize: 12,
-                      }}
-                    />
-                  </div>
-
-                  {Object.keys(filteredMotivosByTipo).length === 0 ? (
-                    <div style={{ padding: '10px 12px', fontSize: 12, color: '#6b6560' }}>Nenhum resultado.</div>
-                  ) : (
-                    Object.entries(filteredMotivosByTipo).map(([tipo, lista]) => (
-                      <div key={tipo}>
-                        <div style={{
-                          padding: '6px 10px 2px', fontSize: 10, fontWeight: 700,
-                          textTransform: 'uppercase', letterSpacing: '0.06em',
-                          color: TIPO_PARADA_COLOR[tipo] || '#6b6560',
-                        }}>
-                          {TIPO_PARADA_LABEL[tipo] || tipo}
-                        </div>
-                        {lista.map(m => (
-                          <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px 4px 20px', cursor: 'pointer' }}>
-                            <input
-                              type="checkbox"
-                              checked={pending.excludedMotivos.includes(m)}
-                              onChange={() => toggleMotivo(m)}
-                              style={{ accentColor: '#2d4a2d' }}
-                            />
-                            <span style={{ fontSize: 12, color: '#1a1a1a' }}>{m}</span>
-                          </label>
-                        ))}
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Safra de referência — só em páginas Solinftec ───────── */}
-          {solinftecOnly && safras.length > 0 && (
-            <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14, marginBottom: 14 }}>
-              <Label>Safra de referência</Label>
-              <p style={{ fontSize: 11, color: '#6b6560', marginBottom: 8 }}>
-                Janela usada para benchmarks e detecção de quebra. Padrão: safra do período ativo.
-              </p>
-              <select
-                value={pending.referenciaSafra ?? ''}
-                onChange={e => set('referenciaSafra', e.target.value)}
-                style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, color: '#1a1a1a', background: '#fff' }}
-              >
-                <option value="">Automático (safra do período)</option>
-                {safras.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-          )}
-
-          <button
-            onClick={handleApply}
+        <>
+          {/* Backdrop */}
+          <div
+            data-pdf-exclude="true"
+            aria-hidden="true"
+            onClick={() => setOpen(false)}
             style={{
-              width: '100%', marginTop: 16, padding: '10px 0',
-              background: '#2d4a2d', color: '#fff',
-              border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              position: 'fixed', inset: 0,
+              zIndex: 1001,
+              background: 'rgba(0,0,0,0.35)',
+            }}
+          />
+
+          {/* Faixa */}
+          <div
+            ref={stripRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="filter-strip-title"
+            data-pdf-exclude="true"
+            style={{
+              position: 'fixed',
+              top: 'var(--header-h, 80px)',
+              left: 'var(--sidebar-w, 0)',
+              right: 0,
+              maxHeight: 'calc(100vh - var(--header-h, 80px))',
+              overflowY: 'auto',
+              background: '#fff',
+              borderBottom: '1px solid #e0dbd4',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+              zIndex: 1002,
             }}
           >
-            Aplicar filtros
-          </button>
-        </div>
+            {/* ── Cabeçalho da faixa ──────────────────────────────────────── */}
+            <div style={{
+              padding: '12px 24px',
+              borderBottom: '1px solid #e0dbd4',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: '#fff',
+              position: 'sticky', top: 0, zIndex: 1,
+            }}>
+              <span id="filter-strip-title" style={{ fontWeight: 600, fontSize: 14, color: '#1a1a1a' }}>
+                Filtros
+              </span>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                <button
+                  onClick={handleClear}
+                  style={{ fontSize: 12, color: '#8b2020', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  Limpar tudo
+                </button>
+                <button
+                  onClick={() => setOpen(false)}
+                  aria-label="Fechar filtros"
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer', color: '#6b6560',
+                    width: 28, height: 28, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* ── Linha 1: campos sempre visíveis ─────────────────────────── */}
+            <div style={{ padding: '16px 24px', display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
+
+              {/* Período */}
+              <div style={{ flexBasis: 300, flexGrow: 1, minWidth: 220 }}>
+                <Label>Período</Label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {PERIODOS.map(p => (
+                    <Chip key={p.value} active={pending.periodo === p.value} onClick={() => set('periodo', p.value)}>
+                      {p.label}
+                    </Chip>
+                  ))}
+                  <Chip active={pending.periodo === 'custom'} onClick={() => set('periodo', 'custom')}>
+                    Personalizado
+                  </Chip>
+                </div>
+                {pending.periodo === 'custom' && (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <Label>De</Label>
+                      <input type="date" value={pending.dataInicio || ''} onChange={e => set('dataInicio', e.target.value)}
+                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <Label>Até</Label>
+                      <input type="date" value={pending.dataFim || ''} onChange={e => set('dataFim', e.target.value)}
+                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Cliente */}
+              {show('cliente') && (
+                <div style={{ flexBasis: 160, flexGrow: 1, minWidth: 140 }}>
+                  <Label>Cliente</Label>
+                  <MultiSelect
+                    values={pending.clientes}
+                    onChange={vals => set('clientes', vals)}
+                    placeholder="Todos"
+                    options={cascadedOpts.clientes.map(c => ({ value: c, label: c }))}
+                  />
+                </div>
+              )}
+
+              {/* Propriedade */}
+              {show('propriedade') && (
+                <div style={{ flexBasis: 160, flexGrow: 1, minWidth: 140 }}>
+                  <Label>Propriedade</Label>
+                  <MultiSelect
+                    values={pending.propriedades}
+                    onChange={vals => set('propriedades', vals)}
+                    placeholder="Todas"
+                    options={cascadedOpts.propriedades.map(p => ({ value: p, label: p }))}
+                  />
+                </div>
+              )}
+
+              {/* Processo */}
+              {show('processo') && (
+                <div style={{ flexBasis: 160, flexGrow: 1, minWidth: 140 }}>
+                  <Label>Processo / Operação</Label>
+                  <MultiSelect
+                    values={pending.processos}
+                    onChange={vals => set('processos', vals)}
+                    placeholder="Todos"
+                    options={cascadedOpts.processos.map(p => ({ value: p, label: p }))}
+                  />
+                </div>
+              )}
+
+              {/* Cultura */}
+              {show('cultura') && (
+                <div style={{ flexBasis: 160, flexGrow: 1, minWidth: 140 }}>
+                  <Label>Cultura</Label>
+                  <MultiSelect
+                    values={pending.tipos_safra}
+                    onChange={vals => set('tipos_safra', vals)}
+                    placeholder="Todas"
+                    options={cascadedOpts.tipos_safra.map(t => ({ value: t, label: t }))}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* ── Toggle "Avançado" ────────────────────────────────────────── */}
+            {hasAvancado && (
+              <div style={{ padding: '0 24px 12px' }}>
+                <button
+                  onClick={() => setAvancadoOpen(v => !v)}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontSize: 12, color: '#4a6741', fontWeight: 600,
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    fontFamily: 'inherit', padding: 0,
+                  }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={2}>
+                    {avancadoOpen ? <path d="M1 7L5 3L9 7" /> : <path d="M1 3L5 7L9 3" />}
+                  </svg>
+                  {avancadoOpen ? 'Ocultar avançado' : 'Avançado'}
+                </button>
+              </div>
+            )}
+
+            {/* ── Seção Avançada ──────────────────────────────────────────── */}
+            {hasAvancado && avancadoOpen && (
+              <div style={{ borderTop: '1px solid #f0ede8', padding: '16px 24px', display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+
+                {/* Ver mais: Equipamento / Operador / Modelo / Implemento */}
+                {show('metricFilter') && (
+                  <div style={{ flexBasis: 600, flexGrow: 2, minWidth: 280 }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+                      <div style={{ flexBasis: 160, flexGrow: 1, minWidth: 130 }}>
+                        <Label>Equipamento</Label>
+                        <MultiSelect
+                          values={pending.equipamentos ?? []}
+                          onChange={vals => set('equipamentos', vals)}
+                          placeholder="Todos"
+                          options={extraOptions.equipamentos}
+                        />
+                      </div>
+                      <div style={{ flexBasis: 160, flexGrow: 1, minWidth: 130 }}>
+                        <Label>Operador</Label>
+                        <MultiSelect
+                          values={pending.operadores ?? []}
+                          onChange={vals => set('operadores', vals)}
+                          placeholder="Todos"
+                          options={extraOptions.operadores.map(o => ({ value: o, label: o }))}
+                        />
+                      </div>
+                      <div style={{ flexBasis: 160, flexGrow: 1, minWidth: 130 }}>
+                        <Label>Modelo</Label>
+                        <MultiSelect
+                          values={pending.modelos ?? []}
+                          onChange={vals => set('modelos', vals)}
+                          placeholder="Todos"
+                          options={extraOptions.modelos.map(o => ({ value: o, label: o }))}
+                        />
+                      </div>
+                      <div style={{ flexBasis: 160, flexGrow: 1, minWidth: 130 }}>
+                        <Label>Implemento</Label>
+                        <MultiSelect
+                          values={pending.implementos ?? []}
+                          onChange={vals => set('implementos', vals)}
+                          placeholder="Todos"
+                          options={extraOptions.implementos.map(o => ({ value: o, label: o }))}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Filtrar por Métrica */}
+                    <div style={{ marginTop: 16 }}>
+                      <Label>Filtrar por Métrica</Label>
+                      {(pending.metricFilters ?? []).map((mf, idx) => (
+                        <div key={idx} style={{ marginBottom: 10 }}>
+                          <div style={{ display: 'flex', gap: 6, marginBottom: 5 }}>
+                            <select
+                              value={mf.field}
+                              onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, field: e.target.value, value: '' } : f) }))}
+                              style={{ flex: 1, padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 12, color: '#1a1a1a', background: '#fff', fontFamily: 'inherit' }}
+                            >
+                              <option value="">Escolher métrica…</option>
+                              {METRIC_FILTER_OPTIONS.map(({ group, options }) => (
+                                <optgroup key={group} label={group}>
+                                  {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                </optgroup>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.filter((_, i) => i !== idx) }))}
+                              style={{ width: 26, height: 32, border: 'none', background: 'none', cursor: 'pointer', color: '#8b6560', fontSize: 18, padding: 0, flexShrink: 0 }}
+                            >×</button>
+                          </div>
+                          {mf.field && (
+                            <>
+                              <div style={{ display: 'flex', gap: 6, marginBottom: 5 }}>
+                                <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9', flexShrink: 0 }}>
+                                  {['>=', '<=', '='].map(op => (
+                                    <button
+                                      key={op}
+                                      onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, operator: op } : f) }))}
+                                      style={{
+                                        padding: '5px 8px', fontSize: 12, border: 'none',
+                                        background: (mf.operator ?? '>=') === op ? '#2d4a2d' : '#fff',
+                                        color: (mf.operator ?? '>=') === op ? '#fff' : '#4a3728',
+                                        cursor: 'pointer',
+                                      }}
+                                    >{op}</button>
+                                  ))}
+                                </div>
+                                <input
+                                  type="number" step="0.1"
+                                  value={mf.value ?? ''}
+                                  onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, value: e.target.value } : f) }))}
+                                  placeholder="Valor…"
+                                  style={{ flex: 1, padding: '5px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 12, fontFamily: 'inherit' }}
+                                />
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: 10, color: '#6b6560' }}>Modo:</span>
+                                <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9' }}>
+                                  {[{ v: 'geral', l: 'Geral' }, { v: 'diario', l: 'Diária' }, { v: 'sessao', l: 'Sessão' }].map(({ v, l }) => (
+                                    <button
+                                      key={v}
+                                      onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, mode: v } : f) }))}
+                                      style={{
+                                        padding: '4px 10px', fontSize: 11, border: 'none',
+                                        background: (mf.mode ?? 'geral') === v ? '#2d4a2d' : '#fff',
+                                        color: (mf.mode ?? 'geral') === v ? '#fff' : '#4a3728',
+                                        cursor: 'pointer',
+                                      }}
+                                    >{l}</button>
+                                  ))}
+                                </div>
+                                {(mf.mode ?? 'geral') !== 'sessao' && (
+                                  <>
+                                    <span style={{ fontSize: 10, color: '#6b6560' }}>por:</span>
+                                    <select
+                                      value={mf.dim ?? 'equipamento'}
+                                      onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, dim: e.target.value } : f) }))}
+                                      style={{ padding: '3px 6px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 11, color: '#1a1a1a', background: '#fff', fontFamily: 'inherit' }}
+                                    >
+                                      {[{ v: 'equipamento', l: 'Equipamento' }, { v: 'operador', l: 'Operador' }, { v: 'modelo_equipamento', l: 'Modelo' }, { v: 'implemento', l: 'Implemento' }].map(({ v, l }) => (
+                                        <option key={v} value={v}>{l}</option>
+                                      ))}
+                                    </select>
+                                  </>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => setPending(p => ({ ...p, metricFilters: [...(p.metricFilters ?? []), { field: '', operator: '>=', value: '', mode: 'geral' }] }))}
+                        style={{ width: '100%', padding: '6px 0', fontSize: 12, fontWeight: 500, border: '1px dashed #4a6741', borderRadius: 6, background: 'none', color: '#4a6741', cursor: 'pointer', fontFamily: 'inherit' }}
+                      >
+                        + Adicionar filtro
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Coluna direita: Comparar, Motivos, Safra */}
+                <div style={{ flexBasis: 260, flexGrow: 1, minWidth: 220, display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+                  {/* Comparar com grupo */}
+                  {show('showGroupAvg') && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b6560' }}>Comparar com grupo</div>
+                        <div style={{ fontSize: 11, color: '#8a9a85', marginTop: 2 }}>Referências na tabela e gráficos</div>
+                      </div>
+                      <Toggle checked={pending.showGroupAvg ?? false} onChange={v => set('showGroupAvg', v)} />
+                    </div>
+                  )}
+
+                  {/* Excluir Motivos de Parada */}
+                  {show('excludedMotivos') && motivos.length > 0 && (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <Label>Excluir Motivos de Parada</Label>
+                        {nExcluded > 0 && (
+                          <button
+                            onClick={() => set('excludedMotivos', [])}
+                            style={{ fontSize: 11, color: '#8b2020', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 5, fontFamily: 'inherit' }}
+                          >
+                            limpar ({nExcluded})
+                          </button>
+                        )}
+                      </div>
+                      <p style={{ fontSize: 11, color: '#6b6560', marginBottom: 8, marginTop: 0 }}>
+                        O tempo desses motivos será removido dos totais.
+                      </p>
+
+                      {/* Trigger */}
+                      <button
+                        onClick={() => setMotivosOpen(o => !o)}
+                        style={{
+                          width: '100%', padding: '7px 10px', textAlign: 'left',
+                          border: '1px solid #d4cfc9',
+                          borderRadius: motivosOpen ? '6px 6px 0 0' : 6,
+                          background: '#fff', fontSize: 13, cursor: 'pointer',
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          fontFamily: 'inherit',
+                        }}
+                      >
+                        <span style={{ color: nExcluded > 0 ? '#1a1a1a' : '#6b6560' }}>
+                          {nExcluded === 0 ? 'Nenhum excluído' : `${nExcluded} selecionado${nExcluded > 1 ? 's' : ''}`}
+                        </span>
+                        <span style={{ fontSize: 10, color: '#6b6560' }}>{motivosOpen ? '▲' : '▼'}</span>
+                      </button>
+
+                      {motivosOpen && (
+                        <div style={{
+                          border: '1px solid #d4cfc9', borderTop: 'none',
+                          borderRadius: '0 0 6px 6px', background: '#fff',
+                          maxHeight: 200, overflowY: 'auto',
+                        }}>
+                          <div style={{ padding: '8px 10px', borderBottom: '1px solid #e0dbd4', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
+                            <input
+                              type="text"
+                              placeholder="Buscar motivo..."
+                              value={motivoSearch}
+                              onChange={e => setMotivoSearch(e.target.value)}
+                              autoFocus
+                              style={{ width: '100%', padding: '5px 8px', boxSizing: 'border-box', border: '1px solid #d4cfc9', borderRadius: 4, fontSize: 12, fontFamily: 'inherit' }}
+                            />
+                          </div>
+                          {Object.keys(filteredMotivosByTipo).length === 0 ? (
+                            <div style={{ padding: '10px 12px', fontSize: 12, color: '#6b6560' }}>Nenhum resultado.</div>
+                          ) : (
+                            Object.entries(filteredMotivosByTipo).map(([tipo, lista]) => (
+                              <div key={tipo}>
+                                <div style={{
+                                  padding: '6px 10px 2px', fontSize: 10, fontWeight: 700,
+                                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                                  color: TIPO_PARADA_COLOR[tipo] || '#6b6560',
+                                }}>
+                                  {TIPO_PARADA_LABEL[tipo] || tipo}
+                                </div>
+                                {lista.map(m => (
+                                  <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px 4px 20px', cursor: 'pointer' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={pending.excludedMotivos.includes(m)}
+                                      onChange={() => toggleMotivo(m)}
+                                      style={{ accentColor: '#2d4a2d' }}
+                                    />
+                                    <span style={{ fontSize: 12, color: '#1a1a1a' }}>{m}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Safra de referência */}
+                  {solinftecOnly && safras.length > 0 && (
+                    <div>
+                      <Label>Safra de referência</Label>
+                      <p style={{ fontSize: 11, color: '#6b6560', marginBottom: 8, marginTop: 0 }}>
+                        Janela usada para benchmarks e detecção de quebra. Padrão: safra do período ativo.
+                      </p>
+                      <select
+                        value={pending.referenciaSafra ?? ''}
+                        onChange={e => set('referenciaSafra', e.target.value)}
+                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, color: '#1a1a1a', background: '#fff', fontFamily: 'inherit' }}
+                      >
+                        <option value="">Automático (safra do período)</option>
+                        {safras.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── Rodapé da faixa ─────────────────────────────────────────── */}
+            <div style={{
+              padding: '12px 24px',
+              borderTop: '1px solid #e0dbd4',
+              position: 'sticky', bottom: 0,
+              background: '#fff',
+            }}>
+              <button
+                onClick={handleApply}
+                style={{
+                  width: '100%', padding: '10px 0',
+                  background: '#2d4a2d', color: '#fff',
+                  border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Aplicar filtros
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </>
   )
@@ -733,9 +874,11 @@ function MultiSelect({ values, onChange, placeholder, options }) {
     : `${values.length} selecionados`
 
   return (
-    <div ref={ref} style={{ marginBottom: 12 }}>
+    <div ref={ref} style={{ marginBottom: 0 }}>
       <button
         onClick={() => { setOpen(o => !o); setSearch('') }}
+        aria-expanded={open}
+        aria-haspopup="listbox"
         style={{
           width: '100%', padding: '6px 10px',
           border: '1px solid #d4cfc9',
@@ -743,6 +886,7 @@ function MultiSelect({ values, onChange, placeholder, options }) {
           fontSize: 13, color: values.length ? '#1a1a1a' : '#6b6560',
           background: '#fff', textAlign: 'left', cursor: 'pointer',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6,
+          fontFamily: 'inherit',
         }}
       >
         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -759,7 +903,7 @@ function MultiSelect({ values, onChange, placeholder, options }) {
         </span>
       </button>
       {open && (
-        <div style={{
+        <div role="listbox" style={{
           border: '1px solid #d4cfc9', borderTop: 'none', borderRadius: '0 0 6px 6px',
           background: '#fff', maxHeight: 180, overflowY: 'auto',
         }}>
@@ -772,14 +916,14 @@ function MultiSelect({ values, onChange, placeholder, options }) {
               autoFocus
               style={{
                 width: '100%', padding: '4px 8px', boxSizing: 'border-box',
-                border: '1px solid #d4cfc9', borderRadius: 4, fontSize: 12,
+                border: '1px solid #d4cfc9', borderRadius: 4, fontSize: 12, fontFamily: 'inherit',
               }}
             />
           </div>
           {filtered.length === 0 ? (
             <div style={{ padding: '8px 10px', fontSize: 12, color: '#6b6560' }}>Nenhum resultado</div>
           ) : filtered.map(o => (
-            <label key={o.value} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', cursor: 'pointer' }}>
+            <label key={o.value} role="option" aria-selected={values.includes(o.value)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', cursor: 'pointer' }}>
               <input
                 type="checkbox"
                 checked={values.includes(o.value)}
@@ -797,13 +941,18 @@ function MultiSelect({ values, onChange, placeholder, options }) {
 
 function Chip({ active, onClick, children }) {
   return (
-    <button onClick={onClick} style={{
-      padding: '5px 12px', borderRadius: 20, fontSize: 12,
-      border: active ? '1.5px solid #2d4a2d' : '1px solid #d4cfc9',
-      background: active ? '#edf5ed' : '#fff',
-      color: active ? '#1e4d1e' : '#4a3728',
-      fontWeight: active ? 600 : 400, cursor: 'pointer',
-    }}>
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      style={{
+        padding: '5px 12px', borderRadius: 20, fontSize: 12,
+        border: active ? '1.5px solid #2d4a2d' : '1px solid #d4cfc9',
+        background: active ? '#edf5ed' : '#fff',
+        color: active ? '#1e4d1e' : '#4a3728',
+        fontWeight: active ? 600 : 400, cursor: 'pointer',
+        fontFamily: 'inherit',
+      }}
+    >
       {children}
     </button>
   )
@@ -811,11 +960,16 @@ function Chip({ active, onClick, children }) {
 
 function Toggle({ checked, onChange }) {
   return (
-    <button onClick={() => onChange(!checked)} style={{
-      width: 40, height: 22, borderRadius: 11, border: 'none',
-      background: checked ? '#2d4a2d' : '#d4cfc9',
-      position: 'relative', cursor: 'pointer', flexShrink: 0,
-    }}>
+    <button
+      onClick={() => onChange(!checked)}
+      role="switch"
+      aria-checked={checked}
+      style={{
+        width: 40, height: 22, borderRadius: 11, border: 'none',
+        background: checked ? '#2d4a2d' : '#d4cfc9',
+        position: 'relative', cursor: 'pointer', flexShrink: 0,
+      }}
+    >
       <div style={{
         position: 'absolute', top: 3, left: checked ? 21 : 3,
         width: 16, height: 16, borderRadius: '50%', background: '#fff',

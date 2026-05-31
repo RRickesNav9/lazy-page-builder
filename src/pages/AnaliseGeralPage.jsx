@@ -275,7 +275,7 @@ function ShowMoreBtn({ current, total, onMore, onLess }) {
   const canLess   = current > 6
   if (remaining <= 0 && !canLess) return null
   return (
-    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+    <div data-pdf-exclude="true" style={{ display: 'flex', gap: 8, marginTop: 8 }}>
       {remaining > 0 && (
         <button onClick={onMore} style={{
           flex: 1, padding: '6px 0', border: '1px dashed #d4cfc9', borderRadius: 4,
@@ -528,7 +528,7 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
   return (
     <div>
       {/* Controles */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div data-pdf-exclude="true" style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         {/* Seletor de dimensões */}
         <div ref={dimRef} style={{ position: 'relative' }}>
           <button

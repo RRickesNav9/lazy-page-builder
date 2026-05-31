@@ -807,7 +807,9 @@ export default function BenchmarkClientePage({ onTabChange }) {
           tipoSafra={tipoSafraLabel}
         />
 
-        <TabControl tabs={TABS} active={activeTab} onChange={(t) => { setActiveTab(t); onTabChange?.(t) }} />
+        <div data-pdf-exclude="true">
+          <TabControl tabs={TABS} active={activeTab} onChange={(t) => { setActiveTab(t); onTabChange?.(t) }} />
+        </div>
 
         {(filters.metricFilters ?? []).some(f => f.field && f.value !== '' && f.value != null) && (
           <div style={{ background: '#edf5ed', border: '1px solid #4a6741', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#1e4d1e' }}>
