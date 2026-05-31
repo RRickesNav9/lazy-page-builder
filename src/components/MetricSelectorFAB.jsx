@@ -7,7 +7,7 @@ import { useFilters } from '../lib/FilterContext'
 
 export default function MetricSelectorFAB({ config, selected, onToggle }) {
   const [open, setOpen] = useState(false)
-  const { hasExportFn, fabExpanded } = useFilters()
+  const { hasExportFn, fabExpanded, filters } = useFilters()
   const panelRef = useRef(null)
 
   // fecha o painel local quando o FAB principal colapsa
@@ -24,9 +24,26 @@ export default function MetricSelectorFAB({ config, selected, onToggle }) {
 
   if (!fabExpanded) return null
 
-  // sobe 60px quando o botão de exportação está presente para não sobrepor
-  const btnBottom   = 204 + (hasExportFn ? 60 : 0)
-  const panelBottom = 264 + (hasExportFn ? 60 : 0)
+  // Quando há filtros ativos o FAB de "Limpar" ocupa o slot 144px e empurra
+  // PDF/XLSX 60px para cima — o MetricSelectorFAB precisa acompanhar.
+  const hasActiveFilters =
+    filters.periodo !== '7dias' ||
+    filters.clientes.length > 0 ||
+    filters.propriedades.length > 0 ||
+    filters.processos.length > 0 ||
+    filters.tipos_safra.length > 0 ||
+    filters.excludedMotivos.length > 0 ||
+    filters.showGroupAvg ||
+    (filters.metricFilters ?? []).some(f => f.field && f.value !== '') ||
+    !!(filters.equipamentos?.length) ||
+    !!(filters.operadores?.length)  ||
+    !!(filters.modelos?.length)     ||
+    !!(filters.implementos?.length) ||
+    !!filters.referenciaSafra
+
+  const extraShift  = hasActiveFilters ? 60 : 0
+  const btnBottom   = 204 + (hasExportFn ? 60 : 0) + extraShift
+  const panelBottom = 264 + (hasExportFn ? 60 : 0) + extraShift
 
   return (
     <>

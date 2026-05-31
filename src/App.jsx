@@ -146,21 +146,20 @@ function AppInner({ onLogout }) {
         onClick={() => setSidebarOpen(o => !o)}
         title={sidebarOpen ? 'Fechar menu' : 'Abrir menu'}
         style={{
-          position: 'fixed', top: 16, left: 16,
+          position: 'fixed', top: 20, left: 20,
           zIndex: 400,
-          width: 32, height: 32, borderRadius: 4,
+          width: 40, height: 40, borderRadius: 6,
           background: 'none', border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          // branco sobre verde quando aberta; verde sobre branco quando fechada
           color: sidebarOpen ? 'rgba(255,255,255,0.9)' : '#4a6741',
         }}
       >
         {sidebarOpen ? (
-          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         ) : (
-          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         )}
