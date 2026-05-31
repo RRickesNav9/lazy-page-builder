@@ -94,10 +94,13 @@ export function useOperationalData(filters = {}, enabled = true) {
       if (filters.safra)              query = query.eq('safra', filters.safra)
       if (filters.equipamento)        query = query.ilike('equipamento', `%${filters.equipamento}%`)
       if (filters.equipamento_cod)    query = query.eq('equipamento_cod', filters.equipamento_cod)
-      if (filters.operador)           query = query.ilike('operador', `%${filters.operador}%`)
-      if (filters.modelo_equipamento) query = query.eq('modelo_equipamento', filters.modelo_equipamento)
-      if (filters.dataInicio)         query = query.gte('data', filters.dataInicio)
-      if (filters.dataFim)            query = query.lte('data', filters.dataFim)
+      if (filters.operador)            query = query.ilike('operador', `%${filters.operador}%`)
+      if (filters.modelo_equipamento)  query = query.eq('modelo_equipamento', filters.modelo_equipamento)
+      if (filters.operadores?.length)  query = query.in('operador',           filters.operadores)
+      if (filters.modelos?.length)     query = query.in('modelo_equipamento', filters.modelos)
+      if (filters.implementos?.length) query = query.in('implemento',         filters.implementos)
+      if (filters.dataInicio)          query = query.gte('data', filters.dataInicio)
+      if (filters.dataFim)             query = query.lte('data', filters.dataFim)
 
       setData(await fetchAllPages(query))
     } catch (err) {
@@ -907,3 +910,22 @@ export function useGrupoInterativo(safra, processo, tipo_safra, enabled = false)
   return { metricas, loading }
 }
 
+// Busca opções de dimensão (operador, implemento, modelo) da view dashboard_dim_options
+export function useExtraFilterOptions() {
+  const [options, setOptions] = useState({ operadores: [], implementos: [], modelos: [] })
+
+  useEffect(() => {
+    async function run() {
+      const { data } = await supabase.from('dashboard_dim_options').select('*')
+      if (!data) return
+      setOptions({
+        operadores:  [...new Set(data.map(r => r.operador).filter(Boolean))].sort(),
+        implementos: [...new Set(data.map(r => r.implemento).filter(Boolean))].sort(),
+        modelos:     [...new Set(data.map(r => r.modelo_equipamento).filter(Boolean))].sort(),
+      })
+    }
+    run()
+  }, [])
+
+  return options
+}

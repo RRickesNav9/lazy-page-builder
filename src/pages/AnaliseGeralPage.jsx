@@ -752,7 +752,7 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
 
 export default function AnaliseGeralPage() {
   const { filters, queryFilters, benchmarkSafra, registerExportFn } = useFilters()
-  const { excludedMotivos, metricFilters, dimFilters, showGroupAvg } = filters
+  const { excludedMotivos, metricFilters, showGroupAvg } = filters
 
   const { data: raw, loading } = useOperationalData(queryFilters)
   const { data: stopRows }     = useStopData(queryFilters)
@@ -770,23 +770,9 @@ export default function AnaliseGeralPage() {
 
   const data = dataComExclusoes
 
-  // Filtros aplicados em cadeia: texto → sessão → diária → geral
+  // Filtros aplicados em cadeia: sessão → diária → geral
   const filteredData = useMemo(() => {
     let result = data
-
-    // Fase 0 — filtros de texto (dimensões categóricas, nível de sessão)
-    const activeDim = (dimFilters ?? []).filter(f => f.field && f.value !== '' && f.value != null)
-    if (activeDim.length) {
-      result = result.filter(r =>
-        activeDim.every(({ field, operator, value }) => {
-          const cell = (r[field] ?? '').toString().toLowerCase()
-          const val  = value.toLowerCase()
-          if (operator === 'contém')     return cell.includes(val)
-          if (operator === 'não contém') return !cell.includes(val)
-          return cell === val  // 'é'
-        })
-      )
-    }
 
     const active = (metricFilters ?? []).filter(f => f.field && f.value !== '' && f.value != null && !isNaN(parseFloat(f.value)))
     if (!active.length) return result
@@ -858,7 +844,7 @@ export default function AnaliseGeralPage() {
     }
 
     return result
-  }, [data, metricFilters, dimFilters])
+  }, [data, metricFilters])
 
   const agg      = useMemo(() => aggregateRows(filteredData), [filteredData])
   const timeDist = useMemo(() => calcTimeDistribution(filteredData), [filteredData])
@@ -1003,23 +989,14 @@ export default function AnaliseGeralPage() {
         </div>
       )}
 
-      {/* Banner de filtros de métrica e texto ativos */}
-      {((metricFilters ?? []).some(f => f.field && f.value !== '' && f.value != null) ||
-        (dimFilters ?? []).some(f => f.field && f.value !== '' && f.value != null)) && (
+      {/* Banner de filtros de métrica ativos */}
+      {(metricFilters ?? []).some(f => f.field && f.value !== '' && f.value != null) && (
         <div style={{ background: '#edf5ed', border: '1px solid #4a6741', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#1e4d1e' }}>
-          {(dimFilters ?? []).filter(f => f.field && f.value !== '' && f.value != null).map((f, i) => (
-            <span key={`d${i}`}>
-              {i > 0 || (metricFilters ?? []).some(mf => mf.field && mf.value !== '') ? ' · ' : ''}
-              {({ operador: 'Operador', modelo_equipamento: 'Modelo', implemento: 'Implemento' })[f.field] ?? f.field} {f.operator} "{f.value}"
-              <span style={{ fontSize: 10, marginLeft: 4, opacity: 0.75 }}>[texto]</span>
-            </span>
-          ))}
           {(metricFilters ?? []).filter(f => f.field && f.value !== '' && f.value != null).map((f, i) => {
             const DIM_LABEL = { operador: 'Operador', modelo_equipamento: 'Modelo', implemento: 'Implemento', equipamento: 'Equipamento' }
-            const hasDim = (dimFilters ?? []).some(df => df.field && df.value !== '')
             return (
-              <span key={`m${i}`}>
-                {(i > 0 || hasDim) ? ' · ' : ''}
+              <span key={i}>
+                {i > 0 ? ' · ' : ''}
                 {METRIC_FILTER_LABELS[f.field] ?? f.field} {f.operator} {f.value}
                 <span style={{ fontSize: 10, marginLeft: 4, opacity: 0.75 }}>
                   [{f.mode === 'sessao' ? 'sessão' : f.mode === 'diario' ? 'diária' : 'geral'}{(f.mode ?? 'geral') !== 'sessao' && f.dim && f.dim !== 'equipamento' ? ` · ${DIM_LABEL[f.dim] ?? f.dim}` : ''}]
