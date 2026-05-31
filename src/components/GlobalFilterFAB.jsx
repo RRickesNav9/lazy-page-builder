@@ -65,6 +65,13 @@ const TIPO_PARADA_COLOR = {
   SEM_APONTAMENTO: '#6b7280',
 }
 
+// Estilo comum para selects do filtro de métrica
+const selStyle = {
+  padding: '5px 8px', border: '1px solid #d4cfc9', borderRadius: 6,
+  fontSize: 12, color: '#1a1a1a', background: '#fff',
+  fontFamily: 'inherit', height: 32, boxSizing: 'border-box',
+}
+
 export default function GlobalFilterFAB({ allowedProcessos = null, excludedProcessos = null, solinftecOnly = false, visibleFilters = {} }) {
   const { filters, applyFilters, clearFilters, exportFnRef, hasExportFn, fabExpanded, setFabExpanded } = useFilters()
   const show = (key) => visibleFilters[key] !== false
@@ -189,6 +196,10 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
     setPending(DEFAULT_FILTERS); applyFilters(DEFAULT_FILTERS); setOpen(false)
   }
 
+  function addMetricFilter() {
+    setPending(p => ({ ...p, metricFilters: [...(p.metricFilters ?? []), { field: '', operator: '>=', value: '', mode: 'geral' }] }))
+  }
+
   const filteredMotivosByTipo = useMemo(() => {
     const search = motivoSearch.toLowerCase()
     return motivos.reduce((acc, m) => {
@@ -221,6 +232,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, visibleFilters, solinftecOnly])
 
+  // "Avançado" contém apenas operações especiais — nunca dimensões
   const hasAvancado = show('metricFilter') || show('showGroupAvg') || show('excludedMotivos') || solinftecOnly
 
   const fabBase = {
@@ -369,7 +381,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
               zIndex: 1002,
             }}
           >
-            {/* ── Cabeçalho da faixa ──────────────────────────────────────── */}
+            {/* ── Cabeçalho ─────────────────────────────────────────────── */}
             <div style={{
               padding: '12px 24px',
               borderBottom: '1px solid #e0dbd4',
@@ -402,11 +414,19 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
               </div>
             </div>
 
-            {/* ── Linha 1: campos sempre visíveis ─────────────────────────── */}
-            <div style={{ padding: '16px 24px', display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
+            {/* ── Grid de dimensões (Período + todas as 8 dimensões) ──────── */}
+            {/* Período ocupa 2 colunas; cada dimensão ocupa 1 coluna.          */}
+            {/* auto-fill minmax(155px,1fr) → reflui conforme largura da faixa. */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))',
+              gap: '12px 20px',
+              padding: '16px 24px',
+              alignItems: 'start',
+            }}>
 
-              {/* Período */}
-              <div style={{ flexBasis: 300, flexGrow: 1, minWidth: 220 }}>
+              {/* Período — 2 colunas */}
+              <div style={{ gridColumn: 'span 2' }}>
                 <Label>Período</Label>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {PERIODOS.map(p => (
@@ -434,60 +454,65 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                 )}
               </div>
 
-              {/* Cliente */}
+              {/* ── Dimensões cascateadas ─────────────────────────────────── */}
               {show('cliente') && (
-                <div style={{ flexBasis: 160, flexGrow: 1, minWidth: 140 }}>
+                <div>
                   <Label>Cliente</Label>
-                  <MultiSelect
-                    values={pending.clientes}
-                    onChange={vals => set('clientes', vals)}
-                    placeholder="Todos"
-                    options={cascadedOpts.clientes.map(c => ({ value: c, label: c }))}
-                  />
+                  <MultiSelect values={pending.clientes} onChange={vals => set('clientes', vals)} placeholder="Todos"
+                    options={cascadedOpts.clientes.map(c => ({ value: c, label: c }))} />
                 </div>
               )}
-
-              {/* Propriedade */}
               {show('propriedade') && (
-                <div style={{ flexBasis: 160, flexGrow: 1, minWidth: 140 }}>
+                <div>
                   <Label>Propriedade</Label>
-                  <MultiSelect
-                    values={pending.propriedades}
-                    onChange={vals => set('propriedades', vals)}
-                    placeholder="Todas"
-                    options={cascadedOpts.propriedades.map(p => ({ value: p, label: p }))}
-                  />
+                  <MultiSelect values={pending.propriedades} onChange={vals => set('propriedades', vals)} placeholder="Todas"
+                    options={cascadedOpts.propriedades.map(p => ({ value: p, label: p }))} />
                 </div>
               )}
-
-              {/* Processo */}
               {show('processo') && (
-                <div style={{ flexBasis: 160, flexGrow: 1, minWidth: 140 }}>
+                <div>
                   <Label>Processo / Operação</Label>
-                  <MultiSelect
-                    values={pending.processos}
-                    onChange={vals => set('processos', vals)}
-                    placeholder="Todos"
-                    options={cascadedOpts.processos.map(p => ({ value: p, label: p }))}
-                  />
+                  <MultiSelect values={pending.processos} onChange={vals => set('processos', vals)} placeholder="Todos"
+                    options={cascadedOpts.processos.map(p => ({ value: p, label: p }))} />
+                </div>
+              )}
+              {show('cultura') && (
+                <div>
+                  <Label>Cultura</Label>
+                  <MultiSelect values={pending.tipos_safra} onChange={vals => set('tipos_safra', vals)} placeholder="Todas"
+                    options={cascadedOpts.tipos_safra.map(t => ({ value: t, label: t }))} />
                 </div>
               )}
 
-              {/* Cultura */}
-              {show('cultura') && (
-                <div style={{ flexBasis: 160, flexGrow: 1, minWidth: 140 }}>
-                  <Label>Cultura</Label>
-                  <MultiSelect
-                    values={pending.tipos_safra}
-                    onChange={vals => set('tipos_safra', vals)}
-                    placeholder="Todas"
-                    options={cascadedOpts.tipos_safra.map(t => ({ value: t, label: t }))}
-                  />
-                </div>
+              {/* ── Dimensões de lista fixa (extraOptions) ────────────────── */}
+              {/* Aparecem apenas nas páginas onde show('metricFilter') é true. */}
+              {show('metricFilter') && (
+                <>
+                  <div>
+                    <Label>Equipamento</Label>
+                    <MultiSelect values={pending.equipamentos ?? []} onChange={vals => set('equipamentos', vals)} placeholder="Todos"
+                      options={extraOptions.equipamentos} />
+                  </div>
+                  <div>
+                    <Label>Operador</Label>
+                    <MultiSelect values={pending.operadores ?? []} onChange={vals => set('operadores', vals)} placeholder="Todos"
+                      options={extraOptions.operadores.map(o => ({ value: o, label: o }))} />
+                  </div>
+                  <div>
+                    <Label>Modelo</Label>
+                    <MultiSelect values={pending.modelos ?? []} onChange={vals => set('modelos', vals)} placeholder="Todos"
+                      options={extraOptions.modelos.map(o => ({ value: o, label: o }))} />
+                  </div>
+                  <div>
+                    <Label>Implemento</Label>
+                    <MultiSelect values={pending.implementos ?? []} onChange={vals => set('implementos', vals)} placeholder="Todos"
+                      options={extraOptions.implementos.map(o => ({ value: o, label: o }))} />
+                  </div>
+                </>
               )}
             </div>
 
-            {/* ── Toggle "Avançado" ────────────────────────────────────────── */}
+            {/* ── Toggle "Avançado" ─────────────────────────────────────────── */}
             {hasAvancado && (
               <div style={{ padding: '0 24px 12px' }}>
                 <button
@@ -507,208 +532,182 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
               </div>
             )}
 
-            {/* ── Seção Avançada ──────────────────────────────────────────── */}
+            {/* ── Seção Avançada: métrica, motivos, comparar, safra ─────────── */}
             {hasAvancado && avancadoOpen && (
-              <div style={{ borderTop: '1px solid #f0ede8', padding: '16px 24px', display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+              <div style={{ borderTop: '1px solid #f0ede8', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-                {/* Equipamento / Operador / Modelo / Implemento + Filtrar por Métrica */}
+                {/* ── Filtrar por Métrica ────────────────────────────────── */}
                 {show('metricFilter') && (
-                  <div style={{ flexBasis: 600, flexGrow: 2, minWidth: 280 }}>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-                      <div style={{ flexBasis: 160, flexGrow: 1, minWidth: 130 }}>
-                        <Label>Equipamento</Label>
-                        <MultiSelect
-                          values={pending.equipamentos ?? []}
-                          onChange={vals => set('equipamentos', vals)}
-                          placeholder="Todos"
-                          options={extraOptions.equipamentos}
-                        />
-                      </div>
-                      <div style={{ flexBasis: 160, flexGrow: 1, minWidth: 130 }}>
-                        <Label>Operador</Label>
-                        <MultiSelect
-                          values={pending.operadores ?? []}
-                          onChange={vals => set('operadores', vals)}
-                          placeholder="Todos"
-                          options={extraOptions.operadores.map(o => ({ value: o, label: o }))}
-                        />
-                      </div>
-                      <div style={{ flexBasis: 160, flexGrow: 1, minWidth: 130 }}>
-                        <Label>Modelo</Label>
-                        <MultiSelect
-                          values={pending.modelos ?? []}
-                          onChange={vals => set('modelos', vals)}
-                          placeholder="Todos"
-                          options={extraOptions.modelos.map(o => ({ value: o, label: o }))}
-                        />
-                      </div>
-                      <div style={{ flexBasis: 160, flexGrow: 1, minWidth: 130 }}>
-                        <Label>Implemento</Label>
-                        <MultiSelect
-                          values={pending.implementos ?? []}
-                          onChange={vals => set('implementos', vals)}
-                          placeholder="Todos"
-                          options={extraOptions.implementos.map(o => ({ value: o, label: o }))}
-                        />
-                      </div>
-                    </div>
+                  <div>
+                    <Label>Filtrar por Métrica</Label>
 
-                    {/* Filtrar por Métrica */}
-                    <div style={{ marginTop: 16 }}>
-                      <Label>Filtrar por Métrica</Label>
-                      {(pending.metricFilters ?? []).map((mf, idx) => (
-                        <div key={idx} style={{ marginBottom: 10 }}>
-                          <div style={{ display: 'flex', gap: 6, marginBottom: 5 }}>
-                            <select
-                              value={mf.field}
-                              onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, field: e.target.value, value: '' } : f) }))}
-                              style={{ flex: 1, padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 12, color: '#1a1a1a', background: '#fff', fontFamily: 'inherit' }}
-                            >
-                              <option value="">Escolher métrica…</option>
-                              {METRIC_FILTER_OPTIONS.map(({ group, options }) => (
-                                <optgroup key={group} label={group}>
-                                  {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                </optgroup>
+                    {(pending.metricFilters ?? []).length === 0 && (
+                      <p style={{ fontSize: 11, color: '#6b6560', margin: '4px 0 10px' }}>
+                        Restringe os resultados por valor de métrica — ex.: rendimento ≥ 3 ha/h.
+                      </p>
+                    )}
+
+                    {(pending.metricFilters ?? []).map((mf, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                        {/* Métrica */}
+                        <select
+                          value={mf.field}
+                          onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, field: e.target.value, value: '' } : f) }))}
+                          style={{ ...selStyle, minWidth: 160, flex: '1 1 160px' }}
+                        >
+                          <option value="">Escolher métrica…</option>
+                          {METRIC_FILTER_OPTIONS.map(({ group, options }) => (
+                            <optgroup key={group} label={group}>
+                              {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </optgroup>
+                          ))}
+                        </select>
+
+                        {/* Operador ≥ ≤ = */}
+                        {mf.field && (
+                          <>
+                            <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9', flexShrink: 0, height: 32 }}>
+                              {['>=', '<=', '='].map(op => (
+                                <button key={op}
+                                  onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, operator: op } : f) }))}
+                                  style={{ padding: '0 8px', fontSize: 12, border: 'none', height: '100%', background: (mf.operator ?? '>=') === op ? '#2d4a2d' : '#fff', color: (mf.operator ?? '>=') === op ? '#fff' : '#4a3728', cursor: 'pointer' }}
+                                >{op}</button>
                               ))}
+                            </div>
+
+                            {/* Valor */}
+                            <input type="number" step="0.1"
+                              value={mf.value ?? ''}
+                              onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, value: e.target.value } : f) }))}
+                              placeholder="Valor…"
+                              style={{ ...selStyle, width: 84, flexShrink: 0 }}
+                            />
+
+                            {/* Modo */}
+                            <select
+                              value={mf.mode ?? 'geral'}
+                              onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, mode: e.target.value } : f) }))}
+                              style={{ ...selStyle, flexShrink: 0 }}
+                            >
+                              <option value="geral">Geral</option>
+                              <option value="diario">Por dia</option>
+                              <option value="sessao">Por sessão</option>
                             </select>
-                            <button
-                              onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.filter((_, i) => i !== idx) }))}
-                              style={{ width: 26, height: 32, border: 'none', background: 'none', cursor: 'pointer', color: '#8b6560', fontSize: 18, padding: 0, flexShrink: 0 }}
-                            >×</button>
-                          </div>
-                          {mf.field && (
-                            <>
-                              <div style={{ display: 'flex', gap: 6, marginBottom: 5 }}>
-                                <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9', flexShrink: 0 }}>
-                                  {['>=', '<=', '='].map(op => (
-                                    <button key={op}
-                                      onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, operator: op } : f) }))}
-                                      style={{ padding: '5px 8px', fontSize: 12, border: 'none', background: (mf.operator ?? '>=') === op ? '#2d4a2d' : '#fff', color: (mf.operator ?? '>=') === op ? '#fff' : '#4a3728', cursor: 'pointer' }}
-                                    >{op}</button>
-                                  ))}
-                                </div>
-                                <input type="number" step="0.1"
-                                  value={mf.value ?? ''}
-                                  onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, value: e.target.value } : f) }))}
-                                  placeholder="Valor…"
-                                  style={{ flex: 1, padding: '5px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 12, fontFamily: 'inherit' }}
-                                />
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: 10, color: '#6b6560' }}>Modo:</span>
-                                <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9' }}>
-                                  {[{ v: 'geral', l: 'Geral' }, { v: 'diario', l: 'Diária' }, { v: 'sessao', l: 'Sessão' }].map(({ v, l }) => (
-                                    <button key={v}
-                                      onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, mode: v } : f) }))}
-                                      style={{ padding: '4px 10px', fontSize: 11, border: 'none', background: (mf.mode ?? 'geral') === v ? '#2d4a2d' : '#fff', color: (mf.mode ?? 'geral') === v ? '#fff' : '#4a3728', cursor: 'pointer' }}
-                                    >{l}</button>
-                                  ))}
-                                </div>
-                                {(mf.mode ?? 'geral') !== 'sessao' && (
-                                  <>
-                                    <span style={{ fontSize: 10, color: '#6b6560' }}>por:</span>
-                                    <select value={mf.dim ?? 'equipamento'}
-                                      onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, dim: e.target.value } : f) }))}
-                                      style={{ padding: '3px 6px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 11, color: '#1a1a1a', background: '#fff', fontFamily: 'inherit' }}
-                                    >
-                                      {[{ v: 'equipamento', l: 'Equipamento' }, { v: 'operador', l: 'Operador' }, { v: 'modelo_equipamento', l: 'Modelo' }, { v: 'implemento', l: 'Implemento' }].map(({ v, l }) => (
-                                        <option key={v} value={v}>{l}</option>
-                                      ))}
-                                    </select>
-                                  </>
-                                )}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      ))}
-                      <button
-                        onClick={() => setPending(p => ({ ...p, metricFilters: [...(p.metricFilters ?? []), { field: '', operator: '>=', value: '', mode: 'geral' }] }))}
-                        style={{ width: '100%', padding: '6px 0', fontSize: 12, fontWeight: 500, border: '1px dashed #4a6741', borderRadius: 6, background: 'none', color: '#4a6741', cursor: 'pointer', fontFamily: 'inherit' }}
-                      >
-                        + Adicionar filtro
-                      </button>
-                    </div>
+
+                            {/* Dimensão — oculta no modo "Por sessão" */}
+                            {(mf.mode ?? 'geral') !== 'sessao' && (
+                              <select
+                                value={mf.dim ?? 'equipamento'}
+                                onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, dim: e.target.value } : f) }))}
+                                style={{ ...selStyle, flexShrink: 0 }}
+                              >
+                                <option value="equipamento">por Equipamento</option>
+                                <option value="operador">por Operador</option>
+                                <option value="modelo_equipamento">por Modelo</option>
+                                <option value="implemento">por Implemento</option>
+                              </select>
+                            )}
+                          </>
+                        )}
+
+                        {/* Remover */}
+                        <button
+                          onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.filter((_, i) => i !== idx) }))}
+                          style={{ width: 28, height: 32, border: 'none', background: 'none', cursor: 'pointer', color: '#8b6560', fontSize: 18, padding: 0, flexShrink: 0 }}
+                        >×</button>
+                      </div>
+                    ))}
+
+                    <button
+                      onClick={addMetricFilter}
+                      style={{ fontSize: 12, color: '#4a6741', border: '1px solid #c8d8c4', borderRadius: 6, padding: '5px 12px', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                    >
+                      + Adicionar filtro de métrica
+                    </button>
                   </div>
                 )}
 
-                {/* Comparar com grupo + Motivos + Safra */}
-                <div style={{ flexBasis: 260, flexGrow: 1, minWidth: 220, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* ── Motivos + Comparar + Safra ────────────────────────── */}
+                {(show('excludedMotivos') || show('showGroupAvg') || solinftecOnly) && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
 
-                  {show('showGroupAvg') && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b6560' }}>Comparar com grupo</div>
-                        <div style={{ fontSize: 11, color: '#8a9a85', marginTop: 2 }}>Referências na tabela e gráficos</div>
-                      </div>
-                      <Toggle checked={pending.showGroupAvg ?? false} onChange={v => set('showGroupAvg', v)} />
-                    </div>
-                  )}
-
-                  {show('excludedMotivos') && motivos.length > 0 && (
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <Label>Excluir Motivos de Parada</Label>
-                        {nExcluded > 0 && (
-                          <button onClick={() => set('excludedMotivos', [])}
-                            style={{ fontSize: 11, color: '#8b2020', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 5, fontFamily: 'inherit' }}>
-                            limpar ({nExcluded})
-                          </button>
+                    {/* Excluir Motivos de Parada */}
+                    {show('excludedMotivos') && motivos.length > 0 && (
+                      <div style={{ flexBasis: 220, flexGrow: 1, minWidth: 180 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <Label>Excluir Motivos de Parada</Label>
+                          {nExcluded > 0 && (
+                            <button onClick={() => set('excludedMotivos', [])}
+                              style={{ fontSize: 11, color: '#8b2020', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                              limpar ({nExcluded})
+                            </button>
+                          )}
+                        </div>
+                        <p style={{ fontSize: 11, color: '#6b6560', marginBottom: 8, marginTop: 0 }}>
+                          O tempo desses motivos será removido dos totais.
+                        </p>
+                        <button onClick={() => setMotivosOpen(o => !o)}
+                          style={{ width: '100%', padding: '6px 10px', textAlign: 'left', border: '1px solid #d4cfc9', borderRadius: motivosOpen ? '6px 6px 0 0' : 6, background: '#fff', fontSize: 13, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}>
+                          <span style={{ color: nExcluded > 0 ? '#1a1a1a' : '#6b6560' }}>
+                            {nExcluded === 0 ? 'Nenhum excluído' : `${nExcluded} selecionado${nExcluded > 1 ? 's' : ''}`}
+                          </span>
+                          <span style={{ fontSize: 10, color: '#6b6560' }}>{motivosOpen ? '▲' : '▼'}</span>
+                        </button>
+                        {motivosOpen && (
+                          <div style={{ border: '1px solid #d4cfc9', borderTop: 'none', borderRadius: '0 0 6px 6px', background: '#fff', maxHeight: 200, overflowY: 'auto' }}>
+                            <div style={{ padding: '8px 10px', borderBottom: '1px solid #e0dbd4', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
+                              <input type="text" placeholder="Buscar motivo..." value={motivoSearch}
+                                onChange={e => setMotivoSearch(e.target.value)} autoFocus
+                                style={{ width: '100%', padding: '5px 8px', boxSizing: 'border-box', border: '1px solid #d4cfc9', borderRadius: 4, fontSize: 12, fontFamily: 'inherit' }} />
+                            </div>
+                            {Object.keys(filteredMotivosByTipo).length === 0
+                              ? <div style={{ padding: '10px 12px', fontSize: 12, color: '#6b6560' }}>Nenhum resultado.</div>
+                              : Object.entries(filteredMotivosByTipo).map(([tipo, lista]) => (
+                                <div key={tipo}>
+                                  <div style={{ padding: '6px 10px 2px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: TIPO_PARADA_COLOR[tipo] || '#6b6560' }}>
+                                    {TIPO_PARADA_LABEL[tipo] || tipo}
+                                  </div>
+                                  {lista.map(m => (
+                                    <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px 4px 20px', cursor: 'pointer' }}>
+                                      <input type="checkbox" checked={pending.excludedMotivos.includes(m)} onChange={() => toggleMotivo(m)} style={{ accentColor: '#2d4a2d' }} />
+                                      <span style={{ fontSize: 12, color: '#1a1a1a' }}>{m}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              ))
+                            }
+                          </div>
                         )}
                       </div>
-                      <p style={{ fontSize: 11, color: '#6b6560', marginBottom: 8, marginTop: 0 }}>
-                        O tempo desses motivos será removido dos totais.
-                      </p>
-                      <button onClick={() => setMotivosOpen(o => !o)}
-                        style={{ width: '100%', padding: '7px 10px', textAlign: 'left', border: '1px solid #d4cfc9', borderRadius: motivosOpen ? '6px 6px 0 0' : 6, background: '#fff', fontSize: 13, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}
-                      >
-                        <span style={{ color: nExcluded > 0 ? '#1a1a1a' : '#6b6560' }}>
-                          {nExcluded === 0 ? 'Nenhum excluído' : `${nExcluded} selecionado${nExcluded > 1 ? 's' : ''}`}
-                        </span>
-                        <span style={{ fontSize: 10, color: '#6b6560' }}>{motivosOpen ? '▲' : '▼'}</span>
-                      </button>
-                      {motivosOpen && (
-                        <div style={{ border: '1px solid #d4cfc9', borderTop: 'none', borderRadius: '0 0 6px 6px', background: '#fff', maxHeight: 200, overflowY: 'auto' }}>
-                          <div style={{ padding: '8px 10px', borderBottom: '1px solid #e0dbd4', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
-                            <input type="text" placeholder="Buscar motivo..." value={motivoSearch}
-                              onChange={e => setMotivoSearch(e.target.value)} autoFocus
-                              style={{ width: '100%', padding: '5px 8px', boxSizing: 'border-box', border: '1px solid #d4cfc9', borderRadius: 4, fontSize: 12, fontFamily: 'inherit' }} />
-                          </div>
-                          {Object.keys(filteredMotivosByTipo).length === 0
-                            ? <div style={{ padding: '10px 12px', fontSize: 12, color: '#6b6560' }}>Nenhum resultado.</div>
-                            : Object.entries(filteredMotivosByTipo).map(([tipo, lista]) => (
-                              <div key={tipo}>
-                                <div style={{ padding: '6px 10px 2px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: TIPO_PARADA_COLOR[tipo] || '#6b6560' }}>
-                                  {TIPO_PARADA_LABEL[tipo] || tipo}
-                                </div>
-                                {lista.map(m => (
-                                  <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px 4px 20px', cursor: 'pointer' }}>
-                                    <input type="checkbox" checked={pending.excludedMotivos.includes(m)} onChange={() => toggleMotivo(m)} style={{ accentColor: '#2d4a2d' }} />
-                                    <span style={{ fontSize: 12, color: '#1a1a1a' }}>{m}</span>
-                                  </label>
-                                ))}
-                              </div>
-                            ))
-                          }
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    )}
 
-                  {solinftecOnly && safras.length > 0 && (
-                    <div>
-                      <Label>Safra de referência</Label>
-                      <p style={{ fontSize: 11, color: '#6b6560', marginBottom: 8, marginTop: 0 }}>
-                        Janela usada para benchmarks e detecção de quebra. Padrão: safra do período ativo.
-                      </p>
-                      <select value={pending.referenciaSafra ?? ''} onChange={e => set('referenciaSafra', e.target.value)}
-                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, color: '#1a1a1a', background: '#fff', fontFamily: 'inherit' }}>
-                        <option value="">Automático (safra do período)</option>
-                        {safras.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </div>
-                  )}
-                </div>
+                    {/* Comparar com grupo */}
+                    {show('showGroupAvg') && (
+                      <div style={{ flexBasis: 200, flexGrow: 1, minWidth: 180 }}>
+                        <Label>Comparar com grupo</Label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+                          <Toggle checked={pending.showGroupAvg ?? false} onChange={v => set('showGroupAvg', v)} />
+                          <span style={{ fontSize: 12, color: '#6b6560' }}>Referências na tabela e gráficos</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Safra de referência */}
+                    {solinftecOnly && safras.length > 0 && (
+                      <div style={{ flexBasis: 200, flexGrow: 1, minWidth: 180 }}>
+                        <Label>Safra de referência</Label>
+                        <p style={{ fontSize: 11, color: '#6b6560', margin: '4px 0 8px' }}>
+                          Padrão: safra do período ativo.
+                        </p>
+                        <select value={pending.referenciaSafra ?? ''} onChange={e => set('referenciaSafra', e.target.value)}
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, color: '#1a1a1a', background: '#fff', fontFamily: 'inherit' }}>
+                          <option value="">Automático (safra do período)</option>
+                          {safras.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
