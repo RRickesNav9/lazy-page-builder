@@ -719,10 +719,13 @@ export default function BenchmarkClientePage({ onTabChange }) {
     })
   }, [])
 
-  const cliente   = filters.clientes?.[0]    || ''
-  const tipoSafra = filters.tipos_safra?.[0] || ''
+  const cliente        = filters.clientes?.[0]    || ''
+  const tipoSafra      = filters.tipos_safra?.[0] || ''
+  const tipoSafraLabel = filters.tipos_safra.length > 1 ? `${filters.tipos_safra.length} culturas` : tipoSafra
   // Colheita/Plantio são fixos por aba; Geral usa o processo do filtro global
-  const processo  = activeTab === 'geral' ? (filters.processos?.[0] || null) : TAB_PROCESSO[activeTab]
+  const processo = activeTab === 'geral' ? (filters.processos?.[0] || null) : TAB_PROCESSO[activeTab]
+  // Aba "Geral" exclui Colheita e Plantio — cada um tem aba própria
+  const geralExclusion = activeTab === 'geral' ? { not_processos: ['Colheita', 'Plantio'] } : {}
 
   // Filtros para os hooks — processo sempre vem do tab ativo, não do filtro global
   const benchFilters = {
@@ -733,6 +736,7 @@ export default function BenchmarkClientePage({ onTabChange }) {
     ...(queryFilters.dataInicio && { dataInicio: queryFilters.dataInicio }),
     ...(queryFilters.dataFim    && { dataFim:    queryFilters.dataFim    }),
     filterMode: filters.filterMode,
+    ...geralExclusion,
   }
 
   const grupoFilters = {
@@ -740,6 +744,7 @@ export default function BenchmarkClientePage({ onTabChange }) {
     ...(tipoSafra && { tipo_safra: tipoSafra }),
     safra: benchmarkSafra,
     filterMode: filters.filterMode,
+    ...geralExclusion,
   }
 
   // Dados do cliente — desnecessário quando nenhum cliente está selecionado
@@ -801,7 +806,7 @@ export default function BenchmarkClientePage({ onTabChange }) {
         <DynamicHeader
           cliente={cliente}
           processo={processo}
-          tipoSafra={tipoSafra}
+          tipoSafra={tipoSafraLabel}
         />
 
         <TabControl tabs={TABS} active={activeTab} onChange={(t) => { setActiveTab(t); onTabChange?.(t) }} />
@@ -809,6 +814,12 @@ export default function BenchmarkClientePage({ onTabChange }) {
         {(filters.metricFilters ?? []).some(f => f.field && f.value !== '' && f.value != null) && (
           <div style={{ background: '#edf5ed', border: '1px solid #4a6741', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#1e4d1e' }}>
             Filtro de métrica ativo nesta safra — os resultados refletem o período e dimensões selecionados.
+          </div>
+        )}
+
+        {queryFilters.dataInicio && (
+          <div style={{ background: '#f7f5f2', border: '1px solid #d4cfc9', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 11, color: '#6b6560' }}>
+            Cliente: período selecionado no filtro · Grupo: safra {benchmarkSafra} completa
           </div>
         )}
 

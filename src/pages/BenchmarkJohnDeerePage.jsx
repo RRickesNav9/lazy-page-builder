@@ -558,10 +558,11 @@ export default function BenchmarkJohnDeerePage() {
     })
   }, [])
 
-  const activeTabDef = JD_TABS.find(t => t.id === activeTab)
-  const processo     = activeTabDef?.processo ?? 'Plantio'
-  const cliente      = filters.clientes?.[0]    || ''
-  const tipoSafra    = filters.tipos_safra?.[0] || ''
+  const activeTabDef   = JD_TABS.find(t => t.id === activeTab)
+  const processo       = activeTabDef?.processo ?? 'Plantio'
+  const cliente        = filters.clientes?.[0]    || ''
+  const tipoSafra      = filters.tipos_safra?.[0] || ''
+  const tipoSafraLabel = filters.tipos_safra.length > 1 ? `${filters.tipos_safra.length} culturas` : tipoSafra
 
   const benchFilters = {
     ...(cliente   && { cliente }),
@@ -620,9 +621,15 @@ export default function BenchmarkJohnDeerePage() {
   return (
     <>
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: '20px 24px' }}>
-        <DynamicHeader cliente={cliente} processo={processo} tipoSafra={tipoSafra} />
+        <DynamicHeader cliente={cliente} processo={processo} tipoSafra={tipoSafraLabel} />
 
         <TabControl tabs={JD_TABS} active={activeTab} onChange={setActiveTab} />
+
+        {queryFilters.dataInicio && (
+          <div style={{ background: '#f7f5f2', border: '1px solid #d4cfc9', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 11, color: '#6b6560' }}>
+            Cliente: período selecionado no filtro · Grupo JD: safra {benchmarkSafra} completa
+          </div>
+        )}
 
         {loading && (
           <div style={{ padding: '40px 0', textAlign: 'center', color: '#6b6560', fontSize: 13 }}>

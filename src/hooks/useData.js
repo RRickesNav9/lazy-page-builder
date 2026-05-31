@@ -354,6 +354,10 @@ export function useClienteBenchmark(filters = {}) {
         if (filters.safra)      query = query.eq('safra',      filters.safra)
         if (filters.dataInicio) query = query.gte('data',      filters.dataInicio)
         if (filters.dataFim)    query = query.lte('data',      filters.dataFim)
+        // aba "Geral" no Benchmark Cliente exclui processos com aba própria
+        if (filters.not_processos?.length) {
+          for (const p of filters.not_processos) query = query.neq('processo', p)
+        }
 
         let all = await fetchAllPages(query)
 
@@ -439,6 +443,9 @@ export function useAllClientesBenchmark(filters = {}) {
         if (filters.processo)   query = query.eq('processo',   filters.processo)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
         if (filters.safra)      query = query.eq('safra',      filters.safra)
+        if (filters.not_processos?.length) {
+          for (const p of filters.not_processos) query = query.neq('processo', p)
+        }
 
         let all = await fetchAllPages(query)
 

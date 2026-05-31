@@ -600,7 +600,10 @@ export default function BenchmarkEquipamentoPage() {
 
   // O filtro global já garante que processo é Colheita ou Plantio nesta página (via App.jsx + cascade do FAB).
   // processoFiltro é apenas o valor normalizado para passar aos hooks.
-  const processoFiltro = filters.processos?.[0] || null
+  const processoFiltro  = filters.processos?.[0] || null
+  const tipoSafraLabel  = filters.tipos_safra?.length > 1
+    ? `${filters.tipos_safra.length} culturas`
+    : filters.tipos_safra?.[0] || undefined
 
   function toggleMetric(key) {
     setSelectedMetrics(prev => {
@@ -766,7 +769,7 @@ export default function BenchmarkEquipamentoPage() {
 
           <DynamicHeader
             processo={processoFiltro}
-            tipoSafra={filters.tipos_safra?.[0]}
+            tipoSafra={tipoSafraLabel}
             safra={benchmarkSafra}
             extraFields={[
               { label: 'Equipamento', value: maqInfo1 ? `${maqInfo1.equipamento_cod} — ${maqInfo1.equipamento}` : '—' },
@@ -792,7 +795,9 @@ export default function BenchmarkEquipamentoPage() {
               <StateMsg
                 loading={loadingMaq || loadingModelo1}
                 empty={!loadingMaq && !loadingModelo1 && (!maqMetricas || !modeloNorm1)}
-                emptyText="Sem dados para os filtros selecionados."
+                emptyText={maqMetricas && !modeloNorm1
+                  ? 'Equipamento sem modelo de referência cadastrado.'
+                  : 'Sem dados operacionais para os filtros selecionados.'}
               />
               {!loadingMaq && !loadingModelo1 && maqMetricas && modeloNorm1 && (
                 <CompareTable
@@ -856,7 +861,7 @@ export default function BenchmarkEquipamentoPage() {
 
           <DynamicHeader
             processo={processoFiltro}
-            tipoSafra={filters.tipos_safra?.[0]}
+            tipoSafra={tipoSafraLabel}
             safra={benchmarkSafra}
             extraFields={[
               { label: 'Equip. A', value: maqInfoA ? `${maqInfoA.equipamento_cod} — ${maqInfoA.equipamento}` : '—' },
@@ -914,7 +919,7 @@ export default function BenchmarkEquipamentoPage() {
 
           <DynamicHeader
             processo={processoFiltro}
-            tipoSafra={filters.tipos_safra?.[0]}
+            tipoSafra={tipoSafraLabel}
             safra={benchmarkSafra}
             extraFields={[
               { label: 'Modelo A', value: modeloA || '—' },
