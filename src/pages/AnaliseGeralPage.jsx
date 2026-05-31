@@ -355,7 +355,7 @@ function MotivosParadaPanel({ stopRows }) {
 
 /* ── Tabela de Dimensões ─────────────────────────────────────────────────── */
 
-function GroupRow({ node, path, expanded, onToggle, cols }) {
+function GroupRow({ node, path, expanded, onToggle, cols, showPeriodo }) {
   const isExpanded  = expanded.has(path)
   const hasChildren = node.children.length > 0
   const indent      = 12 + node.level * 20
@@ -388,18 +388,20 @@ function GroupRow({ node, path, expanded, onToggle, cols }) {
             </span>
           </div>
         </td>
-        <td style={{ padding: '8px 14px', verticalAlign: 'top', minWidth: 120 }}>
-          {node.agg?.data_inicio && node.agg?.data_fim ? (
-            <div>
-              <div style={{ fontSize: 11, color: '#1a1a1a', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                {fmtDateShort(node.agg.data_inicio)} → {fmtDateShort(node.agg.data_fim)}
+        {showPeriodo && (
+          <td style={{ padding: '8px 14px', verticalAlign: 'top', minWidth: 120 }}>
+            {node.agg?.data_inicio && node.agg?.data_fim ? (
+              <div>
+                <div style={{ fontSize: 11, color: '#1a1a1a', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                  {fmtDateShort(node.agg.data_inicio)} → {fmtDateShort(node.agg.data_fim)}
+                </div>
+                <div style={{ fontSize: 10, color: '#6b6560', marginTop: 1 }}>
+                  {node.agg.dias_ativos} {node.agg.dias_ativos === 1 ? 'dia' : 'dias'}
+                </div>
               </div>
-              <div style={{ fontSize: 10, color: '#6b6560', marginTop: 1 }}>
-                {node.agg.dias_ativos} {node.agg.dias_ativos === 1 ? 'dia' : 'dias'}
-              </div>
-            </div>
-          ) : <span style={{ fontSize: 11, color: '#c0bab4' }}>—</span>}
-        </td>
+            ) : <span style={{ fontSize: 11, color: '#c0bab4' }}>—</span>}
+          </td>
+        )}
         {cols.map(col => (
           <td key={col.key} style={{ padding: '8px 14px', textAlign: 'right', fontSize: 13, color: '#1a1a1a', whiteSpace: 'nowrap' }}>
             {node.agg ? col.fmt(node.agg[col.key] ?? 0) : '—'}
@@ -414,6 +416,7 @@ function GroupRow({ node, path, expanded, onToggle, cols }) {
           expanded={expanded}
           onToggle={onToggle}
           cols={cols}
+          showPeriodo={showPeriodo}
         />
       ))}
 
@@ -435,6 +438,7 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
   const [expanded,      setExpanded]      = useState(new Set())
   const [dimDropOpen,   setDimDropOpen]   = useState(false)
   const [metDropOpen,   setMetDropOpen]   = useState(false)
+  const [showPeriodo,   setShowPeriodo]   = useState(true)
   const dimRef = useRef(null)
   const metRef = useRef(null)
 
@@ -644,6 +648,19 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
             </div>
           )}
         </div>
+
+        {/* Toggle Período Operacional */}
+        <button
+          onClick={() => setShowPeriodo(p => !p)}
+          style={{
+            padding: '6px 12px', border: '1px solid #d4cfc9', borderRadius: 6,
+            background: showPeriodo ? '#edf5ed' : '#fff', fontSize: 13, cursor: 'pointer',
+            color: showPeriodo ? '#1e4d1e' : '#6b6560', fontWeight: showPeriodo ? 500 : 400,
+            alignSelf: 'center',
+          }}
+        >
+          Período
+        </button>
       </div>
 
       {/* Tabela */}
@@ -654,9 +671,11 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
               <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 {dimLabel}
               </th>
-              <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', minWidth: 120 }}>
-                Período Operacional
-              </th>
+              {showPeriodo && (
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', minWidth: 120 }}>
+                  Período Operacional
+                </th>
+              )}
               {activeCols.map(col => (
                 <th key={col.key} style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                   {col.label}
@@ -673,7 +692,7 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
                     Média do grupo
                   </span>
                 </td>
-                <td style={{ padding: '7px 14px', fontSize: 11, color: '#9b9390', fontStyle: 'italic' }}>—</td>
+                {showPeriodo && <td style={{ padding: '7px 14px', fontSize: 11, color: '#9b9390', fontStyle: 'italic' }}>—</td>}
                 {activeCols.map(col => (
                   <td key={col.key} style={{ padding: '7px 14px', textAlign: 'right', fontSize: 11, color: '#4a6741', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
                     {AVG_GROUP_KEYS.has(col.key) && grupoRow[col.key] != null
@@ -684,7 +703,7 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
               </tr>
             )}
             {groups.length === 0 ? (
-              <tr><td colSpan={activeCols.length + 2} style={{ padding: 24, textAlign: 'center', color: '#6b6560', fontSize: 13 }}>Sem dados.</td></tr>
+              <tr><td colSpan={activeCols.length + 1 + (showPeriodo ? 1 : 0)} style={{ padding: 24, textAlign: 'center', color: '#6b6560', fontSize: 13 }}>Sem dados.</td></tr>
             ) : (
               groups.map((node, i) => (
                 <GroupRow
@@ -694,6 +713,7 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
                   expanded={expanded}
                   onToggle={toggleExpand}
                   cols={activeCols}
+                  showPeriodo={showPeriodo}
                 />
               ))
             )}
@@ -738,29 +758,20 @@ export default function AnaliseGeralPage() {
     return dataComExclusoes.length - data.length
   }, [dataComExclusoes, data, isDetalhado, baseline])
 
-  // Filtro de métrica: mantém apenas sessões de equipamentos que passam em TODOS os filtros ativos
+  // Filtro de sessão: filtra registro a registro — dias sem nenhuma sessão qualificada
+  // são excluídos automaticamente do Período Operacional e dos demais cálculos
   const filteredData = useMemo(() => {
     const active = (metricFilters ?? []).filter(f => f.field && f.value !== '' && f.value != null && !isNaN(parseFloat(f.value)))
     if (!active.length) return data
-    const byEquip = new Map()
-    for (const r of data) {
-      if ((parseFloat(r.area_ha) || 0) <= 0) continue
-      const lbl = equipLabel(r)
-      if (!byEquip.has(lbl)) byEquip.set(lbl, [])
-      byEquip.get(lbl).push(r)
-    }
-    const passingLabels = new Set()
-    for (const [lbl, rows] of byEquip) {
-      const eq = aggregateRows(rows)
-      if (!eq) continue
-      const passes = active.every(({ field, operator, value }) => {
+    return data.filter(r =>
+      active.every(({ field, operator, value }) => {
         const num = parseFloat(value)
-        const v = eq[field] ?? 0
-        return operator === '>=' ? v >= num : operator === '<=' ? v <= num : Math.abs(v - num) < 0.001
+        const v   = parseFloat(r[field]) ?? 0
+        if (operator === '>=') return v >= num
+        if (operator === '<=') return v <= num
+        return Math.abs(v - num) < 0.001
       })
-      if (passes) passingLabels.add(lbl)
-    }
-    return data.filter(r => passingLabels.has(equipLabel(r)))
+    )
   }, [data, metricFilters])
 
   const agg      = useMemo(() => aggregateRows(filteredData), [filteredData])
