@@ -57,7 +57,8 @@ const PAGE_VISIBLE_FILTERS = {
     showGroupAvg: false, metricFilter: false, excludedMotivos: false,
   },
   'bench-jd': {
-    cliente: true, propriedade: false, processo: true, cultura: true,
+    // processo vem do tab ativo na página JD — filtro global não tem efeito aqui
+    cliente: true, propriedade: false, processo: false, cultura: true,
     showGroupAvg: false, metricFilter: false, excludedMotivos: false,
   },
 }

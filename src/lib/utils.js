@@ -100,8 +100,8 @@ export function aggregateRows(rows) {
     sem_apontamento_pct: weightedAvg('sem_apontamento_pct', 'tempo_parada_h'),
     eficiencia_operacional_pct: weightedAvg('eficiencia_operacional_pct', 'tempo_total_h'),
     motor_ligado_pct: weightedAvg('motor_ligado_pct', 'tempo_total_h'),
-    // motor_ocioso_pct: % do tempo de motor ligado — peso correto é tempo_motor_ligado_h
-    motor_ocioso_pct: weightedAvg('motor_ocioso_pct', tempo_motor_ligado_h > 0 ? 'tempo_motor_ligado_h' : 'tempo_total_h'),
+    // motor_ocioso_pct: % do tempo de motor ligado — se não há motor ligado, é 0
+    motor_ocioso_pct: tempo_motor_ligado_h > 0 ? weightedAvg('motor_ocioso_pct', 'tempo_motor_ligado_h') : 0,
     rpm_medio: weightedAvg('rpm_medio', 'tempo_total_h'),
     area_por_linha_ha: weightedAvg('area_por_linha_ha', 'area_ha'),
     tempo_motor_ligado_h,
@@ -197,7 +197,7 @@ export function calcTimeDistribution(rows) {
   const total = produtivo + parada + manobra + deslocamento
   if (!total) return []
   return [
-    { label: 'Trabalhando',   value: produtivo,    pct: (produtivo / total) * 100,    color: '#2d4a2d' },
+    { label: 'Produtivo',     value: produtivo,    pct: (produtivo / total) * 100,    color: '#2d4a2d' },
     { label: 'Parada',        value: parada,        pct: (parada / total) * 100,        color: '#8b2020' },
     { label: 'Manobra',       value: manobra,       pct: (manobra / total) * 100,       color: '#c8960c' },
     { label: 'Deslocamento',  value: deslocamento,  pct: (deslocamento / total) * 100,  color: '#4a6741' },

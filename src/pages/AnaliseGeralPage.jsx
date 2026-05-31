@@ -18,7 +18,7 @@ const METRIC_FILTER_LABELS = {
   disponibilidade_mecanica_pct: 'Disponibilidade (%)',
   consumo_medio_efetivo_lha:    'Consumo Ef. (l/ha)',
   consumo_medio_lh:             'Consumo Médio (l/h)',
-  tempo_produtivo_h:            'T. Efetivo (h)',
+  tempo_efetivo_h:              'T. Efetivo (h)',
   tempo_deslocamento_h:         'T. Deslocamento (h)',
   tempo_parada_h:               'T. Parada (h)',
   tempo_total_h:                'T. Total (h)',
@@ -693,17 +693,20 @@ export default function AnaliseGeralPage() {
   const isDetalhado = filters.filterMode === 'detalhado'
   const { baseline } = useMachineBaseline(benchmarkSafra, isDetalhado)
 
-  const data = useMemo(() => {
-    let rows = applyStopExclusions(raw, stopRows, excludedMotivos)
-    if (isDetalhado) rows = applyBreakdownFilter(rows, baseline)
-    return rows
-  }, [raw, stopRows, excludedMotivos, isDetalhado, baseline])
+  const dataComExclusoes = useMemo(
+    () => applyStopExclusions(raw, stopRows, excludedMotivos),
+    [raw, stopRows, excludedMotivos]
+  )
+
+  const data = useMemo(
+    () => isDetalhado ? applyBreakdownFilter(dataComExclusoes, baseline) : dataComExclusoes,
+    [dataComExclusoes, isDetalhado, baseline]
+  )
 
   const breakdownRemovedCount = useMemo(() => {
     if (!isDetalhado || baseline.size === 0) return 0
-    const withStop = applyStopExclusions(raw, stopRows, excludedMotivos)
-    return withStop.length - data.length
-  }, [raw, stopRows, excludedMotivos, isDetalhado, baseline, data])
+    return dataComExclusoes.length - data.length
+  }, [dataComExclusoes, data, isDetalhado, baseline])
 
   // Filtro de métrica: mantém apenas sessões de equipamentos que passam em TODOS os filtros ativos
   const filteredData = useMemo(() => {
@@ -781,8 +784,8 @@ export default function AnaliseGeralPage() {
     const map = new Map()
     for (const r of filteredData) {
       const nome = r.operador || 'Desconhecido'
-      const acc  = map.get(nome) ?? { nome, trabalhando: 0, deslocamento: 0, manobra: 0, parada: 0, tempoTotal: 0, datas: new Set() }
-      acc.trabalhando  += parseFloat(r.tempo_produtivo_h)    || 0
+      const acc  = map.get(nome) ?? { nome, produtivo: 0, deslocamento: 0, manobra: 0, parada: 0, tempoTotal: 0, datas: new Set() }
+      acc.produtivo    += parseFloat(r.tempo_produtivo_h)    || 0
       acc.deslocamento += parseFloat(r.tempo_deslocamento_h) || 0
       acc.manobra      += parseFloat(r.tempo_manobra_h)      || 0
       acc.parada       += parseFloat(r.tempo_parada_h)       || 0
@@ -791,14 +794,14 @@ export default function AnaliseGeralPage() {
       map.set(nome, acc)
     }
     return [...map.values()]
-      .filter(o => (o.trabalhando + o.deslocamento + o.manobra + o.parada) > 0)
-      .sort((a, b) => b.trabalhando - a.trabalhando)
+      .filter(o => (o.produtivo + o.deslocamento + o.manobra + o.parada) > 0)
+      .sort((a, b) => b.produtivo - a.produtivo)
       .map(o => {
-        const total      = o.trabalhando + o.deslocamento + o.manobra + o.parada
+        const total      = o.produtivo + o.deslocamento + o.manobra + o.parada
         const diasAtivos = o.datas.size || 1
         return {
           ...o,
-          trabalhando_pct:  (o.trabalhando  / total) * 100,
+          produtivo_pct:    (o.produtivo    / total) * 100,
           deslocamento_pct: (o.deslocamento / total) * 100,
           manobra_pct:      (o.manobra      / total) * 100,
           parada_pct:       (o.parada        / total) * 100,
@@ -824,6 +827,10 @@ export default function AnaliseGeralPage() {
   const processo  = filters.processos?.[0]   || ''
   const tipoSafra = filters.tipos_safra?.[0] || ''
 
+  const clienteLabel   = filters.clientes.length > 1    ? `${filters.clientes.length} clientes`   : cliente   || 'Todos'
+  const processoLabel  = filters.processos.length > 1   ? `${filters.processos.length} processos`  : processo  || 'Todos'
+  const tipoSafraLabel = filters.tipos_safra.length > 1 ? `${filters.tipos_safra.length} culturas`  : tipoSafra || 'Não especificado'
+
   const fmtDate = (iso) => {
     if (!iso) return ''
     const [y, m, d] = iso.split('-')
@@ -843,9 +850,9 @@ export default function AnaliseGeralPage() {
         display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
       }}>
         {[
-          { label: 'Cliente',  value: cliente   || 'Todos'            },
-          { label: 'Processo', value: processo  || 'Todos'            },
-          { label: 'Cultura',  value: tipoSafra || 'Não especificado' },
+          { label: 'Cliente',  value: clienteLabel   },
+          { label: 'Processo', value: processoLabel  },
+          { label: 'Cultura',  value: tipoSafraLabel },
           { label: 'Período',  value: periodo                           },
         ].map(f => (
           <div key={f.label} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -1003,10 +1010,10 @@ export default function AnaliseGeralPage() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <StackedBar segments={[
-                      { pct: op.trabalhando_pct,  color: '#2d4a2d' },
-                      { pct: op.deslocamento_pct, color: '#c8960c' },
-                      { pct: op.manobra_pct,      color: '#7a5c00' },
-                      { pct: op.parada_pct,        color: '#8b2020' },
+                      { pct: op.produtivo_pct,    color: '#2d4a2d' },
+                      { pct: op.deslocamento_pct, color: '#4a6741' },
+                      { pct: op.manobra_pct,      color: '#c8960c' },
+                      { pct: op.parada_pct,       color: '#8b2020' },
                     ]} height={16} showLabels={false} />
                   </div>
                   <div style={{ width: 58, fontSize: 11, fontWeight: 600, color: '#4a3728', textAlign: 'right', flexShrink: 0, paddingLeft: 6 }}>

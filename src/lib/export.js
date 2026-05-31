@@ -190,12 +190,12 @@ export async function exportAnaliseGeral({ filteredData, equipRows, operadorRows
 
   const opSheet = (operadorRows || []).map(r => ({
     'Operador':            r.nome,
-    'T. Trabalhando (h)':  r.trabalhando,
+    'T. Produtivo (h)':    r.produtivo,
     'T. Deslocamento (h)': r.deslocamento,
     'T. Manobra (h)':      r.manobra,
     'T. Parada (h)':       r.parada,
     'T. Total (h)':        r.tempoTotal,
-    'Trabalhando (%)':     r.trabalhando_pct != null ? +r.trabalhando_pct.toFixed(2) : null,
+    'Produtivo (%)':       r.produtivo_pct != null ? +r.produtivo_pct.toFixed(2) : null,
     'Turno Médio (h)':     r.turnoMedio != null ? +r.turnoMedio.toFixed(2) : null,
   }))
   addSheet(wb, 'Por Operador', opSheet)

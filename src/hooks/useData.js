@@ -1,6 +1,104 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
+// ─── CONSTANTES DE PROVIDER ───────────────────────────────────────────────────
+
+const SOLINFTEC_ID = '4303d3d1-b62b-4a03-850a-bb87e797f013'
+const JD_ID        = '6731a094-8f65-472f-95f5-655d1303a72f'
+
+// ─── MAPAS DE PESO POR MÉTRICA ────────────────────────────────────────────────
+
+// Mapa métrica → denominador correto para média ponderada (espelho de compute-performance-stats)
+export const METRIC_WEIGHT_MAP = {
+  rendimento_operacional_hah:   'tempo_efetivo_h',
+  rendimento_real_hah:          'tempo_motor_ligado_h',
+  eficiencia_geral_pct:         'tempo_total_h',
+  eficiencia_operacional_pct:   'tempo_total_h',
+  consumo_medio_efetivo_lha:    'area_ha',
+  consumo_medio_efetivo_lh:     'tempo_efetivo_h',
+  consumo_medio_lh:             'tempo_total_h',
+  consumo_medio_lha:            'area_ha',
+  disponibilidade_mecanica_pct: 'tempo_total_h',
+  velocidade_media_kmh:         'tempo_produtivo_h',
+  rpm_medio:                    'tempo_total_h',
+  motor_ligado_pct:             'tempo_total_h',
+  motor_ocioso_pct:             'tempo_motor_ligado_h',
+  sem_apontamento_pct:          'tempo_parada_h',
+  area_por_linha_ha:            'area_ha',
+}
+
+// JD exporta apenas um subconjunto de métricas; velocidade_media_kmh usa tempo_efetivo_h (= tempo_total_h no JD)
+const JD_METRIC_WEIGHT_MAP = {
+  rendimento_operacional_hah: 'tempo_efetivo_h',
+  velocidade_media_kmh:       'tempo_efetivo_h',
+  consumo_medio_lh:           'tempo_total_h',
+  consumo_medio_lha:          'area_ha',
+  area_por_linha_ha:          'area_ha',
+}
+
+// ─── PAGINAÇÃO ────────────────────────────────────────────────────────────────
+
+// Pagina uma query Supabase já configurada (sem .range()) e retorna todos os registros.
+async function fetchAllPages(query) {
+  let all = [], from = 0
+  while (true) {
+    const { data: page, error } = await query.range(from, from + 999)
+    if (error) throw error
+    if (!page?.length) break
+    all = all.concat(page)
+    if (page.length < 1000) break
+    from += 1000
+  }
+  return all
+}
+
+// ─── HELPERS INTERNOS ─────────────────────────────────────────────────────────
+
+// Converte string de safra ('YYYY/YYYY+1') para intervalo de datas.
+function safraToDateRange(safra) {
+  const startYear = parseInt(safra.split('/')[0])
+  return { dataInicio: `${startYear}-06-01`, dataFim: `${startYear + 1}-05-31` }
+}
+
+// Calcula mediana de consumo_medio_lha (L/ha) por equipamento_cod a partir de rows já carregadas.
+function computeBreakdownBaseline(rows) {
+  const byMachine = {}
+  for (const row of rows) {
+    if (!row.equipamento_cod) continue
+    const c = parseFloat(row.consumo_medio_lha) || 0
+    if (!c) continue
+    if (!byMachine[row.equipamento_cod]) byMachine[row.equipamento_cod] = []
+    byMachine[row.equipamento_cod].push(c)
+  }
+  const map = new Map()
+  for (const [cod, vals] of Object.entries(byMachine)) {
+    const sorted = vals.sort((a, b) => a - b)
+    const mid    = Math.floor(sorted.length / 2)
+    const median = sorted.length % 2 !== 0
+      ? sorted[mid]
+      : (sorted[mid - 1] + sorted[mid]) / 2
+    map.set(cod, { median, count: sorted.length })
+  }
+  return map
+}
+
+const BREAKDOWN_MULT      = 3.0
+const BREAKDOWN_MIN_COUNT = 5
+
+// Filtra rows com consumo_medio_lha acima de 3× a mediana da própria máquina na safra.
+function filterBreakdown(rows, baseline) {
+  if (!baseline || baseline.size === 0) return rows
+  return rows.filter(r => {
+    const ref    = baseline.get(r.equipamento_cod)
+    if (!ref || ref.count < BREAKDOWN_MIN_COUNT) return true
+    const consumo = parseFloat(r.consumo_medio_lha) || 0
+    if (!consumo) return true
+    return consumo <= ref.median * BREAKDOWN_MULT
+  })
+}
+
+// ─── HOOKS PÚBLICOS ───────────────────────────────────────────────────────────
+
 // Busca registros operacionais com filtros dinâmicos e paginação
 // enabled=false retorna vazio imediatamente sem query (evita fetch desnecessário)
 export function useOperationalData(filters = {}, enabled = true) {
@@ -38,16 +136,7 @@ export function useOperationalData(filters = {}, enabled = true) {
       if (filters.dataInicio)         query = query.gte('data', filters.dataInicio)
       if (filters.dataFim)            query = query.lte('data', filters.dataFim)
 
-      let allRows = [], from = 0
-      const pageSize = 1000
-      while (true) {
-        const { data: page, error: err } = await query.range(from, from + pageSize - 1)
-        if (err) throw err
-        allRows = allRows.concat(page)
-        if (page.length < pageSize) break
-        from += pageSize
-      }
-      setData(allRows)
+      setData(await fetchAllPages(query))
     } catch (err) {
       setError(err.message)
     } finally {
@@ -150,13 +239,11 @@ export function useFilterOptions() {
 }
 
 // Retorna as linhas brutas de dashboard_filter_options para filtros cascateados no FAB.
-// Cada linha é uma combinação distinta de (cliente, propriedade, processo, tipo_safra).
 // solinftecOnly=true exclui linhas do provider John Deere.
 // dateRange filtra pelo período pending — garante que opções refletem o intervalo selecionado.
 export function useFilterOptionsRaw(solinftecOnly = false, dateRange = {}) {
   const [rawRows, setRawRows] = useState([])
   const [loading, setLoading] = useState(true)
-  const JD_ID = '6731a094-8f65-472f-95f5-655d1303a72f'
 
   useEffect(() => {
     async function fetch() {
@@ -200,10 +287,12 @@ export function useStopMotivos() {
 export function useStopData(queryFilters = {}) {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
-    if (!queryFilters.dataInicio && !queryFilters.dataFim) { setData([]); return }
+    if (!queryFilters.dataInicio && !queryFilters.dataFim) { setData([]); setError(null); return }
     setLoading(true)
+    setError(null)
     async function fetch() {
       try {
         let query = supabase
@@ -218,18 +307,9 @@ export function useStopData(queryFilters = {}) {
         else if (queryFilters.processo)        query = query.eq('processo',    queryFilters.processo)
         if (queryFilters.tipos_safra?.length)  query = query.in('tipo_safra',  queryFilters.tipos_safra)
         else if (queryFilters.tipo_safra)      query = query.eq('tipo_safra',  queryFilters.tipo_safra)
-        let all = [], from = 0
-        const pageSize = 1000
-        while (true) {
-          const { data: page, error } = await query.range(from, from + pageSize - 1)
-          if (error) throw error
-          all = all.concat(page)
-          if (page.length < pageSize) break
-          from += pageSize
-        }
-        setData(all)
+        setData(await fetchAllPages(query))
       } catch (err) {
-        console.error('ERRO: falha ao buscar stop data:', err.message)
+        setError(err.message)
         setData([])
       } finally {
         setLoading(false)
@@ -239,17 +319,15 @@ export function useStopData(queryFilters = {}) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(queryFilters)])
 
-  return { data, loading }
+  return { data, loading, error }
 }
 
 // Agrega métricas de um cliente via média ponderada a partir de dashboard_operational_view.
-// Mesma lógica de peso por métrica usada em compute-performance-stats.
 // Benchmark é exclusivamente Solinftec — JD sempre excluído.
 export function useClienteBenchmark(filters = {}) {
   const [metricas, setMetricas] = useState(null)
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
-  const JD_ID = '6731a094-8f65-472f-95f5-655d1303a72f'
 
   useEffect(() => {
     async function fetch() {
@@ -277,14 +355,7 @@ export function useClienteBenchmark(filters = {}) {
         if (filters.dataInicio) query = query.gte('data',      filters.dataInicio)
         if (filters.dataFim)    query = query.lte('data',      filters.dataFim)
 
-        let all = [], from = 0
-        while (true) {
-          const { data: page, error: err } = await query.range(from, from + 999)
-          if (err) throw err
-          all = all.concat(page)
-          if (page.length < 1000) break
-          from += 1000
-        }
+        let all = await fetchAllPages(query)
 
         if (filters.filterMode === 'detalhado') {
           all = filterBreakdown(all, computeBreakdownBaseline(all))
@@ -292,27 +363,8 @@ export function useClienteBenchmark(filters = {}) {
 
         if (all.length === 0) { setMetricas(null); return }
 
-        // Média ponderada por denominador correto por métrica
-        const PESO = {
-          rendimento_operacional_hah:   'tempo_efetivo_h',
-          eficiencia_geral_pct:         'tempo_total_h',
-          eficiencia_operacional_pct:   'tempo_total_h', // denom_h sintético não existe na view
-          consumo_medio_efetivo_lha:    'area_ha',
-          consumo_medio_lh:             'tempo_total_h',
-          disponibilidade_mecanica_pct: 'tempo_total_h',
-          velocidade_media_kmh:         'tempo_produtivo_h',
-          rendimento_real_hah:          'tempo_motor_ligado_h',
-          consumo_medio_lha:            'area_ha',
-          consumo_medio_efetivo_lh:     'tempo_efetivo_h',
-          sem_apontamento_pct:          'tempo_parada_h',
-          motor_ocioso_pct:             'tempo_motor_ligado_h',
-          motor_ligado_pct:             'tempo_total_h',
-          rpm_medio:                    'tempo_total_h',
-          area_por_linha_ha:            'area_ha',
-        }
-
         const result = {}
-        for (const [metrica, peso] of Object.entries(PESO)) {
+        for (const [metrica, peso] of Object.entries(METRIC_WEIGHT_MAP)) {
           let sumProd = 0, sumPeso = 0
           for (const row of all) {
             const v = row[metrica]
@@ -331,8 +383,8 @@ export function useClienteBenchmark(filters = {}) {
           ? all.reduce((s, r) => s + (r.tempo_total_h ?? 0), 0) / equipDays.size
           : 0
 
-        // pes_plataforma_24h: Σ(area_por_pe_ha / tempo_total_h * 24 * area_ha) / Σ(area_ha) — colheita
-        // area_por_linha_24h: Σ(area_por_linha_ha / tempo_total_h * 24 * area_ha) / Σ(area_ha) — plantio
+        // pes_plataforma_24h: colheita — area_por_pe_ha / tempo_total_h * 24
+        // area_por_linha_24h: plantio  — area_por_linha_ha / tempo_total_h * 24
         let pesNum = 0, pesDen = 0, linhaNum = 0, linhaDen = 0
         for (const row of all) {
           const tt   = row.tempo_total_h
@@ -362,11 +414,9 @@ export function useClienteBenchmark(filters = {}) {
 }
 
 // Agrega métricas de todos os clientes via média ponderada — fornece pior/melhor para limiares de zona.
-// Sem filtro de cliente; agrupa em memória por cliente após a query.
 export function useAllClientesBenchmark(filters = {}) {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
-  const JD_ID = '6731a094-8f65-472f-95f5-655d1303a72f'
 
   useEffect(() => {
     async function fetch() {
@@ -390,35 +440,10 @@ export function useAllClientesBenchmark(filters = {}) {
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
         if (filters.safra)      query = query.eq('safra',      filters.safra)
 
-        let all = [], from = 0
-        while (true) {
-          const { data: page, error } = await query.range(from, from + 999)
-          if (error) throw error
-          all = all.concat(page)
-          if (page.length < 1000) break
-          from += 1000
-        }
+        let all = await fetchAllPages(query)
 
         if (filters.filterMode === 'detalhado') {
           all = filterBreakdown(all, computeBreakdownBaseline(all))
-        }
-
-        const PESO = {
-          rendimento_operacional_hah:   'tempo_efetivo_h',
-          eficiencia_geral_pct:         'tempo_total_h',
-          eficiencia_operacional_pct:   'tempo_total_h',
-          consumo_medio_efetivo_lha:    'area_ha',
-          consumo_medio_lh:             'tempo_total_h',
-          disponibilidade_mecanica_pct: 'tempo_total_h',
-          velocidade_media_kmh:         'tempo_produtivo_h',
-          rendimento_real_hah:          'tempo_motor_ligado_h',
-          consumo_medio_lha:            'area_ha',
-          consumo_medio_efetivo_lh:     'tempo_efetivo_h',
-          sem_apontamento_pct:          'tempo_parada_h',
-          motor_ocioso_pct:             'tempo_motor_ligado_h',
-          motor_ligado_pct:             'tempo_total_h',
-          rpm_medio:                    'tempo_total_h',
-          area_por_linha_ha:            'area_ha',
         }
 
         const byCliente = new Map()
@@ -431,7 +456,7 @@ export function useAllClientesBenchmark(filters = {}) {
         const result = []
         for (const [cliente, rows] of byCliente) {
           const entry = { cliente }
-          for (const [metrica, peso] of Object.entries(PESO)) {
+          for (const [metrica, peso] of Object.entries(METRIC_WEIGHT_MAP)) {
             let sumProd = 0, sumPeso = 0
             for (const row of rows) {
               const v = row[metrica]; const w = row[peso]
@@ -439,14 +464,11 @@ export function useAllClientesBenchmark(filters = {}) {
             }
             entry[metrica] = sumPeso > 0 ? sumProd / sumPeso : null
           }
-          // tempo_medio_turno_h = SUM(tempo_total_h) / COUNT(DISTINCT (data, equipamento_cod))
           const equipDays = new Set(rows.map(r => `${r.data}|||${r.equipamento_cod}`))
           entry['tempo_medio_turno_h'] = equipDays.size > 0
             ? rows.reduce((s, r) => s + (r.tempo_total_h ?? 0), 0) / equipDays.size
             : null
 
-          // pes_plataforma_24h: colheita — area_por_pe_ha / tempo_total_h * 24
-          // area_por_linha_24h: plantio  — area_por_linha_ha / tempo_total_h * 24
           let pesNum = 0, pesDen = 0, linhaNum = 0, linhaDen = 0
           for (const row of rows) {
             const tt   = row.tempo_total_h
@@ -476,99 +498,120 @@ export function useAllClientesBenchmark(filters = {}) {
   return { data, loading }
 }
 
-// Busca processos distintos disponíveis na view, excluindo os informados.
-// Solinftec apenas — JD excluído. Usa amostra inicial: os poucos valores distintos
-// de processo aparecem rapidamente nas primeiras linhas.
-export function useDistinctProcessos(exclude = []) {
-  const [processos, setProcessos] = useState([])
-  const JD_ID = '6731a094-8f65-472f-95f5-655d1303a72f'
+// Agrega métricas de um cliente JD via média ponderada — campos disponíveis no provider John Deere.
+export function useClienteBenchmarkJD(filters = {}) {
+  const [metricas, setMetricas] = useState(null)
+  const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(null)
 
   useEffect(() => {
-    async function load() {
-      const { data } = await supabase
-        .from('dashboard_operational_view')
-        .select('processo')
-        .neq('data_provider_id', JD_ID)
-        .neq('cliente', 'Média Porteira')
-        .not('processo', 'is', null)
-        .limit(3000)
-      if (!data) return
-      const unique = [...new Set(data.map(r => r.processo))]
-        .filter(p => !exclude.includes(p))
-        .sort()
-      setProcessos(unique)
+    async function fetch() {
+      setLoading(true)
+      setError(null)
+      try {
+        let query = supabase
+          .from('dashboard_operational_view')
+          .select('equipamento,equipamento_cod,data,rendimento_operacional_hah,velocidade_media_kmh,consumo_medio_lh,consumo_medio_lha,area_por_linha_ha,tempo_efetivo_h,tempo_total_h,area_ha')
+          .eq('data_provider_id', JD_ID)
+          .neq('cliente', 'Média Porteira')
+
+        if (filters.cliente)    query = query.eq('cliente',    filters.cliente)
+        if (filters.processo)   query = query.eq('processo',   filters.processo)
+        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
+        if (filters.safra)      query = query.eq('safra',      filters.safra)
+        if (filters.dataInicio) query = query.gte('data',      filters.dataInicio)
+        if (filters.dataFim)    query = query.lte('data',      filters.dataFim)
+
+        const all = await fetchAllPages(query)
+        if (all.length === 0) { setMetricas(null); return }
+
+        const result = {}
+        for (const [metrica, peso] of Object.entries(JD_METRIC_WEIGHT_MAP)) {
+          let sumProd = 0, sumPeso = 0
+          for (const row of all) {
+            const v = row[metrica]; const w = row[peso]
+            if (v != null && w != null && w > 0) { sumProd += v * w; sumPeso += w }
+          }
+          result[metrica] = sumPeso > 0 ? sumProd / sumPeso : 0
+        }
+
+        // JD: equipamento_cod é vazio — usa equipamento como identificador de máquina
+        const equipDays = new Set(all.map(r => `${r.data}|||${r.equipamento_cod || r.equipamento}`))
+        result['tempo_medio_turno_h'] = equipDays.size > 0
+          ? all.reduce((s, r) => s + (r.tempo_total_h ?? 0), 0) / equipDays.size
+          : 0
+
+        setMetricas(result)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
     }
-    load()
-  // exclude é literal estático no call site — não entra no dep array
+    fetch()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [JSON.stringify(filters)])
 
-  return processos
+  return { metricas, loading, error }
 }
 
-// Converte string de safra ('YYYY/YYYY+1') para intervalo de datas.
-function safraToDateRange(safra) {
-  const startYear = parseInt(safra.split('/')[0])
-  return { dataInicio: `${startYear}-06-01`, dataFim: `${startYear + 1}-05-31` }
-}
+// Agrega métricas de todos os clientes JD — fornece grupo, pior e melhor para limiares de zona.
+export function useAllClientesBenchmarkJD(filters = {}) {
+  const [data, setData]     = useState([])
+  const [loading, setLoading] = useState(true)
 
-// Calcula mediana de consumo_medio_lha (L/ha) por equipamento_cod a partir de rows já carregadas.
-// L/ha captura sessões onde combustível foi queimado sem trabalho proporcional (quebras, travamentos).
-// Retorna Map<equipamento_cod, { median, count }> — mesma estrutura de useMachineBaseline.
-function computeBreakdownBaseline(rows) {
-  const byMachine = {}
-  for (const row of rows) {
-    if (!row.equipamento_cod) continue
-    const c = parseFloat(row.consumo_medio_lha) || 0
-    if (!c) continue
-    if (!byMachine[row.equipamento_cod]) byMachine[row.equipamento_cod] = []
-    byMachine[row.equipamento_cod].push(c)
-  }
-  const map = new Map()
-  for (const [cod, vals] of Object.entries(byMachine)) {
-    const sorted = vals.sort((a, b) => a - b)
-    const mid    = Math.floor(sorted.length / 2)
-    const median = sorted.length % 2 !== 0
-      ? sorted[mid]
-      : (sorted[mid - 1] + sorted[mid]) / 2
-    map.set(cod, { median, count: sorted.length })
-  }
-  return map
-}
+  useEffect(() => {
+    async function fetch() {
+      setLoading(true)
+      try {
+        let query = supabase
+          .from('dashboard_operational_view')
+          .select('cliente,equipamento,equipamento_cod,data,rendimento_operacional_hah,velocidade_media_kmh,consumo_medio_lh,consumo_medio_lha,area_por_linha_ha,tempo_efetivo_h,tempo_total_h,area_ha')
+          .eq('data_provider_id', JD_ID)
+          .neq('cliente', 'Média Porteira')
 
-const BREAKDOWN_MULT      = 3.0
-const BREAKDOWN_MIN_COUNT = 5
+        if (filters.processo)   query = query.eq('processo',   filters.processo)
+        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
+        if (filters.safra)      query = query.eq('safra',      filters.safra)
 
-// Filtra rows com consumo_medio_lha (L/ha) acima de 3× a mediana da própria máquina na safra.
-// Sessões com L/h alto mas área proporcionalmente alta (trabalho pesado legítimo) não são removidas.
-function filterBreakdown(rows, baseline) {
-  if (!baseline || baseline.size === 0) return rows
-  return rows.filter(r => {
-    const ref    = baseline.get(r.equipamento_cod)
-    if (!ref || ref.count < BREAKDOWN_MIN_COUNT) return true
-    const consumo = parseFloat(r.consumo_medio_lha) || 0
-    if (!consumo) return true
-    return consumo <= ref.median * BREAKDOWN_MULT
-  })
-}
+        const all = await fetchAllPages(query)
 
-// Mapa métrica → denominador correto para média ponderada (espelho de compute-performance-stats)
-const METRIC_WEIGHT_MAP = {
-  rendimento_operacional_hah:   'tempo_efetivo_h',
-  rendimento_real_hah:          'tempo_motor_ligado_h',
-  eficiencia_geral_pct:         'tempo_total_h',
-  eficiencia_operacional_pct:   'tempo_total_h',
-  consumo_medio_efetivo_lha:    'area_ha',
-  consumo_medio_efetivo_lh:     'tempo_efetivo_h',
-  consumo_medio_lh:             'tempo_total_h',
-  consumo_medio_lha:            'area_ha',
-  disponibilidade_mecanica_pct: 'tempo_total_h',
-  velocidade_media_kmh:         'tempo_produtivo_h',
-  rpm_medio:                    'tempo_total_h',
-  motor_ligado_pct:             'tempo_total_h',
-  motor_ocioso_pct:             'tempo_motor_ligado_h',
-  sem_apontamento_pct:          'tempo_parada_h',
-  area_por_linha_ha:            'area_ha',
+        const byCliente = new Map()
+        for (const row of all) {
+          if (!row.cliente) continue
+          if (!byCliente.has(row.cliente)) byCliente.set(row.cliente, [])
+          byCliente.get(row.cliente).push(row)
+        }
+
+        const result = []
+        for (const [cliente, rows] of byCliente) {
+          const entry = { cliente }
+          for (const [metrica, peso] of Object.entries(JD_METRIC_WEIGHT_MAP)) {
+            let sumProd = 0, sumPeso = 0
+            for (const row of rows) {
+              const v = row[metrica]; const w = row[peso]
+              if (v != null && w != null && w > 0) { sumProd += v * w; sumPeso += w }
+            }
+            entry[metrica] = sumPeso > 0 ? sumProd / sumPeso : null
+          }
+          const equipDays = new Set(rows.map(r => `${r.data}|||${r.equipamento_cod || r.equipamento}`))
+          entry['tempo_medio_turno_h'] = equipDays.size > 0
+            ? rows.reduce((s, r) => s + (r.tempo_total_h ?? 0), 0) / equipDays.size
+            : null
+          result.push(entry)
+        }
+        setData(result)
+      } catch {
+        setData([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetch()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.processo, filters.tipo_safra, filters.safra])
+
+  return { data, loading }
 }
 
 // Calcula média ponderada das métricas a partir de rows brutas de dashboard_operational_view
@@ -587,8 +630,6 @@ export function computeWeightedAvg(rows) {
     }
     result[metrica] = sumPeso > 0 ? sumProd / sumPeso : 0
   }
-  // pes_plataforma_24h: colheita — area_por_pe_ha / tempo_total_h * 24
-  // area_por_linha_24h: plantio  — area_por_linha_ha / tempo_total_h * 24
   let pesNum = 0, pesDen = 0, linhaNum = 0, linhaDen = 0
   for (const row of rows) {
     const tt   = row.tempo_total_h
@@ -625,14 +666,8 @@ export function useMaquinaMetricas(filters = {}) {
         if (filters.safra)      query = query.eq('safra',      filters.safra)
         if (filters.dataInicio) query = query.gte('data',      filters.dataInicio)
         if (filters.dataFim)    query = query.lte('data',      filters.dataFim)
-        let all = [], from = 0
-        while (true) {
-          const { data: page, error: err } = await query.range(from, from + 999)
-          if (err) throw err
-          all = all.concat(page)
-          if (page.length < 1000) break
-          from += 1000
-        }
+
+        let all = await fetchAllPages(query)
         if (filters.filterMode === 'detalhado' && filters.baseline) {
           all = filterBreakdown(all, filters.baseline)
         }
@@ -651,12 +686,9 @@ export function useMaquinaMetricas(filters = {}) {
 }
 
 // Busca todas as máquinas do grupo sem restrição de cliente, incluindo o nome do cliente na label.
-// Filtra por processo/tipo_safra se definidos nos filtros globais.
-// solinftecOnly=true exclui máquinas do provider John Deere.
 export function useAllEquipamentos(filters = {}) {
   const [equipamentos, setEquipamentos] = useState([])
   const [loading, setLoading] = useState(true)
-  const JD_ID = '6731a094-8f65-472f-95f5-655d1303a72f'
 
   useEffect(() => {
     setLoading(true)
@@ -666,21 +698,13 @@ export function useAllEquipamentos(filters = {}) {
           .from('dashboard_operational_view')
           .select('cliente,equipamento,equipamento_cod,modelo_equipamento')
           .neq('cliente', 'Média Porteira')
-        // processo específico tem prioridade; senão restringe ao universo permitido da página
         if (filters.processo)                      query = query.eq('processo', filters.processo)
         else if (filters.allowedProcessos?.length) query = query.in('processo', filters.allowedProcessos)
         if (filters.tipo_safra)    query = query.eq('tipo_safra', filters.tipo_safra)
         if (filters.solinftecOnly) query = query.neq('data_provider_id', JD_ID)
         if (filters.filterMode === 'detalhado') query = query.gt('area_ha', 0)
-        // Deduplica em memória — select de apenas 4 colunas mantém o payload pequeno
-        let all = [], from = 0
-        while (true) {
-          const { data: page, error } = await query.range(from, from + 999)
-          if (error) throw error
-          all = all.concat(page)
-          if (page.length < 1000) break
-          from += 1000
-        }
+
+        const all = await fetchAllPages(query)
         const seen = new Set()
         const opts = []
         for (const r of all) {
@@ -712,7 +736,6 @@ export function useAllEquipamentos(filters = {}) {
 }
 
 // Calcula min/max por métrica para um modelo, agrupando por máquina via média ponderada.
-// Retorna { [metrica]: { min, max, n } } ou null se sem dados.
 export function useModeloStats(filters = {}) {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -730,15 +753,8 @@ export function useModeloStats(filters = {}) {
         if (filters.processo)   query = query.eq('processo',   filters.processo)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
         if (filters.safra)      query = query.eq('safra',      filters.safra)
-        let all = [], from = 0
-        while (true) {
-          const { data: page, error } = await query.range(from, from + 999)
-          if (error) throw error
-          all = all.concat(page)
-          if (page.length < 1000) break
-          from += 1000
-        }
-        // Agrupa por máquina e calcula média ponderada individual
+
+        const all = await fetchAllPages(query)
         const byMachine = {}
         for (const row of all) {
           const k = row.equipamento_cod || 'unknown'
@@ -798,157 +814,6 @@ export function useEquipamentoOptions(cliente) {
   return equipamentos
 }
 
-// Agrega métricas de um cliente JD via média ponderada — campos disponíveis no provider John Deere.
-// tempo_efetivo_h = tempo_total_h para JD (não há estados, todo tempo é efetivo).
-export function useClienteBenchmarkJD(filters = {}) {
-  const [metricas, setMetricas] = useState(null)
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState(null)
-  const JD_ID = '6731a094-8f65-472f-95f5-655d1303a72f'
-
-  useEffect(() => {
-    async function fetch() {
-      setLoading(true)
-      setError(null)
-      try {
-        let query = supabase
-          .from('dashboard_operational_view')
-          .select('equipamento,equipamento_cod,data,rendimento_operacional_hah,velocidade_media_kmh,consumo_medio_lh,consumo_medio_lha,area_por_linha_ha,tempo_efetivo_h,tempo_total_h,area_ha')
-          .eq('data_provider_id', JD_ID)
-          .neq('cliente', 'Média Porteira')
-
-        if (filters.cliente)    query = query.eq('cliente',    filters.cliente)
-        if (filters.processo)   query = query.eq('processo',   filters.processo)
-        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
-        if (filters.safra)      query = query.eq('safra',      filters.safra)
-        if (filters.dataInicio) query = query.gte('data',      filters.dataInicio)
-        if (filters.dataFim)    query = query.lte('data',      filters.dataFim)
-
-        let all = [], from = 0
-        while (true) {
-          const { data: page, error: err } = await query.range(from, from + 999)
-          if (err) throw err
-          all = all.concat(page)
-          if (page.length < 1000) break
-          from += 1000
-        }
-
-        if (all.length === 0) { setMetricas(null); return }
-
-        const PESO = {
-          rendimento_operacional_hah: 'tempo_efetivo_h',
-          velocidade_media_kmh:       'tempo_efetivo_h',
-          consumo_medio_lh:           'tempo_total_h',
-          consumo_medio_lha:          'area_ha',
-          area_por_linha_ha:          'area_ha',
-        }
-
-        const result = {}
-        for (const [metrica, peso] of Object.entries(PESO)) {
-          let sumProd = 0, sumPeso = 0
-          for (const row of all) {
-            const v = row[metrica]; const w = row[peso]
-            if (v != null && w != null && w > 0) { sumProd += v * w; sumPeso += w }
-          }
-          result[metrica] = sumPeso > 0 ? sumProd / sumPeso : 0
-        }
-
-        // JD: equipamento_cod é vazio — usa equipamento como identificador de máquina
-        const equipDays = new Set(all.map(r => `${r.data}|||${r.equipamento_cod || r.equipamento}`))
-        result['tempo_medio_turno_h'] = equipDays.size > 0
-          ? all.reduce((s, r) => s + (r.tempo_total_h ?? 0), 0) / equipDays.size
-          : 0
-
-        setMetricas(result)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetch()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(filters)])
-
-  return { metricas, loading, error }
-}
-
-// Agrega métricas de todos os clientes JD — fornece grupo, pior e melhor para limiares de zona.
-export function useAllClientesBenchmarkJD(filters = {}) {
-  const [data, setData]     = useState([])
-  const [loading, setLoading] = useState(true)
-  const JD_ID = '6731a094-8f65-472f-95f5-655d1303a72f'
-
-  useEffect(() => {
-    async function fetch() {
-      setLoading(true)
-      try {
-        let query = supabase
-          .from('dashboard_operational_view')
-          .select('cliente,equipamento,equipamento_cod,data,rendimento_operacional_hah,velocidade_media_kmh,consumo_medio_lh,consumo_medio_lha,area_por_linha_ha,tempo_efetivo_h,tempo_total_h,area_ha')
-          .eq('data_provider_id', JD_ID)
-          .neq('cliente', 'Média Porteira')
-
-        if (filters.processo)   query = query.eq('processo',   filters.processo)
-        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
-        if (filters.safra)      query = query.eq('safra',      filters.safra)
-
-        let all = [], from = 0
-        while (true) {
-          const { data: page, error } = await query.range(from, from + 999)
-          if (error) throw error
-          all = all.concat(page)
-          if (page.length < 1000) break
-          from += 1000
-        }
-
-        const PESO = {
-          rendimento_operacional_hah: 'tempo_efetivo_h',
-          velocidade_media_kmh:       'tempo_efetivo_h',
-          consumo_medio_lh:           'tempo_total_h',
-          consumo_medio_lha:          'area_ha',
-          area_por_linha_ha:          'area_ha',
-        }
-
-        const byCliente = new Map()
-        for (const row of all) {
-          if (!row.cliente) continue
-          if (!byCliente.has(row.cliente)) byCliente.set(row.cliente, [])
-          byCliente.get(row.cliente).push(row)
-        }
-
-        const result = []
-        for (const [cliente, rows] of byCliente) {
-          const entry = { cliente }
-          for (const [metrica, peso] of Object.entries(PESO)) {
-            let sumProd = 0, sumPeso = 0
-            for (const row of rows) {
-              const v = row[metrica]; const w = row[peso]
-              if (v != null && w != null && w > 0) { sumProd += v * w; sumPeso += w }
-            }
-            entry[metrica] = sumPeso > 0 ? sumProd / sumPeso : null
-          }
-          // JD: equipamento_cod é vazio — usa equipamento como identificador de máquina
-          const equipDays = new Set(rows.map(r => `${r.data}|||${r.equipamento_cod || r.equipamento}`))
-          entry['tempo_medio_turno_h'] = equipDays.size > 0
-            ? rows.reduce((s, r) => s + (r.tempo_total_h ?? 0), 0) / equipDays.size
-            : null
-          result.push(entry)
-        }
-        setData(result)
-      } catch {
-        setData([])
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetch()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.processo, filters.tipo_safra, filters.safra])
-
-  return { data, loading }
-}
-
 // Busca dados de dois conjuntos de filtros em paralelo para comparativo de equipamentos
 export function useEquipamentoComparativo(filterA, filterB) {
   const [dataA, setDataA] = useState([])
@@ -966,15 +831,7 @@ export function useEquipamentoComparativo(filterA, filterB) {
     if (filters.safra)           query = query.eq('safra', filters.safra)
     if (filters.dataInicio)      query = query.gte('data', filters.dataInicio)
     if (filters.dataFim)         query = query.lte('data', filters.dataFim)
-    let all = [], from = 0
-    while (true) {
-      const { data, error } = await query.range(from, from + 999)
-      if (error) throw error
-      all = all.concat(data)
-      if (data.length < 1000) break
-      from += 1000
-    }
-    return all
+    return fetchAllPages(query)
   }
 
   const hasA = !!(filterA?.equipamento_cod || filterA?.cliente)
@@ -997,8 +854,6 @@ export function useEquipamentoComparativo(filterA, filterB) {
   return { dataA, dataB, loading, error }
 }
 
-const SOLINFTEC_ID = '4303d3d1-b62b-4a03-850a-bb87e797f013'
-
 const EQUIP_SELECT = [
   'equipamento_cod', 'modelo_equipamento', 'data',
   'consumo_medio_lh',
@@ -1010,8 +865,6 @@ const EQUIP_SELECT = [
 ].join(',')
 
 // Calcula médias por modelo de equipamento direto de operational_records para a safra inteira.
-// Aplica breakdown filter antes de agregar.
-// Retorna array com shape compatível com media_equipamentos_porteira (sufixo _modelo).
 export function useEquipamentoInterativo(safra, processo, tipo_safra) {
   const [data, setData]     = useState([])
   const [loading, setLoading] = useState(false)
@@ -1031,14 +884,7 @@ export function useEquipamentoInterativo(safra, processo, tipo_safra) {
       if (processo)   query = query.eq('processo',   processo)
       if (tipo_safra) query = query.eq('tipo_safra', tipo_safra)
 
-      let all = [], from = 0
-      while (true) {
-        const { data: page } = await query.range(from, from + 999)
-        if (!page?.length) break
-        all = all.concat(page)
-        if (page.length < 1000) break
-        from += 1000
-      }
+      const all = await fetchAllPages(query)
 
       const baseline = computeBreakdownBaseline(all)
       const clean    = filterBreakdown(all, baseline)
@@ -1071,7 +917,6 @@ export function useEquipamentoInterativo(safra, processo, tipo_safra) {
 }
 
 // Calcula média do grupo (todos os clientes Solinftec) para a safra inteira.
-// Aplica breakdown filter. Retorna objeto com as métricas ou null.
 // enabled=false → skip (evita fetch desnecessário quando showGroupAvg=false).
 export function useGrupoInterativo(safra, processo, tipo_safra, enabled = false, filterMode = 'padrao') {
   const [metricas, setMetricas] = useState(null)
@@ -1092,16 +937,8 @@ export function useGrupoInterativo(safra, processo, tipo_safra, enabled = false,
       if (processo)   query = query.eq('processo',   processo)
       if (tipo_safra) query = query.eq('tipo_safra', tipo_safra)
 
-      let all = [], from = 0
-      while (true) {
-        const { data: page } = await query.range(from, from + 999)
-        if (!page?.length) break
-        all = all.concat(page)
-        if (page.length < 1000) break
-        from += 1000
-      }
-
-      // aplica breakdown filter apenas quando "Detalhado" está ativo — espelha o comportamento dos dados individuais
+      const all = await fetchAllPages(query)
+      // aplica breakdown filter apenas quando "Detalhado" está ativo
       const rows = filterMode === 'detalhado'
         ? filterBreakdown(all, computeBreakdownBaseline(all))
         : all
@@ -1115,7 +952,6 @@ export function useGrupoInterativo(safra, processo, tipo_safra, enabled = false,
 }
 
 // Calcula mediana de consumo_medio_lha (L/ha) por equipamento_cod ao longo da safra inteira (Solinftec).
-// Usado pelo modo "Detalhado" para identificar sessões de quebra vs. operação normal.
 // Retorna Map<equipamento_cod, { median: number, count: number }>.
 export function useMachineBaseline(safra, enabled = false) {
   const [baseline, setBaseline] = useState(new Map())
@@ -1130,21 +966,15 @@ export function useMachineBaseline(safra, enabled = false) {
       const dataInicio = `${startYear}-06-01`
       const dataFim    = `${startYear + 1}-05-31`
 
-      let all = [], from = 0
-      while (true) {
-        const { data } = await supabase
-          .from('operational_records')
-          .select('equipamento_cod, consumo_medio_lha')
-          .eq('data_provider_id', SOLINFTEC_ID)
-          .gte('data', dataInicio)
-          .lte('data', dataFim)
-          .gt('consumo_medio_lha', 0)
-          .range(from, from + 999)
-        if (!data?.length) break
-        all = all.concat(data)
-        if (data.length < 1000) break
-        from += 1000
-      }
+      const query = supabase
+        .from('operational_records')
+        .select('equipamento_cod, consumo_medio_lha')
+        .eq('data_provider_id', SOLINFTEC_ID)
+        .gte('data', dataInicio)
+        .lte('data', dataFim)
+        .gt('consumo_medio_lha', 0)
+
+      const all = await fetchAllPages(query)
 
       const byMachine = {}
       for (const row of all) {
