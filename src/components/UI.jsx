@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { METRICAS, NIVEIS_ANALISE } from '../lib/utils'
 
 // Semáforo por % absoluto (disponibilidade, eficiência): crítico <70, atenção 70-95, adequado >95
 export function semaphorePct(value) {

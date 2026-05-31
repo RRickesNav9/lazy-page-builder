@@ -12,18 +12,42 @@ const PERIODOS = [
 ]
 
 const METRIC_FILTER_OPTIONS = [
-  { value: 'area_ha',                      label: 'Área (ha)' },
-  { value: 'rendimento_operacional_hah',   label: 'Rendimento Op. (ha/h)' },
-  { value: 'velocidade_media_kmh',         label: 'Velocidade (km/h)' },
-  { value: 'eficiencia_geral_pct',         label: 'Eficiência Geral (%)' },
-  { value: 'eficiencia_operacional_pct',   label: 'Eficiência Op. (%)' },
-  { value: 'disponibilidade_mecanica_pct', label: 'Disponibilidade (%)' },
-  { value: 'consumo_medio_efetivo_lha',    label: 'Consumo Médio Ef. L/ha' },
-  { value: 'consumo_medio_lh',             label: 'Consumo Médio L/h' },
-  { value: 'tempo_efetivo_h',              label: 'T. Efetivo (h)' },
-  { value: 'tempo_deslocamento_h',         label: 'T. Deslocamento (h)' },
-  { value: 'tempo_parada_h',              label: 'T. Parada (h)' },
-  { value: 'tempo_total_h',               label: 'T. Total (h)' },
+  { group: 'Área e Rendimento', options: [
+    { value: 'area_ha',                    label: 'Área (ha)' },
+    { value: 'rendimento_operacional_hah', label: 'Rendimento Op. (ha/h)' },
+    { value: 'rendimento_real_hah',        label: 'Rendimento Real (ha/h)' },
+    { value: 'velocidade_media_kmh',       label: 'Velocidade (km/h)' },
+    { value: 'area_por_linha_ha',          label: 'Área/Linha (ha)' },
+  ]},
+  { group: 'Eficiência', options: [
+    { value: 'eficiencia_geral_pct',         label: 'Eficiência Geral (%)' },
+    { value: 'eficiencia_operacional_pct',   label: 'Eficiência Op. (%)' },
+    { value: 'disponibilidade_mecanica_pct', label: 'Disponibilidade (%)' },
+    { value: 'sem_apontamento_pct',          label: 'Sem Apontamento (%)' },
+  ]},
+  { group: 'Consumo', options: [
+    { value: 'consumo_medio_lh',          label: 'Consumo Médio L/h' },
+    { value: 'consumo_medio_lha',         label: 'Consumo Médio L/ha' },
+    { value: 'consumo_medio_efetivo_lh',  label: 'Consumo Médio Efetivo L/h' },
+    { value: 'consumo_medio_efetivo_lha', label: 'Consumo Médio Efetivo L/ha' },
+  ]},
+  { group: 'Motor', options: [
+    { value: 'motor_ligado_pct', label: 'Motor Ligado (%)' },
+    { value: 'motor_ocioso_pct', label: 'Motor Ocioso (%)' },
+    { value: 'rpm_medio',        label: 'RPM Médio' },
+  ]},
+  { group: 'Tempo — Operacional', options: [
+    { value: 'tempo_efetivo_h',      label: 'T. Efetivo (h)' },
+    { value: 'tempo_produtivo_h',    label: 'T. Produtivo (h)' },
+    { value: 'tempo_total_h',        label: 'T. Total (h)' },
+    { value: 'tempo_manobra_h',      label: 'T. Manobra (h)' },
+    { value: 'tempo_deslocamento_h', label: 'T. Deslocamento (h)' },
+    { value: 'tempo_motor_ligado_h', label: 'T. Motor Ligado (h)' },
+  ]},
+  { group: 'Tempo — Parada', options: [
+    { value: 'tempo_parada_h',     label: 'T. Parada (h)' },
+    { value: 'tempo_manutencao_h', label: 'T. Manutenção (h)' },
+  ]},
 ]
 
 const TIPO_PARADA_LABEL = {
@@ -429,7 +453,11 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                       style={{ flex: 1, padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 12, color: '#1a1a1a', background: '#fff' }}
                     >
                       <option value="">Escolher métrica…</option>
-                      {METRIC_FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {METRIC_FILTER_OPTIONS.map(({ group, options }) => (
+                        <optgroup key={group} label={group}>
+                          {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </optgroup>
+                      ))}
                     </select>
                     <button
                       onClick={() => setPending(p => ({ ...p, metricFilters: p.metricFilters.filter((_, i) => i !== idx) }))}

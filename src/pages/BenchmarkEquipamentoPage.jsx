@@ -33,6 +33,7 @@ const METRICAS_CONFIG = [
   { key: 'area_por_linha_ha',            modeloKey: 'area_por_linha_ha_modelo',            label: 'Área por Linha',           unit: 'ha',           d: 4, higherIsBetter: true  },
   { key: 'area_por_linha_24h',           modeloKey: null,                                  label: 'Área/Linha por 24h',       unit: 'ha/linha/dia',  d: 3, higherIsBetter: true  },
   { key: 'pes_plataforma_24h',           modeloKey: null,                                  label: 'Pés Plat. por 24h',        unit: 'ha/pé/dia',     d: 3, higherIsBetter: true  },
+  { key: 'tempo_medio_turno_h',          modeloKey: null,                                  label: 'Turno Médio',              unit: 'h/equip/dia',   d: 1, higherIsBetter: true  },
 ]
 
 const DEFAULT_SELECTED_METRICS = new Set([

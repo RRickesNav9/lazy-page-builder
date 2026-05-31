@@ -76,6 +76,25 @@ export function aggregateRows(rows) {
   const data_fim       = datasOrdenadas[datasOrdenadas.length - 1] ?? null
   const dias_ativos    = datasDistintas.size
 
+  // turno médio: tempo total / pares únicos (data × equipamento)
+  const equipDaySet = new Set(rows.map(r => `${r.data}|||${r.equipamento_cod || r.equipamento || ''}`))
+  const tempo_medio_turno_h = equipDaySet.size > 0 ? tempo_total_h / equipDaySet.size : 0
+
+  // pés de plataforma e linhas por 24h — normaliza rendimento por unidade de trabalho e tempo
+  let pesNum = 0, pesDen = 0, linhaNum = 0, linhaDen = 0
+  for (const row of rows) {
+    const tt   = parseFloat(row.tempo_total_h) || 0
+    const area = parseFloat(row.area_ha) || 0
+    if (tt > 0 && area > 0) {
+      const ppe = parseFloat(row.area_por_pe_ha) || 0
+      if (ppe > 0) { pesNum += ppe / tt * 24 * area; pesDen += area }
+      const apl = parseFloat(row.area_por_linha_ha) || 0
+      if (apl > 0) { linhaNum += apl / tt * 24 * area; linhaDen += area }
+    }
+  }
+  const pes_plataforma_24h = pesDen  > 0 ? pesNum  / pesDen  : 0
+  const area_por_linha_24h = linhaDen > 0 ? linhaNum / linhaDen : 0
+
   // quando stop exclusions foram aplicadas, os tempos já foram ajustados —
   // recalcular eficiência e disponibilidade diretamente das fórmulas base
   const hasExclusions = rows.some(r => r._hasStopExclusions)
@@ -134,6 +153,10 @@ export function aggregateRows(rows) {
     rpm_medio_desloc_reab:   weightedAvg('rpm_medio_desloc_reab',   'tempo_abastecimento_h'),
     rpm_medio_manobra:       weightedAvg('rpm_medio_manobra',       'tempo_manobra_h'),
     rpm_medio_parada:        weightedAvg('rpm_medio_parada',        'tempo_parada_h'),
+    area_por_pe_ha:          weightedAvg('area_por_pe_ha',          'area_ha'),
+    tempo_medio_turno_h,
+    pes_plataforma_24h,
+    area_por_linha_24h,
     data_inicio,
     data_fim,
     dias_ativos,
@@ -272,28 +295,3 @@ export function defaultDateRange() {
   }
 }
 
-// Nível de análise disponíveis para o seletor (espelho das screenshots)
-export const NIVEIS_ANALISE = [
-  { value: 'processo',          label: 'Processo' },
-  { value: 'equipamento',       label: 'Equipamento' },
-  { value: 'modelo_equipamento',label: 'Modelo do Equipamento' },
-  { value: 'operador',          label: 'Operador' },
-  { value: 'propriedade',       label: 'Fazenda' },
-  { value: 'tipo_safra',        label: 'Cultura' },
-  { value: 'implemento',        label: 'Implemento' },
-]
-
-// Métricas disponíveis para seleção no Diário Operacional
-export const METRICAS = [
-  { value: 'rendimento_operacional_hah', label: 'Rendimento Operacional (ha/h)', fmt: fmtHah },
-  { value: 'rendimento_real_hah',        label: 'Rendimento Real (ha/h)',        fmt: fmtHah },
-  { value: 'area_ha',                    label: 'Área (ha)',                     fmt: fmtHa  },
-  { value: 'consumo_total_l',            label: 'Consumo Total (l)',             fmt: (v) => fmt(v, 1, ' l') },
-  { value: 'consumo_medio_lh',           label: 'Consumo Médio L/h',            fmt: fmtLh  },
-  { value: 'consumo_medio_efetivo_lh',   label: 'Consumo Médio Efetivo L/h',    fmt: fmtLh  },
-  { value: 'eficiencia_geral_pct',       label: 'Eficiência Geral (%)',          fmt: fmtPct },
-  { value: 'disponibilidade_mecanica_pct', label: 'Disponibilidade Mecânica (%)', fmt: fmtPct },
-  { value: 'tempo_efetivo_h',             label: 'Tempo Efetivo (h)',             fmt: fmtH   },
-  { value: 'velocidade_media_kmh',       label: 'Velocidade Média (km/h)',       fmt: fmtKmh },
-  { value: 'sem_apontamento_pct',        label: 'Sem Apontamento (%)',           fmt: fmtPct },
-]

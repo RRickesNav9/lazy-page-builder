@@ -643,6 +643,13 @@ export function computeWeightedAvg(rows) {
   }
   result.pes_plataforma_24h = pesDen > 0 ? pesNum / pesDen : 0
   result.area_por_linha_24h = linhaDen > 0 ? linhaNum / linhaDen : 0
+
+  // turno médio: tempo total / pares únicos (data × equipamento)
+  const equipDaySet = new Set(rows.map(r => `${r.data}|||${r.equipamento_cod || r.equipamento || ''}`))
+  result.tempo_medio_turno_h = equipDaySet.size > 0
+    ? rows.reduce((s, r) => s + (r.tempo_total_h ?? 0), 0) / equipDaySet.size
+    : 0
+
   return result
 }
 

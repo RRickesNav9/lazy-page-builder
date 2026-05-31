@@ -10,18 +10,36 @@ import { exportAnaliseGeral } from '../lib/export'
 /* ── Filtro de métrica — labels para o banner ────────────────────────────── */
 
 const METRIC_FILTER_LABELS = {
+  // Área e Rendimento
   area_ha:                      'Área (ha)',
   rendimento_operacional_hah:   'Rendimento Op. (ha/h)',
+  rendimento_real_hah:          'Rendimento Real (ha/h)',
   velocidade_media_kmh:         'Velocidade (km/h)',
+  area_por_linha_ha:            'Área/Linha (ha)',
+  // Eficiência
   eficiencia_geral_pct:         'Eficiência Geral (%)',
   eficiencia_operacional_pct:   'Eficiência Op. (%)',
   disponibilidade_mecanica_pct: 'Disponibilidade (%)',
-  consumo_medio_efetivo_lha:    'Consumo Médio Ef. L/ha',
+  sem_apontamento_pct:          'Sem Apontamento (%)',
+  // Consumo
   consumo_medio_lh:             'Consumo Médio L/h',
+  consumo_medio_lha:            'Consumo Médio L/ha',
+  consumo_medio_efetivo_lh:     'Consumo Médio Ef. L/h',
+  consumo_medio_efetivo_lha:    'Consumo Médio Ef. L/ha',
+  // Motor
+  motor_ligado_pct:             'Motor Ligado (%)',
+  motor_ocioso_pct:             'Motor Ocioso (%)',
+  rpm_medio:                    'RPM Médio',
+  // Tempo — Operacional
   tempo_efetivo_h:              'T. Efetivo (h)',
-  tempo_deslocamento_h:         'T. Deslocamento (h)',
-  tempo_parada_h:               'T. Parada (h)',
+  tempo_produtivo_h:            'T. Produtivo (h)',
   tempo_total_h:                'T. Total (h)',
+  tempo_manobra_h:              'T. Manobra (h)',
+  tempo_deslocamento_h:         'T. Deslocamento (h)',
+  tempo_motor_ligado_h:         'T. Motor Ligado (h)',
+  // Tempo — Parada
+  tempo_parada_h:               'T. Parada (h)',
+  tempo_manutencao_h:           'T. Manutenção (h)',
 }
 
 /* ── Constantes da Tabela de Dimensões ────────────────────────────────────── */
@@ -30,8 +48,10 @@ const DIMS = [
   { key: 'cliente',            label: 'Cliente' },
   { key: 'processo',           label: 'Processo' },
   { key: 'tipo_safra',         label: 'Cultura' },
+  { key: 'safra',              label: 'Safra' },
   { key: 'equipamento',        label: 'Equipamento' },
   { key: 'modelo_equipamento', label: 'Modelo' },
+  { key: 'implemento',         label: 'Implemento' },
   { key: 'propriedade',        label: 'Propriedade' },
   { key: 'operador',           label: 'Operador' },
   { key: 'data',               label: 'Dia' },
@@ -50,8 +70,11 @@ const fmtDateShort = s => {
 
 const ALL_METRICS_GROUPS = [
   { group: 'Área', metrics: [
-    { key: 'area_ha',           label: 'Área (ha)',         fmt: fmtHa },
-    { key: 'area_por_linha_ha', label: 'Área/linha (ha)',   fmt: v => fmt(v, 4, ' ha') },
+    { key: 'area_ha',            label: 'Área (ha)',              fmt: fmtHa },
+    { key: 'area_por_linha_ha',  label: 'Área/Linha (ha)',        fmt: v => fmt(v, 4, ' ha') },
+    { key: 'area_por_linha_24h', label: 'Área/Linha 24h (ha)',    fmt: v => fmt(v, 3, ' ha') },
+    { key: 'area_por_pe_ha',     label: 'Área/Pé Plat. (ha)',     fmt: v => fmt(v, 4, ' ha') },
+    { key: 'pes_plataforma_24h', label: 'Pés Plat. 24h (ha)',     fmt: v => fmt(v, 3, ' ha') },
   ]},
   { group: 'Rendimento', metrics: [
     { key: 'rendimento_operacional_hah', label: 'Rend. Op. (ha/h)',   fmt: fmtHah },
@@ -98,15 +121,16 @@ const ALL_METRICS_GROUPS = [
     { key: 'consumo_parada_l',       label: 'Cons. Parada (l)',        fmt: fmtL },
   ]},
   { group: 'Tempo — Operacional', metrics: [
-    { key: 'tempo_efetivo_h',      label: 'T. Efetivo (h)',      fmt: fmtH },
-    { key: 'tempo_produtivo_h',    label: 'T. Produtivo (h)',    fmt: fmtH },
-    { key: 'tempo_total_h',        label: 'T. Total (h)',        fmt: fmtH },
-    { key: 'tempo_trabalhando_h',  label: 'T. Trabalhando (h)', fmt: fmtH },
-    { key: 'tempo_descarregando_h',label: 'T. Descarregando (h)',fmt: fmtH },
-    { key: 'tempo_manobra_h',      label: 'T. Manobra (h)',      fmt: fmtH },
-    { key: 'tempo_deslocamento_h', label: 'T. Deslocamento (h)', fmt: fmtH },
-    { key: 'tempo_desloc_desc_h',  label: 'T. Desloc. Desc. (h)',fmt: fmtH },
-    { key: 'tempo_abastecimento_h',label: 'T. Abastecimento (h)',fmt: fmtH },
+    { key: 'tempo_efetivo_h',       label: 'T. Efetivo (h)',       fmt: fmtH },
+    { key: 'tempo_produtivo_h',     label: 'T. Produtivo (h)',     fmt: fmtH },
+    { key: 'tempo_total_h',         label: 'T. Total (h)',         fmt: fmtH },
+    { key: 'tempo_medio_turno_h',   label: 'T. Turno Médio (h)',   fmt: fmtH },
+    { key: 'tempo_trabalhando_h',   label: 'T. Trabalhando (h)',   fmt: fmtH },
+    { key: 'tempo_descarregando_h', label: 'T. Descarregando (h)', fmt: fmtH },
+    { key: 'tempo_manobra_h',       label: 'T. Manobra (h)',       fmt: fmtH },
+    { key: 'tempo_deslocamento_h',  label: 'T. Deslocamento (h)',  fmt: fmtH },
+    { key: 'tempo_desloc_desc_h',   label: 'T. Desloc. Desc. (h)', fmt: fmtH },
+    { key: 'tempo_abastecimento_h', label: 'T. Abastecimento (h)', fmt: fmtH },
   ]},
   { group: 'Tempo — Parada', metrics: [
     { key: 'tempo_parada_h',                 label: 'T. Parada (h)',         fmt: fmtH },
@@ -152,11 +176,11 @@ function buildGroups(rows, dims, level = 0) {
       agg: aggregateRows(children),
       children: dims.length > 1 ? buildGroups(children, dims.slice(1), level + 1) : [],
     }))
-    .sort((a, b) =>
-      dim === 'data'
-        ? a.key.localeCompare(b.key)                               // Dia: cronológico
-        : (b.agg?.area_ha ?? 0) - (a.agg?.area_ha ?? 0)           // demais: maior área primeiro
-    )
+    .sort((a, b) => {
+      if (dim === 'data')  return a.key.localeCompare(b.key)           // Dia: cronológico asc
+      if (dim === 'safra') return b.key.localeCompare(a.key)           // Safra: mais recente primeiro
+      return (b.agg?.area_ha ?? 0) - (a.agg?.area_ha ?? 0)            // demais: maior área
+    })
 }
 
 function rendStatus(v, ref) {
