@@ -196,7 +196,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
       excludedMotivos: [],
       showGroupAvg: false,
       metricFilters: [],
-      operadores: [], modelos: [], implementos: [],
+      equipamentos: [], operadores: [], modelos: [], implementos: [],
       referenciaSafra: '',
     }
     setPending(cleared); applyFilters(cleared); setOpen(false)
@@ -227,6 +227,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
     if (show('excludedMotivos') && filters.excludedMotivos.length) c++
     if (show('showGroupAvg')    && filters.showGroupAvg)           c++
     if (show('metricFilter') && (filters.metricFilters ?? []).some(f => f.field && f.value !== '')) c++
+    if (show('metricFilter') && filters.equipamentos?.length) c++
     if (show('metricFilter') && filters.operadores?.length)  c++
     if (show('metricFilter') && filters.modelos?.length)     c++
     if (show('metricFilter') && filters.implementos?.length) c++
@@ -449,6 +450,14 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
               </button>
               {verMaisOpen && (
                 <div style={{ marginTop: 8 }}>
+                  <Label>Equipamento</Label>
+                  <MultiSelect
+                    values={pending.equipamentos ?? []}
+                    onChange={vals => set('equipamentos', vals)}
+                    placeholder="Todos"
+                    options={extraOptions.equipamentos}
+                  />
+                  <div style={{ marginTop: 10 }} />
                   <Label>Operador</Label>
                   <MultiSelect
                     values={pending.operadores ?? []}

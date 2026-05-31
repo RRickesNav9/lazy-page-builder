@@ -12,6 +12,7 @@ export const DEFAULT_FILTERS = {
   showBenchmark: false,
   showGroupAvg: false,
   metricFilters: [],
+  equipamentos: [],
   operadores: [],
   modelos: [],
   implementos: [],
@@ -80,6 +81,7 @@ export function FilterProvider({ children }) {
       ...(filters.propriedades.length && { propriedades: filters.propriedades }),
       ...(filters.processos.length   && { processos:   filters.processos }),
       ...(filters.tipos_safra.length  && { tipos_safra:  filters.tipos_safra }),
+      ...(filters.equipamentos?.length && { equipamentos: filters.equipamentos }),
       ...(filters.operadores?.length  && { operadores:   filters.operadores }),
       ...(filters.modelos?.length     && { modelos:      filters.modelos }),
       ...(filters.implementos?.length && { implementos:  filters.implementos }),
@@ -110,6 +112,7 @@ export function FilterProvider({ children }) {
     if (filters.showGroupAvg)          count++
     if (filters.periodo !== '7dias')   count++
     if ((filters.metricFilters ?? []).some(f => f.field && f.value !== '')) count++
+    if (filters.equipamentos?.length) count++
     if (filters.operadores?.length)  count++
     if (filters.modelos?.length)     count++
     if (filters.implementos?.length) count++

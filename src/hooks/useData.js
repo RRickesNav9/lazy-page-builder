@@ -96,6 +96,14 @@ export function useOperationalData(filters = {}, enabled = true) {
       if (filters.equipamento_cod)    query = query.eq('equipamento_cod', filters.equipamento_cod)
       if (filters.operador)            query = query.ilike('operador', `%${filters.operador}%`)
       if (filters.modelo_equipamento)  query = query.eq('modelo_equipamento', filters.modelo_equipamento)
+      if (filters.equipamentos?.length) {
+        const cods  = filters.equipamentos.map(k => k.split('|||')[0]).filter(Boolean)
+        const names = filters.equipamentos.filter(k => !k.split('|||')[0]).map(k => k.split('|||')[1]).filter(Boolean)
+        if (cods.length && names.length)
+          query = query.or(`equipamento_cod.in.(${cods.join(',')}),equipamento.in.(${names.join(',')})`)
+        else if (cods.length)  query = query.in('equipamento_cod', cods)
+        else if (names.length) query = query.in('equipamento',     names)
+      }
       if (filters.operadores?.length)  query = query.in('operador',           filters.operadores)
       if (filters.modelos?.length)     query = query.in('modelo_equipamento', filters.modelos)
       if (filters.implementos?.length) query = query.in('implemento',         filters.implementos)
@@ -910,18 +918,38 @@ export function useGrupoInterativo(safra, processo, tipo_safra, enabled = false)
   return { metricas, loading }
 }
 
-// Busca opções de dimensão (operador, implemento, modelo) da view dashboard_dim_options
+// Busca opções de dimensão (equipamento, operador, implemento, modelo) em paralelo
 export function useExtraFilterOptions() {
-  const [options, setOptions] = useState({ operadores: [], implementos: [], modelos: [] })
+  const [options, setOptions] = useState({ equipamentos: [], operadores: [], implementos: [], modelos: [] })
 
   useEffect(() => {
     async function run() {
-      const { data } = await supabase.from('dashboard_dim_options').select('*')
-      if (!data) return
+      const [dimRes, equipRes] = await Promise.all([
+        supabase.from('dashboard_dim_options').select('*'),
+        supabase.from('dashboard_equip_options').select('equipamento_cod, equipamento'),
+      ])
+      const dim   = dimRes.data   || []
+      const equip = equipRes.data || []
+
+      const seen = new Set()
+      const equipamentos = []
+      for (const r of equip) {
+        const key = `${r.equipamento_cod || ''}|||${r.equipamento || ''}`
+        if (!seen.has(key)) {
+          seen.add(key)
+          equipamentos.push({
+            value: key,
+            label: r.equipamento_cod ? `${r.equipamento_cod} - ${r.equipamento}` : r.equipamento,
+          })
+        }
+      }
+      equipamentos.sort((a, b) => a.label.localeCompare(b.label))
+
       setOptions({
-        operadores:  [...new Set(data.map(r => r.operador).filter(Boolean))].sort(),
-        implementos: [...new Set(data.map(r => r.implemento).filter(Boolean))].sort(),
-        modelos:     [...new Set(data.map(r => r.modelo_equipamento).filter(Boolean))].sort(),
+        equipamentos,
+        operadores:  [...new Set(dim.map(r => r.operador).filter(Boolean))].sort(),
+        implementos: [...new Set(dim.map(r => r.implemento).filter(Boolean))].sort(),
+        modelos:     [...new Set(dim.map(r => r.modelo_equipamento).filter(Boolean))].sort(),
       })
     }
     run()
