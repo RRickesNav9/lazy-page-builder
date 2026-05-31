@@ -752,7 +752,7 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
 
 export default function AnaliseGeralPage() {
   const { filters, queryFilters, benchmarkSafra, registerExportFn } = useFilters()
-  const { excludedMotivos, metricFilters, showGroupAvg } = filters
+  const { excludedMotivos, metricFilters, dimFilters, showGroupAvg } = filters
 
   const { data: raw, loading } = useOperationalData(queryFilters)
   const { data: stopRows }     = useStopData(queryFilters)
@@ -770,68 +770,95 @@ export default function AnaliseGeralPage() {
 
   const data = dataComExclusoes
 
-  // Filtro de métrica em três modos — aplicados em cadeia:
-  // 1. Sessão: exclui registros individuais que não passam
-  // 2. Diária: exclui todas as sessões de um equipamento num dia se o agregado diário não passa
-  // 3. Geral: exclui equipamentos cujo agregado no período inteiro não passa (padrão)
+  // Filtros aplicados em cadeia: texto → sessão → diária → geral
   const filteredData = useMemo(() => {
+    let result = data
+
+    // Fase 0 — filtros de texto (dimensões categóricas, nível de sessão)
+    const activeDim = (dimFilters ?? []).filter(f => f.field && f.value !== '' && f.value != null)
+    if (activeDim.length) {
+      result = result.filter(r =>
+        activeDim.every(({ field, operator, value }) => {
+          const cell = (r[field] ?? '').toString().toLowerCase()
+          const val  = value.toLowerCase()
+          if (operator === 'contém')     return cell.includes(val)
+          if (operator === 'não contém') return !cell.includes(val)
+          return cell === val  // 'é'
+        })
+      )
+    }
+
     const active = (metricFilters ?? []).filter(f => f.field && f.value !== '' && f.value != null && !isNaN(parseFloat(f.value)))
-    if (!active.length) return data
+    if (!active.length) return result
 
-    const sessaoFilters  = active.filter(f => f.mode === 'sessao')
-    const diarioFilters  = active.filter(f => f.mode === 'diario')
-    const geralFilters   = active.filter(f => f.mode !== 'sessao' && f.mode !== 'diario')  // 'geral' ou undefined → padrão
+    const sessaoFilters = active.filter(f => f.mode === 'sessao')
+    const diarioFilters = active.filter(f => f.mode === 'diario')
+    const geralFilters  = active.filter(f => f.mode !== 'sessao' && f.mode !== 'diario')
 
-    const check = (filters, val) => filters.every(({ field, operator, value }) => {
+    const checkNum = (filters, row) => filters.every(({ field, operator, value }) => {
       const num = parseFloat(value)
-      const v   = parseFloat(val[field]) ?? 0
+      const v   = parseFloat(row[field]) ?? 0
       if (operator === '>=') return v >= num
       if (operator === '<=') return v <= num
       return Math.abs(v - num) < 0.001
     })
 
-    let result = data
-
     // Fase 1 — filtro por sessão individual
     if (sessaoFilters.length) {
-      result = result.filter(r => check(sessaoFilters, r))
+      result = result.filter(r => checkNum(sessaoFilters, r))
     }
 
-    // Fase 2 — filtro diário: agrega por (equipamento × dia), exclui sessões que não passam
+    // Fase 2 — filtro diário: agrega por (dim × dia), exclui sessões que não passam
     if (diarioFilters.length) {
-      const byEquipDay = new Map()
-      for (const r of result) {
-        const k = `${equipLabel(r)}|||${r.data}`
-        if (!byEquipDay.has(k)) byEquipDay.set(k, [])
-        byEquipDay.get(k).push(r)
+      // agrupa por dim separadamente para cada filtro (dim pode variar por filtro)
+      const dims = [...new Set(diarioFilters.map(f => f.dim ?? 'equipamento'))]
+      const passingKeysByDim = {}
+      for (const dim of dims) {
+        const byDimDay = new Map()
+        for (const r of result) {
+          const k = `${getGroupKey(r, dim)}|||${r.data}`
+          if (!byDimDay.has(k)) byDimDay.set(k, [])
+          byDimDay.get(k).push(r)
+        }
+        const passing = new Set()
+        for (const [k, rows] of byDimDay) {
+          const eq = aggregateRows(rows)
+          const fs = diarioFilters.filter(f => (f.dim ?? 'equipamento') === dim)
+          if (eq && checkNum(fs, eq)) passing.add(k)
+        }
+        passingKeysByDim[dim] = passing
       }
-      const passingKeys = new Set()
-      for (const [k, rows] of byEquipDay) {
-        const eq = aggregateRows(rows)
-        if (eq && check(diarioFilters, eq)) passingKeys.add(k)
-      }
-      result = result.filter(r => passingKeys.has(`${equipLabel(r)}|||${r.data}`))
+      result = result.filter(r =>
+        dims.every(dim => passingKeysByDim[dim].has(`${getGroupKey(r, dim)}|||${r.data}`))
+      )
     }
 
-    // Fase 3 — filtro geral por agregado de equipamento no período
+    // Fase 3 — filtro geral: agrega por dim no período inteiro
     if (geralFilters.length) {
-      const byEquip = new Map()
-      for (const r of result) {
-        if ((parseFloat(r.area_ha) || 0) <= 0) continue
-        const lbl = equipLabel(r)
-        if (!byEquip.has(lbl)) byEquip.set(lbl, [])
-        byEquip.get(lbl).push(r)
+      const dims = [...new Set(geralFilters.map(f => f.dim ?? 'equipamento'))]
+      const passingKeysByDim = {}
+      for (const dim of dims) {
+        const byDim = new Map()
+        for (const r of result) {
+          const k = getGroupKey(r, dim)
+          if (!byDim.has(k)) byDim.set(k, [])
+          byDim.get(k).push(r)
+        }
+        const passing = new Set()
+        for (const [k, rows] of byDim) {
+          const eq = aggregateRows(rows)
+          const fs = geralFilters.filter(f => (f.dim ?? 'equipamento') === dim)
+          if (eq && checkNum(fs, eq)) passing.add(k)
+        }
+        passingKeysByDim[dim] = passing
       }
-      const passingLabels = new Set()
-      for (const [lbl, rows] of byEquip) {
-        const eq = aggregateRows(rows)
-        if (eq && check(geralFilters, eq)) passingLabels.add(lbl)
-      }
-      result = result.filter(r => passingLabels.has(equipLabel(r)))
+      result = result.filter(r =>
+        dims.every(dim => passingKeysByDim[dim].has(getGroupKey(r, dim)))
+      )
     }
 
     return result
-  }, [data, metricFilters])
+  }, [data, metricFilters, dimFilters])
 
   const agg      = useMemo(() => aggregateRows(filteredData), [filteredData])
   const timeDist = useMemo(() => calcTimeDistribution(filteredData), [filteredData])
@@ -976,18 +1003,30 @@ export default function AnaliseGeralPage() {
         </div>
       )}
 
-      {/* Banner de filtros de métrica ativos */}
-      {(metricFilters ?? []).some(f => f.field && f.value !== '' && f.value != null) && (
+      {/* Banner de filtros de métrica e texto ativos */}
+      {((metricFilters ?? []).some(f => f.field && f.value !== '' && f.value != null) ||
+        (dimFilters ?? []).some(f => f.field && f.value !== '' && f.value != null)) && (
         <div style={{ background: '#edf5ed', border: '1px solid #4a6741', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 12, color: '#1e4d1e' }}>
-          {(metricFilters ?? []).filter(f => f.field && f.value !== '' && f.value != null).map((f, i) => (
-            <span key={i}>
-              {i > 0 ? ' · ' : ''}
-              {METRIC_FILTER_LABELS[f.field] ?? f.field} {f.operator} {f.value}
-              <span style={{ fontSize: 10, marginLeft: 4, opacity: 0.75 }}>
-                [{f.mode === 'sessao' ? 'sessão' : f.mode === 'diario' ? 'diária' : 'geral'}]
-              </span>
+          {(dimFilters ?? []).filter(f => f.field && f.value !== '' && f.value != null).map((f, i) => (
+            <span key={`d${i}`}>
+              {i > 0 || (metricFilters ?? []).some(mf => mf.field && mf.value !== '') ? ' · ' : ''}
+              {({ operador: 'Operador', modelo_equipamento: 'Modelo', implemento: 'Implemento' })[f.field] ?? f.field} {f.operator} "{f.value}"
+              <span style={{ fontSize: 10, marginLeft: 4, opacity: 0.75 }}>[texto]</span>
             </span>
-          ))} — {equipRows.length} equipamento(s) exibido(s)
+          ))}
+          {(metricFilters ?? []).filter(f => f.field && f.value !== '' && f.value != null).map((f, i) => {
+            const DIM_LABEL = { operador: 'Operador', modelo_equipamento: 'Modelo', implemento: 'Implemento', equipamento: 'Equipamento' }
+            const hasDim = (dimFilters ?? []).some(df => df.field && df.value !== '')
+            return (
+              <span key={`m${i}`}>
+                {(i > 0 || hasDim) ? ' · ' : ''}
+                {METRIC_FILTER_LABELS[f.field] ?? f.field} {f.operator} {f.value}
+                <span style={{ fontSize: 10, marginLeft: 4, opacity: 0.75 }}>
+                  [{f.mode === 'sessao' ? 'sessão' : f.mode === 'diario' ? 'diária' : 'geral'}{(f.mode ?? 'geral') !== 'sessao' && f.dim && f.dim !== 'equipamento' ? ` · ${DIM_LABEL[f.dim] ?? f.dim}` : ''}]
+                </span>
+              </span>
+            )
+          })} — {equipRows.length} equipamento(s) exibido(s)
         </div>
       )}
 

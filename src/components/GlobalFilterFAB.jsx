@@ -194,6 +194,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
       excludedMotivos: [],
       showGroupAvg: false,
       metricFilters: [],
+      dimFilters: [],
       referenciaSafra: '',
     }
     setPending(cleared); applyFilters(cleared); setOpen(false)
@@ -224,6 +225,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
     if (show('excludedMotivos') && filters.excludedMotivos.length) c++
     if (show('showGroupAvg')    && filters.showGroupAvg)           c++
     if (show('metricFilter') && (filters.metricFilters ?? []).some(f => f.field && f.value !== '')) c++
+    if (show('metricFilter') && (filters.dimFilters ?? []).some(f => f.field && f.value !== ''))    c++
     if (solinftecOnly           && filters.referenciaSafra)         c++
     return c
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -487,7 +489,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                           style={{ flex: 1, padding: '5px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 12 }}
                         />
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 10, color: '#6b6560' }}>Modo:</span>
                         <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d4cfc9' }}>
                           {[{ v: 'geral', l: 'Geral' }, { v: 'diario', l: 'Diária' }, { v: 'sessao', l: 'Sessão' }].map(({ v, l }) => (
@@ -503,6 +505,20 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                             >{l}</button>
                           ))}
                         </div>
+                        {(mf.mode ?? 'geral') !== 'sessao' && (
+                          <>
+                            <span style={{ fontSize: 10, color: '#6b6560' }}>por:</span>
+                            <select
+                              value={mf.dim ?? 'equipamento'}
+                              onChange={e => setPending(p => ({ ...p, metricFilters: p.metricFilters.map((f, i) => i === idx ? { ...f, dim: e.target.value } : f) }))}
+                              style={{ padding: '3px 6px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 11, color: '#1a1a1a', background: '#fff' }}
+                            >
+                              {[{ v: 'equipamento', l: 'Equipamento' }, { v: 'operador', l: 'Operador' }, { v: 'modelo_equipamento', l: 'Modelo' }, { v: 'implemento', l: 'Implemento' }].map(({ v, l }) => (
+                                <option key={v} value={v}>{l}</option>
+                              ))}
+                            </select>
+                          </>
+                        )}
                       </div>
                     </>
                   )}
@@ -513,6 +529,53 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                 style={{ width: '100%', padding: '6px 0', fontSize: 12, fontWeight: 500, border: '1px dashed #4a6741', borderRadius: 6, background: 'none', color: '#4a6741', cursor: 'pointer' }}
               >
                 + Adicionar filtro
+              </button>
+            </div>
+          )}
+
+          {/* ── Filtros de Texto ─────────────────────────────────────── */}
+          {show('metricFilter') && (
+            <div style={{ borderTop: '1px solid #e0dbd4', paddingTop: 14, marginBottom: 14 }}>
+              <Label>Filtrar por Texto</Label>
+              {(pending.dimFilters ?? []).map((df, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+                  <select
+                    value={df.field}
+                    onChange={e => setPending(p => ({ ...p, dimFilters: p.dimFilters.map((f, i) => i === idx ? { ...f, field: e.target.value, value: '' } : f) }))}
+                    style={{ flex: '0 0 100px', padding: '5px 6px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 12, color: '#1a1a1a', background: '#fff' }}
+                  >
+                    <option value="">Dimensão…</option>
+                    {[{ v: 'operador', l: 'Operador' }, { v: 'modelo_equipamento', l: 'Modelo' }, { v: 'implemento', l: 'Implemento' }].map(({ v, l }) => (
+                      <option key={v} value={v}>{l}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={df.operator ?? 'contém'}
+                    onChange={e => setPending(p => ({ ...p, dimFilters: p.dimFilters.map((f, i) => i === idx ? { ...f, operator: e.target.value } : f) }))}
+                    style={{ flex: '0 0 90px', padding: '5px 6px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 12, color: '#1a1a1a', background: '#fff' }}
+                  >
+                    {[{ v: 'contém', l: 'contém' }, { v: 'não contém', l: 'não contém' }, { v: 'é', l: 'é' }].map(({ v, l }) => (
+                      <option key={v} value={v}>{l}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={df.value ?? ''}
+                    onChange={e => setPending(p => ({ ...p, dimFilters: p.dimFilters.map((f, i) => i === idx ? { ...f, value: e.target.value } : f) }))}
+                    placeholder="Valor…"
+                    style={{ flex: 1, padding: '5px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 12 }}
+                  />
+                  <button
+                    onClick={() => setPending(p => ({ ...p, dimFilters: p.dimFilters.filter((_, i) => i !== idx) }))}
+                    style={{ width: 26, height: 32, border: 'none', background: 'none', cursor: 'pointer', color: '#8b6560', fontSize: 18, padding: 0, flexShrink: 0 }}
+                  >×</button>
+                </div>
+              ))}
+              <button
+                onClick={() => setPending(p => ({ ...p, dimFilters: [...(p.dimFilters ?? []), { field: '', operator: 'contém', value: '' }] }))}
+                style={{ width: '100%', padding: '6px 0', fontSize: 12, fontWeight: 500, border: '1px dashed #4a6741', borderRadius: 6, background: 'none', color: '#4a6741', cursor: 'pointer' }}
+              >
+                + Adicionar filtro de texto
               </button>
             </div>
           )}

@@ -12,6 +12,7 @@ export const DEFAULT_FILTERS = {
   showBenchmark: false,
   showGroupAvg: false,
   metricFilters: [],
+  dimFilters: [],
   referenciaSafra: '',
 }
 
@@ -104,6 +105,7 @@ export function FilterProvider({ children }) {
     if (filters.showGroupAvg)          count++
     if (filters.periodo !== '7dias')   count++
     if ((filters.metricFilters ?? []).some(f => f.field && f.value !== '')) count++
+    if ((filters.dimFilters ?? []).some(f => f.field && f.value !== ''))    count++
     if (filters.referenciaSafra)        count++
     return count
   }, [filters])
