@@ -69,6 +69,13 @@ export function aggregateRows(rows) {
   const tempo_desloc_desc_h            = sum('tempo_desloc_desc_h')
   const tempo_trabalhando_h            = sum('tempo_trabalhando_h')
 
+  // período de atividade — min/max de data e contagem de dias distintos com operação
+  const datasDistintas = new Set(rows.map(r => r.data).filter(Boolean))
+  const datasOrdenadas = [...datasDistintas].sort()   // YYYY-MM-DD ordena lexicamente = cronológico
+  const data_inicio    = datasOrdenadas[0] ?? null
+  const data_fim       = datasOrdenadas[datasOrdenadas.length - 1] ?? null
+  const dias_ativos    = datasDistintas.size
+
   // quando stop exclusions foram aplicadas, os tempos já foram ajustados —
   // recalcular eficiência e disponibilidade diretamente das fórmulas base
   const hasExclusions = rows.some(r => r._hasStopExclusions)
@@ -127,6 +134,9 @@ export function aggregateRows(rows) {
     rpm_medio_desloc_reab:   weightedAvg('rpm_medio_desloc_reab',   'tempo_abastecimento_h'),
     rpm_medio_manobra:       weightedAvg('rpm_medio_manobra',       'tempo_manobra_h'),
     rpm_medio_parada:        weightedAvg('rpm_medio_parada',        'tempo_parada_h'),
+    data_inicio,
+    data_fim,
+    dias_ativos,
   }
 }
 

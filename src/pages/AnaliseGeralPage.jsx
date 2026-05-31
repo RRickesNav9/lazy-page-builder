@@ -41,6 +41,13 @@ const fmtL   = v => fmt(v, 1, ' l')
 const fmtLha = v => fmt(v, 1, ' l/ha')
 const fmtRpm = v => fmt(v, 0, ' rpm')
 
+// Formata YYYY-MM-DD como DD/MM/AA para exibição compacta na tabela
+const fmtDateShort = s => {
+  if (!s) return '—'
+  const [y, m, d] = s.split('-')
+  return `${d}/${m}/${y.slice(2)}`
+}
+
 const ALL_METRICS_GROUPS = [
   { group: 'Área', metrics: [
     { key: 'area_ha',           label: 'Área (ha)',         fmt: fmtHa },
@@ -381,6 +388,18 @@ function GroupRow({ node, path, expanded, onToggle, cols }) {
             </span>
           </div>
         </td>
+        <td style={{ padding: '8px 14px', verticalAlign: 'top', minWidth: 120 }}>
+          {node.agg?.data_inicio && node.agg?.data_fim ? (
+            <div>
+              <div style={{ fontSize: 11, color: '#1a1a1a', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                {fmtDateShort(node.agg.data_inicio)} → {fmtDateShort(node.agg.data_fim)}
+              </div>
+              <div style={{ fontSize: 10, color: '#6b6560', marginTop: 1 }}>
+                {node.agg.dias_ativos} {node.agg.dias_ativos === 1 ? 'dia' : 'dias'}
+              </div>
+            </div>
+          ) : <span style={{ fontSize: 11, color: '#c0bab4' }}>—</span>}
+        </td>
         {cols.map(col => (
           <td key={col.key} style={{ padding: '8px 14px', textAlign: 'right', fontSize: 13, color: '#1a1a1a', whiteSpace: 'nowrap' }}>
             {node.agg ? col.fmt(node.agg[col.key] ?? 0) : '—'}
@@ -635,6 +654,9 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
               <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 {dimLabel}
               </th>
+              <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', minWidth: 120 }}>
+                Período Operacional
+              </th>
               {activeCols.map(col => (
                 <th key={col.key} style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                   {col.label}
@@ -651,6 +673,7 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
                     Média do grupo
                   </span>
                 </td>
+                <td style={{ padding: '7px 14px', fontSize: 11, color: '#9b9390', fontStyle: 'italic' }}>—</td>
                 {activeCols.map(col => (
                   <td key={col.key} style={{ padding: '7px 14px', textAlign: 'right', fontSize: 11, color: '#4a6741', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
                     {AVG_GROUP_KEYS.has(col.key) && grupoRow[col.key] != null
@@ -661,7 +684,7 @@ function DimensionTable({ data, grupoRow, showGroupAvg }) {
               </tr>
             )}
             {groups.length === 0 ? (
-              <tr><td colSpan={activeCols.length + 1} style={{ padding: 24, textAlign: 'center', color: '#6b6560', fontSize: 13 }}>Sem dados.</td></tr>
+              <tr><td colSpan={activeCols.length + 2} style={{ padding: 24, textAlign: 'center', color: '#6b6560', fontSize: 13 }}>Sem dados.</td></tr>
             ) : (
               groups.map((node, i) => (
                 <GroupRow
