@@ -925,7 +925,7 @@ export default function AnaliseGeralPage() {
 
   // ref mantém dados atualizados sem re-registrar o exportFn a cada render
   const exportRef = useRef({})
-  exportRef.current = { filteredData, equipRows, operadorRows, queryFilters }
+  exportRef.current = { filteredData, equipRows, operadorRows, queryFilters, stopRows }
   useEffect(() => {
     registerExportFn(() => exportAnaliseGeral(exportRef.current))
     return () => registerExportFn(null)

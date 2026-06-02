@@ -163,7 +163,7 @@ function metricasToRow(tipo, metricas) {
 
 // ─── ANÁLISE GERAL ────────────────────────────────────────────────────────────
 
-export async function exportAnaliseGeral({ filteredData, equipRows, operadorRows, queryFilters = {} }) {
+export async function exportAnaliseGeral({ filteredData, equipRows, operadorRows, queryFilters = {}, stopRows = [] }) {
   const wb = XLSX.utils.book_new()
 
   const equipSheet = (equipRows || []).map(r => ({
@@ -199,6 +199,26 @@ export async function exportAnaliseGeral({ filteredData, equipRows, operadorRows
     'Turno Médio (h)':     r.turnoMedio != null ? +r.turnoMedio.toFixed(2) : null,
   }))
   addSheet(wb, 'Por Operador', opSheet)
+
+  // Paradas — join em memória: stop_records.report_id = operational_records.id
+  const opById = new Map((filteredData || []).map(r => [r.id, r]))
+  const stopSheet = (stopRows || []).map(s => {
+    const op = opById.get(s.report_id) || {}
+    return {
+      'Data':             op.data,
+      'Cliente':          op.cliente,
+      'Propriedade':      op.propriedade,
+      'Processo':         op.processo,
+      'Cultura':          op.tipo_safra,
+      'Cód. Equipamento': op.equipamento_cod,
+      'Equipamento':      op.equipamento,
+      'Operador':         op.operador,
+      'Motivo de Parada': s.motivo_de_parada || 'Sem apontamento',
+      'Tipo':             s.tipo_parada,
+      'Tempo Parado (h)': s.tempo_parado_h,
+    }
+  })
+  addSheet(wb, 'Paradas', stopSheet)
 
   // dados brutos já em memória — não exige fetch adicional
   addSheet(wb, 'Dados Brutos', (filteredData || []).map(toExportRow))
