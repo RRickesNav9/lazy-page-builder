@@ -543,7 +543,7 @@ function ClienteSelect({ label, value, onChange, clientes }) {
           border: '1px solid #e0dbd4', borderRadius: 4, outline: 'none', cursor: 'pointer',
         }}
       >
-        <option value="grupo">Grupo (porteira)</option>
+        <option value="grupo">Grupo</option>
         {clientes.map(c => <option key={c} value={c}>{c}</option>)}
       </select>
     </div>
