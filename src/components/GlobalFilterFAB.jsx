@@ -303,8 +303,8 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
         </button>
       )}
 
-      {/* FAB — Exportar PDF (visível quando expandido) */}
-      {fabExpanded && (
+      {/* FAB — Exportar PDF (visível quando expandido e permitido pela página) */}
+      {fabExpanded && show('pdfExport') && (
         <button
           onClick={() => window.print()}
           data-pdf-exclude="true"
@@ -326,7 +326,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
           title={exporting ? 'Exportando...' : 'Exportar XLSX'}
           style={{
             ...fabBase,
-            bottom: pageActiveCount > 0 ? 264 : 204,
+            bottom: 84 + 60 + (pageActiveCount > 0 ? 60 : 0) + (show('pdfExport') ? 60 : 0),
             background: '#4a6741',
             color: '#fff',
             opacity: exporting ? 0.75 : 1,

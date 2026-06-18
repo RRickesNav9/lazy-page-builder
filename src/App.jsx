@@ -60,6 +60,7 @@ const PAGE_VISIBLE_FILTERS = {
   'base-dados': {
     cliente: true, propriedade: false, processo: true, cultura: true,
     showGroupAvg: false, metricFilter: false, excludedMotivos: false,
+    pdfExport: false,
   },
 }
 
