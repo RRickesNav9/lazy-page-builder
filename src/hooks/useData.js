@@ -671,6 +671,7 @@ export function useModeloStats(filters = {}) {
         if (filters.processo)   query = query.eq('processo',   filters.processo)
         if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
         if (filters.safra)      query = query.eq('safra',      filters.safra)
+        if (filters.cliente)    query = query.eq('cliente',    filters.cliente)
 
         const all = await fetchAllPages(query)
         const byMachine = {}
@@ -702,11 +703,10 @@ export function useModeloStats(filters = {}) {
   return { stats, loading }
 }
 
-// Agrega métricas por cliente para um modelo específico — alimenta a tab Modelo × Clientes.
-// Lê dashboard_operational_view (já tem JOIN com properties/clients), filtra por modelo e safra,
-// agrupa por cliente e calcula média ponderada com os mesmos pesos de METRIC_WEIGHT_MAP.
+// Agrega métricas de um modelo para um cliente específico — alimenta o seletor de cliente na tab Modelo vs. Modelo.
+// Quando cliente é null/undefined, o caller usa a média do grupo (allModelosData).
 const MC_SELECT = [
-  'cliente', 'equipamento_cod', 'data',
+  'equipamento_cod', 'data',
   'consumo_medio_lh',
   'rendimento_operacional_hah', 'rendimento_real_hah', 'velocidade_media_kmh',
   'eficiencia_geral_pct', 'eficiencia_operacional_pct', 'disponibilidade_mecanica_pct',
@@ -717,56 +717,40 @@ const MC_SELECT = [
   'tempo_motor_ligado_h', 'tempo_parada_h',
 ].join(',')
 
-export function useModeloClienteComparativo(filters = {}) {
-  const [porCliente, setPorCliente] = useState([])
-  const [loading, setLoading]       = useState(false)
+export function useModeloMetricasCliente({ modelo_equipamento, cliente, safra, processo, tipo_safra } = {}) {
+  const [metricas, setMetricas] = useState(null)
+  const [loading, setLoading]   = useState(false)
 
   useEffect(() => {
-    if (!filters.modelo_equipamento || !filters.safra) { setPorCliente([]); return }
+    if (!modelo_equipamento || !cliente || !safra) { setMetricas(null); return }
     setLoading(true)
     async function run() {
       try {
-        const { dataInicio, dataFim } = safraToDateRange(filters.safra)
+        const { dataInicio, dataFim } = safraToDateRange(safra)
         let query = supabase
           .from('dashboard_operational_view')
           .select(MC_SELECT)
-          .eq('modelo_equipamento', filters.modelo_equipamento)
+          .eq('modelo_equipamento', modelo_equipamento)
+          .eq('cliente', cliente)
           .neq('data_provider_id', JD_ID)
-          .neq('cliente', 'Média Porteira')
           .gt('consumo_medio_lh', 0)
           .gte('data', dataInicio)
           .lte('data', dataFim)
-        if (filters.processo)   query = query.eq('processo',   filters.processo)
-        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
+        if (processo)   query = query.eq('processo',   processo)
+        if (tipo_safra) query = query.eq('tipo_safra', tipo_safra)
 
         const all = await fetchAllPages(query)
-
-        const byCliente = new Map()
-        for (const row of all) {
-          if (!row.cliente) continue
-          if (!byCliente.has(row.cliente)) byCliente.set(row.cliente, [])
-          byCliente.get(row.cliente).push(row)
-        }
-
-        const result = []
-        for (const [cliente, rows] of byCliente) {
-          const avg = computeWeightedAvg(rows)
-          if (!avg) continue
-          result.push({ cliente, ...avg, dias_ativos: new Set(rows.map(r => r.data)).size })
-        }
-        result.sort((a, b) => a.cliente.localeCompare(b.cliente))
-        setPorCliente(result)
+        setMetricas(all.length > 0 ? computeWeightedAvg(all) : null)
       } catch {
-        setPorCliente([])
+        setMetricas(null)
       } finally {
         setLoading(false)
       }
     }
     run()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(filters)])
+  }, [modelo_equipamento, cliente, safra, processo, tipo_safra])
 
-  return { porCliente, loading }
+  return { metricas, loading }
 }
 
 // Busca dados de dois conjuntos de filtros em paralelo para comparativo de equipamentos
