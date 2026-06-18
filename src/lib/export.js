@@ -286,14 +286,35 @@ export async function exportBenchmarkEquip({
 
 // ─── BASE DE DADOS ────────────────────────────────────────────────────────────
 
-// Exporta linhas já agregadas/formatadas pela BaseDadosPage (chaves em português).
-// Inclui aba de metodologia para que o cliente possa verificar as médias ponderadas.
-export function exportBaseDados(rows, granularidade, groupBy) {
-  if (!rows?.length) return
+// opRows: registros de dashboard_operational_view (shape raw com id).
+// stopRows: registros de dashboard_stop_view { report_id, motivo_de_parada, tipo_parada, tempo_parado_h }.
+// Gera XLSX com aba 1 = registros operacionais, aba 2 = motivos de parada (join em memória por report_id).
+export function exportBaseDados(opRows, stopRows) {
+  if (!opRows?.length) return
   const wb = XLSX.utils.book_new()
-  addSheet(wb, 'Dados', rows)
+  addSheet(wb, 'Registros Operacionais', opRows.map(toExportRow))
+  if (stopRows?.length) {
+    const opById = new Map(opRows.map(r => [r.id, r]))
+    const stopSheet = stopRows.map(s => {
+      const op = opById.get(s.report_id) || {}
+      return {
+        'Data':             op.data,
+        'Cliente':          op.cliente,
+        'Propriedade':      op.propriedade,
+        'Processo':         op.processo,
+        'Cultura':          op.tipo_safra,
+        'Cód. Equipamento': op.equipamento_cod,
+        'Equipamento':      op.equipamento,
+        'Operador':         op.operador,
+        'Motivo de Parada': s.motivo_de_parada || 'Sem apontamento',
+        'Tipo':             s.tipo_parada,
+        'Tempo Parado (h)': s.tempo_parado_h,
+      }
+    })
+    addSheet(wb, 'Motivos de Parada', stopSheet)
+  }
   addSheet(wb, 'Metodologia', metodologiaRows())
-  XLSX.writeFile(wb, `base-dados_${granularidade}-por-${groupBy}_${today()}.xlsx`)
+  XLSX.writeFile(wb, `base-dados_${today()}.xlsx`)
 }
 
 // ─── BENCHMARK JOHN DEERE ─────────────────────────────────────────────────────
