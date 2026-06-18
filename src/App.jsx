@@ -6,6 +6,7 @@ import AnaliseGeralPage from './pages/AnaliseGeralPage'
 import BenchmarkClientePage from './pages/BenchmarkClientePage'
 import BenchmarkEquipamentoPage from './pages/BenchmarkEquipamentoPage'
 import BenchmarkJohnDeerePage from './pages/BenchmarkJohnDeerePage'
+import BaseDadosPage from './pages/BaseDadosPage'
 import LoginPage from './pages/LoginPage'
 import { supabase } from './lib/supabase'
 
@@ -14,6 +15,7 @@ const NAV = [
   { id: 'benchmark',       label: 'Benchmark Cliente' },
   { id: 'bench-equip',     label: 'Benchmark Equipamento' },
   { id: 'bench-jd',        label: 'Benchmark John Deere' },
+  { id: 'base-dados',      label: 'Base de Dados' },
 ]
 
 const PAGES = {
@@ -21,6 +23,7 @@ const PAGES = {
   benchmark:     BenchmarkClientePage,
   'bench-equip': BenchmarkEquipamentoPage,
   'bench-jd':    BenchmarkJohnDeerePage,
+  'base-dados':  BaseDadosPage,
 }
 
 const PAGE_PROCESSOS = {
@@ -34,6 +37,7 @@ const PAGE_SOLINFTEC = {
   benchmark:     true,
   'bench-equip': true,
   'bench-jd':    false,
+  'base-dados':  false,
 }
 
 const PAGE_VISIBLE_FILTERS = {
@@ -51,6 +55,10 @@ const PAGE_VISIBLE_FILTERS = {
   },
   'bench-jd': {
     cliente: true, propriedade: false, processo: false, cultura: true,
+    showGroupAvg: false, metricFilter: false, excludedMotivos: false,
+  },
+  'base-dados': {
+    cliente: false, propriedade: false, processo: false, cultura: false,
     showGroupAvg: false, metricFilter: false, excludedMotivos: false,
   },
 }

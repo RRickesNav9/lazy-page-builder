@@ -284,6 +284,18 @@ export async function exportBenchmarkEquip({
   XLSX.writeFile(wb, `benchmark-equip_${today()}.xlsx`)
 }
 
+// ─── BASE DE DADOS ────────────────────────────────────────────────────────────
+
+// Exporta linhas já agregadas/formatadas pela BaseDadosPage (chaves em português).
+// Inclui aba de metodologia para que o cliente possa verificar as médias ponderadas.
+export function exportBaseDados(rows, granularidade, groupBy) {
+  if (!rows?.length) return
+  const wb = XLSX.utils.book_new()
+  addSheet(wb, 'Dados', rows)
+  addSheet(wb, 'Metodologia', metodologiaRows())
+  XLSX.writeFile(wb, `base-dados_${granularidade}-por-${groupBy}_${today()}.xlsx`)
+}
+
 // ─── BENCHMARK JOHN DEERE ─────────────────────────────────────────────────────
 
 const JD_KEYS = [
