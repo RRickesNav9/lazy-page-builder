@@ -702,6 +702,73 @@ export function useModeloStats(filters = {}) {
   return { stats, loading }
 }
 
+// Agrega métricas por cliente para um modelo específico — alimenta a tab Modelo × Clientes.
+// Lê dashboard_operational_view (já tem JOIN com properties/clients), filtra por modelo e safra,
+// agrupa por cliente e calcula média ponderada com os mesmos pesos de METRIC_WEIGHT_MAP.
+const MC_SELECT = [
+  'cliente', 'equipamento_cod', 'data',
+  'consumo_medio_lh',
+  'rendimento_operacional_hah', 'rendimento_real_hah', 'velocidade_media_kmh',
+  'eficiencia_geral_pct', 'eficiencia_operacional_pct', 'disponibilidade_mecanica_pct',
+  'consumo_medio_lha', 'consumo_medio_efetivo_lha', 'consumo_medio_efetivo_lh',
+  'area_por_linha_ha', 'area_por_pe_ha', 'sem_apontamento_pct', 'motor_ocioso_pct',
+  'motor_ligado_pct', 'rpm_medio',
+  'tempo_produtivo_h', 'tempo_efetivo_h', 'tempo_total_h', 'area_ha',
+  'tempo_motor_ligado_h', 'tempo_parada_h',
+].join(',')
+
+export function useModeloClienteComparativo(filters = {}) {
+  const [porCliente, setPorCliente] = useState([])
+  const [loading, setLoading]       = useState(false)
+
+  useEffect(() => {
+    if (!filters.modelo_equipamento || !filters.safra) { setPorCliente([]); return }
+    setLoading(true)
+    async function run() {
+      try {
+        const { dataInicio, dataFim } = safraToDateRange(filters.safra)
+        let query = supabase
+          .from('dashboard_operational_view')
+          .select(MC_SELECT)
+          .eq('modelo_equipamento', filters.modelo_equipamento)
+          .neq('data_provider_id', JD_ID)
+          .neq('cliente', 'Média Porteira')
+          .gt('consumo_medio_lh', 0)
+          .gte('data', dataInicio)
+          .lte('data', dataFim)
+        if (filters.processo)   query = query.eq('processo',   filters.processo)
+        if (filters.tipo_safra) query = query.eq('tipo_safra', filters.tipo_safra)
+
+        const all = await fetchAllPages(query)
+
+        const byCliente = new Map()
+        for (const row of all) {
+          if (!row.cliente) continue
+          if (!byCliente.has(row.cliente)) byCliente.set(row.cliente, [])
+          byCliente.get(row.cliente).push(row)
+        }
+
+        const result = []
+        for (const [cliente, rows] of byCliente) {
+          const avg = computeWeightedAvg(rows)
+          if (!avg) continue
+          result.push({ cliente, ...avg, dias_ativos: new Set(rows.map(r => r.data)).size })
+        }
+        result.sort((a, b) => a.cliente.localeCompare(b.cliente))
+        setPorCliente(result)
+      } catch {
+        setPorCliente([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    run()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(filters)])
+
+  return { porCliente, loading }
+}
+
 // Busca dados de dois conjuntos de filtros em paralelo para comparativo de equipamentos
 export function useEquipamentoComparativo(filterA, filterB) {
   const [dataA, setDataA] = useState([])

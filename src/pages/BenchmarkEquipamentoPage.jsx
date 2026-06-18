@@ -7,7 +7,7 @@ import { useFilters } from '../lib/FilterContext'
 import {
   useEquipamentoInterativo, useEquipamentoComparativo,
   useMaquinaMetricas, computeWeightedAvg,
-  useAllEquipamentos, useModeloStats,
+  useAllEquipamentos, useModeloStats, useModeloClienteComparativo,
 } from '../hooks/useData'
 import MetricSelectorFAB from '../components/MetricSelectorFAB'
 import { exportBenchmarkEquip } from '../lib/export'
@@ -47,9 +47,10 @@ const DEFAULT_SELECTED_METRICS = new Set([
 ])
 
 const TABS = [
-  { id: 'maquina-modelo', label: 'Máquina vs. Modelo'        },
-  { id: 'equip-equip',    label: 'Equipamento vs. Equipamento' },
-  { id: 'modelo-modelo',  label: 'Modelo vs. Modelo'         },
+  { id: 'maquina-modelo',  label: 'Máquina vs. Modelo'          },
+  { id: 'equip-equip',     label: 'Equipamento vs. Equipamento'  },
+  { id: 'modelo-modelo',   label: 'Modelo vs. Modelo'            },
+  { id: 'modelo-clientes', label: 'Modelo × Clientes'            },
 ]
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -585,6 +586,75 @@ function ModeloMetricBar({ cfg, valA, valB, labelA, labelB, statsA, statsB }) {
   )
 }
 
+// ─── TAB 4: BARRAS MODELO × CLIENTES ─────────────────────────────────────────
+
+// Mostra uma barra por cliente para a métrica, com o grupo como referência fixa no topo.
+// grupoVal: média do modelo no grupo porteira. clientes: [{ cliente, valor }].
+function ModeloClienteBar({ cfg, grupoVal, clientes }) {
+  const allVals = [grupoVal || 0, ...clientes.map(c => c.valor || 0)]
+  const maxVal  = Math.max(...allVals, 0.001)
+
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ fontSize: 10, fontWeight: 600, color: '#4a3728', marginBottom: 5 }}>
+        {cfg.label}
+        <span style={{ fontWeight: 400, color: '#6b6560' }}> · {cfg.unit}</span>
+      </div>
+
+      {/* Linha de referência: média do grupo porteira */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <div style={{ width: 110, fontSize: 8, color: '#9a9490', textAlign: 'right', flexShrink: 0 }}>
+          Grupo (porteira)
+        </div>
+        <div style={{ flex: 1, height: 8, background: '#f0ede8', borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${(grupoVal / maxVal) * 100}%`, background: '#9a9490', borderRadius: 2 }} />
+        </div>
+        <div style={{ width: 42, fontSize: 10, fontWeight: 600, color: '#9a9490', textAlign: 'right', flexShrink: 0 }}>
+          {fmt(grupoVal, cfg.d)}
+        </div>
+        <div style={{ width: 64, flexShrink: 0 }} />
+      </div>
+
+      {/* Uma linha por cliente */}
+      {clientes.map(({ cliente, valor }) => {
+        const status    = computeStatus(valor, grupoVal, cfg.higherIsBetter)
+        const badge     = badgeProps(status)
+        const diff      = fmtDiff(valor, grupoVal)
+        const diffColor = status === 'acima' ? '#1e4d1e' : status === 'abaixo' ? '#8b2020' : '#7a5c00'
+        return (
+          <div key={cliente} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <div style={{
+              width: 110, fontSize: 8, color: '#6b6560', textAlign: 'right', flexShrink: 0,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {cliente}
+            </div>
+            <div style={{ flex: 1, height: 11, background: '#f0ede8', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${(valor / maxVal) * 100}%`, background: '#2d4a2d', borderRadius: 2 }} />
+            </div>
+            <div style={{ width: 42, fontSize: 10, fontWeight: 700, color: '#1a1a1a', textAlign: 'right', flexShrink: 0 }}>
+              {fmt(valor, cfg.d)}
+            </div>
+            <div style={{ width: 64, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, flexShrink: 0 }}>
+              {diff && cfg.higherIsBetter !== null && (
+                <span style={{ fontSize: 9, fontWeight: 600, color: diffColor }}>{diff}</span>
+              )}
+              {cfg.higherIsBetter !== null && (
+                <span style={{
+                  fontSize: 8, fontWeight: 600, color: badge.fg, background: badge.bg,
+                  padding: '1px 4px', borderRadius: 3,
+                }}>
+                  {badge.text}
+                </span>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── PÁGINA PRINCIPAL ─────────────────────────────────────────────────────────
 
 export default function BenchmarkEquipamentoPage() {
@@ -596,6 +666,7 @@ export default function BenchmarkEquipamentoPage() {
   const [sideB, setSideB]         = useState({ cod: '', dataInicio: '', dataFim: '' })
   const [modeloA, setModeloA]     = useState('')
   const [modeloB, setModeloB]     = useState('')
+  const [modeloMC, setModeloMC]   = useState('')
   const [selectedMetrics, setSelectedMetrics] = useState([...DEFAULT_SELECTED_METRICS])
 
   // O filtro global já garante que processo é Colheita ou Plantio nesta página (via App.jsx + cascade do FAB).
@@ -695,6 +766,20 @@ export default function BenchmarkEquipamentoPage() {
   const labelEquipB = maqInfoB
     ? `${maqInfoB.equipamento_cod} — ${maqInfoB.equipamento}${sideB.dataInicio ? ' (' + sideB.dataInicio + ')' : ''}`
     : 'Equipamento B'
+
+  // ── Tab 4: Modelo × Clientes ──────────────────────────────────────────────
+
+  const { porCliente, loading: loadingMC } = useModeloClienteComparativo({
+    ...(modeloMC         && { modelo_equipamento: modeloMC }),
+    safra: benchmarkSafra,
+    ...(processoFiltro           && { processo:    processoFiltro }),
+    ...(filters.tipos_safra?.[0] && { tipo_safra:  filters.tipos_safra?.[0] }),
+  })
+
+  const grupoValMC = useMemo(
+    () => normalizarModeloRow(allModelosData.find(r => r.modelo_equipamento === modeloMC) ?? null),
+    [allModelosData, modeloMC]
+  )
 
   // ── Tab 3: Modelo vs. Modelo ───────────────────────────────────────────────
 
@@ -970,6 +1055,53 @@ export default function BenchmarkEquipamentoPage() {
           )}
         </div>
       )}
+      {/* ── TAB 4: MODELO × CLIENTES ────────────────────────────────────────── */}
+      {activeTab === 'modelo-clientes' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div data-pdf-exclude="true">
+            <SectionCard>
+              <ModeloSelect label="Modelo" value={modeloMC} onChange={setModeloMC} modelos={modeloOptions} />
+              {loadingModelos && (
+                <div style={{ marginTop: 10, fontSize: 12, color: '#6b6560' }}>Carregando modelos...</div>
+              )}
+            </SectionCard>
+          </div>
+
+          <DynamicHeader
+            processo={processoFiltro}
+            tipoSafra={tipoSafraLabel}
+            safra={benchmarkSafra}
+            extraFields={[{ label: 'Modelo', value: modeloMC || '—' }]}
+          />
+
+          {modeloMC && (
+            <SectionCard
+              title="Desempenho por Cliente"
+              subtitle={modeloMC}
+              footnote="Referência cinza = média do grupo porteira na safra selecionada. Barras verdes = valor por cliente."
+            >
+              <StateMsg
+                loading={loadingMC || loadingModelos}
+                empty={!loadingMC && !loadingModelos && porCliente.length === 0}
+                emptyText="Nenhum dado encontrado para este modelo nos filtros selecionados."
+              />
+              {!loadingMC && !loadingModelos && porCliente.length > 0 && grupoValMC && (
+                <div>
+                  {orderedConfig.map(cfg => (
+                    <ModeloClienteBar
+                      key={cfg.key}
+                      cfg={cfg}
+                      grupoVal={grupoValMC[cfg.key] ?? 0}
+                      clientes={porCliente.map(c => ({ cliente: c.cliente, valor: c[cfg.key] ?? 0 }))}
+                    />
+                  ))}
+                </div>
+              )}
+            </SectionCard>
+          )}
+        </div>
+      )}
+
       <MetricSelectorFAB config={METRICAS_CONFIG} selected={new Set(selectedMetrics)} onToggle={toggleMetric} />
     </div>
   )
