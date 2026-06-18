@@ -58,7 +58,7 @@ const PAGE_VISIBLE_FILTERS = {
     showGroupAvg: false, metricFilter: false, excludedMotivos: false,
   },
   'base-dados': {
-    cliente: false, propriedade: false, processo: false, cultura: false,
+    cliente: true, propriedade: false, processo: true, cultura: true,
     showGroupAvg: false, metricFilter: false, excludedMotivos: false,
   },
 }
