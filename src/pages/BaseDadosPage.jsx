@@ -91,6 +91,10 @@ const STOP_COLS = [
 
 const PAGE_SIZE = 100
 
+// Lookup rápido key → tipo para aplicar lógica correta de filtro
+const COL_TYPE      = Object.fromEntries(ALL_COLS.map(c => [c.key, c.type]))
+const STOP_COL_TYPE = Object.fromEntries(STOP_COLS.map(c => [c.key, c.type]))
+
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
 async function fetchPaginated(query) {
@@ -122,6 +126,44 @@ function sortRows(arr, key, dir) {
     const cmp = av < bv ? -1 : av > bv ? 1 : 0
     return dir === 'asc' ? cmp : -cmp
   })
+}
+
+// Suporta ">5", ">=3.2", "<10", "<=10", "=5", "!=0" para colunas numéricas.
+// Retorna { op, val } ou null se não for uma expressão numérica válida.
+function parseNumFilter(str) {
+  const m = str.trim().match(/^(>=|<=|!=|>|<|=)\s*(-?\d*\.?\d+)$/)
+  if (!m) return null
+  return { op: m[1], val: parseFloat(m[2]) }
+}
+
+function applyColFilters(rows, colTypeMap, filters) {
+  let out = rows
+  for (const [key, rawVal] of Object.entries(filters)) {
+    if (!rawVal) continue
+    if (colTypeMap[key] === 'num') {
+      const parsed = parseNumFilter(rawVal)
+      if (parsed) {
+        const { op, val } = parsed
+        out = out.filter(r => {
+          const rv = r[key]
+          if (rv == null) return false
+          const n = Number(rv)
+          if (op === '>')  return n > val
+          if (op === '>=') return n >= val
+          if (op === '<')  return n < val
+          if (op === '<=') return n <= val
+          if (op === '=')  return n === val
+          if (op === '!=') return n !== val
+          return true
+        })
+        continue
+      }
+    }
+    // fallback: substring match (colunas str, e colunas num sem operador)
+    const lc = rawVal.toLowerCase()
+    out = out.filter(r => String(r[key] ?? '').toLowerCase().includes(lc))
+  }
+  return out
 }
 
 // ─── COMPONENTES ─────────────────────────────────────────────────────────────
@@ -215,22 +257,32 @@ function DataTable({ cols, rows, sortKey, sortDir, onSort, colFilters, onColFilt
               })}
             </tr>
             <tr>
-              {cols.map(col => (
-                <th key={col.key} style={{ background: '#f0ede8', padding: '4px 6px', borderRight: '1px solid #e0dbd4', borderBottom: '2px solid #e0dbd4' }}>
-                  <input
-                    type="text"
-                    value={colFilters[col.key] || ''}
-                    onChange={e => onColFilter(col.key, e.target.value)}
-                    placeholder="filtrar…"
-                    style={{
-                      width: '100%', boxSizing: 'border-box',
-                      padding: '3px 6px', fontSize: 11,
-                      border: '1px solid #d0cbc4', borderRadius: 3,
-                      background: '#fff', outline: 'none', fontFamily: 'inherit',
-                    }}
-                  />
-                </th>
-              ))}
+              {cols.map(col => {
+                const raw = colFilters[col.key] || ''
+                const isNum = col.type === 'num'
+                // sinaliza filtro numérico reconhecido com borda colorida
+                const numParsed = isNum && raw ? parseNumFilter(raw) : null
+                const borderColor = raw
+                  ? (isNum && !numParsed ? '#c8960c' : '#4a6741')
+                  : '#d0cbc4'
+                return (
+                  <th key={col.key} style={{ background: '#f0ede8', padding: '4px 6px', borderRight: '1px solid #e0dbd4', borderBottom: '2px solid #e0dbd4' }}>
+                    <input
+                      type="text"
+                      value={raw}
+                      onChange={e => onColFilter(col.key, e.target.value)}
+                      placeholder={isNum ? '>5  <10  =3' : 'filtrar…'}
+                      title={isNum ? 'Operadores: >  >=  <  <=  =  !=' : 'Texto parcial'}
+                      style={{
+                        width: '100%', boxSizing: 'border-box',
+                        padding: '3px 6px', fontSize: 11,
+                        border: `1px solid ${borderColor}`, borderRadius: 3,
+                        background: '#fff', outline: 'none', fontFamily: 'inherit',
+                      }}
+                    />
+                  </th>
+                )
+              })}
             </tr>
           </thead>
           <tbody>
@@ -360,12 +412,7 @@ export default function BaseDadosPage() {
   const opById = useMemo(() => new Map(rows.map(r => [r.id, r])), [rows])
 
   const displayed = useMemo(() => {
-    let out = rows
-    for (const [key, val] of Object.entries(colFilters)) {
-      if (!val) continue
-      const lc = val.toLowerCase()
-      out = out.filter(r => String(r[key] ?? '').toLowerCase().includes(lc))
-    }
+    const out = applyColFilters(rows, COL_TYPE, colFilters)
     return sortRows(out, sortKey, sortDir)
   }, [rows, colFilters, sortKey, sortDir])
 
@@ -396,12 +443,7 @@ export default function BaseDadosPage() {
   }, [stopRows, displayedIds, opById])
 
   const displayedStop = useMemo(() => {
-    let out = joinedStopRows
-    for (const [key, val] of Object.entries(stopColFilters)) {
-      if (!val) continue
-      const lc = val.toLowerCase()
-      out = out.filter(r => String(r[key] ?? '').toLowerCase().includes(lc))
-    }
+    const out = applyColFilters(joinedStopRows, STOP_COL_TYPE, stopColFilters)
     return sortRows(out, stopSortKey, stopSortDir)
   }, [joinedStopRows, stopColFilters, stopSortKey, stopSortDir])
 
