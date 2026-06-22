@@ -129,38 +129,64 @@ function sortRows(arr, key, dir) {
 }
 
 // Suporta ">5", ">=3.2", "<10", "<=10", "=5", "!=0" para colunas numéricas.
-// Retorna { op, val } ou null se não for uma expressão numérica válida.
+// Suporta "5..10" (intervalo — equivale a >=5 e <=10).
+// Suporta múltiplas condições separadas por espaço: ">5 <10".
+// Suporta "null"/"vazio" para ausência de valor e "!null"/"!vazio" para presença.
+// Retorna array de {op, val} | [{op:'null'}] | null se inválido.
 function parseNumFilter(str) {
-  const m = str.trim().match(/^(>=|<=|!=|>|<|=)\s*(-?\d*\.?\d+)$/)
-  if (!m) return null
-  return { op: m[1], val: parseFloat(m[2]) }
+  const s = str.trim()
+  if (!s) return null
+  if (s === 'null' || s === 'vazio')   return [{ op: 'null' }]
+  if (s === '!null' || s === '!vazio') return [{ op: '!null' }]
+  // intervalo: "5..10"
+  const rangeM = s.match(/^(-?\d*\.?\d+)\s*\.\.\s*(-?\d*\.?\d+)$/)
+  if (rangeM) return [{ op: '>=', val: parseFloat(rangeM[1]) }, { op: '<=', val: parseFloat(rangeM[2]) }]
+  // uma ou mais condições separadas por espaço
+  const parts = s.split(/\s+/).filter(Boolean)
+  const conds = []
+  for (const part of parts) {
+    const m = part.match(/^(>=|<=|!=|>|<|=)\s*(-?\d*\.?\d+)$/)
+    if (!m) return null
+    conds.push({ op: m[1], val: parseFloat(m[2]) })
+  }
+  return conds.length > 0 ? conds : null
+}
+
+function evalNumCond(raw, { op, val }) {
+  if (op === 'null')  return raw == null
+  if (op === '!null') return raw != null
+  if (raw == null) return false
+  const n = Number(raw)
+  if (op === '>')  return n > val
+  if (op === '>=') return n >= val
+  if (op === '<')  return n < val
+  if (op === '<=') return n <= val
+  if (op === '=')  return n === val
+  if (op === '!=') return n !== val
+  return true
 }
 
 function applyColFilters(rows, colTypeMap, filters) {
   let out = rows
   for (const [key, rawVal] of Object.entries(filters)) {
     if (!rawVal) continue
+    const s = rawVal.trim()
+    if (!s) continue
+
     if (colTypeMap[key] === 'num') {
-      const parsed = parseNumFilter(rawVal)
-      if (parsed) {
-        const { op, val } = parsed
-        out = out.filter(r => {
-          const rv = r[key]
-          if (rv == null) return false
-          const n = Number(rv)
-          if (op === '>')  return n > val
-          if (op === '>=') return n >= val
-          if (op === '<')  return n < val
-          if (op === '<=') return n <= val
-          if (op === '=')  return n === val
-          if (op === '!=') return n !== val
-          return true
-        })
+      const conds = parseNumFilter(s)
+      if (conds) {
+        out = out.filter(r => conds.every(c => evalNumCond(r[key], c)))
         continue
       }
     }
-    // fallback: substring match (colunas str, e colunas num sem operador)
-    const lc = rawVal.toLowerCase()
+
+    // null/vazio para colunas str
+    if (s === 'null' || s === 'vazio')   { out = out.filter(r => r[key] == null || r[key] === ''); continue }
+    if (s === '!null' || s === '!vazio') { out = out.filter(r => r[key] != null && r[key] !== ''); continue }
+
+    // fallback: substring match
+    const lc = s.toLowerCase()
     out = out.filter(r => String(r[key] ?? '').toLowerCase().includes(lc))
   }
   return out
@@ -260,26 +286,42 @@ function DataTable({ cols, rows, sortKey, sortDir, onSort, colFilters, onColFilt
               {cols.map(col => {
                 const raw = colFilters[col.key] || ''
                 const isNum = col.type === 'num'
-                // sinaliza filtro numérico reconhecido com borda colorida
                 const numParsed = isNum && raw ? parseNumFilter(raw) : null
                 const borderColor = raw
                   ? (isNum && !numParsed ? '#c8960c' : '#4a6741')
                   : '#d0cbc4'
+                const placeholder = isNum ? '>5  5..10  null' : 'filtrar…  null'
+                const titleTip = isNum
+                  ? 'Operadores: > >= < <= = !=  |  Intervalo: 5..10  |  Múltiplos: >5 <10  |  Nulo: null / !null'
+                  : 'Texto parcial — null / !null para vazio'
                 return (
                   <th key={col.key} style={{ background: '#f0ede8', padding: '4px 6px', borderRight: '1px solid #e0dbd4', borderBottom: '2px solid #e0dbd4' }}>
-                    <input
-                      type="text"
-                      value={raw}
-                      onChange={e => onColFilter(col.key, e.target.value)}
-                      placeholder={isNum ? '>5  <10  =3' : 'filtrar…'}
-                      title={isNum ? 'Operadores: >  >=  <  <=  =  !=' : 'Texto parcial'}
-                      style={{
-                        width: '100%', boxSizing: 'border-box',
-                        padding: '3px 6px', fontSize: 11,
-                        border: `1px solid ${borderColor}`, borderRadius: 3,
-                        background: '#fff', outline: 'none', fontFamily: 'inherit',
-                      }}
-                    />
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="text"
+                        value={raw}
+                        onChange={e => onColFilter(col.key, e.target.value)}
+                        placeholder={placeholder}
+                        title={titleTip}
+                        style={{
+                          width: '100%', boxSizing: 'border-box',
+                          padding: raw ? '3px 16px 3px 6px' : '3px 6px', fontSize: 11,
+                          border: `1px solid ${borderColor}`, borderRadius: 3,
+                          background: '#fff', outline: 'none', fontFamily: 'inherit',
+                        }}
+                      />
+                      {raw && (
+                        <button
+                          onClick={() => onColFilter(col.key, '')}
+                          title="Limpar"
+                          style={{
+                            position: 'absolute', right: 3, top: '50%', transform: 'translateY(-50%)',
+                            border: 'none', background: 'none', cursor: 'pointer',
+                            color: '#9e998f', padding: 0, fontSize: 12, lineHeight: 1,
+                          }}
+                        >×</button>
+                      )}
+                    </div>
                   </th>
                 )
               })}
@@ -525,6 +567,20 @@ export default function BaseDadosPage() {
               />
             )}
           </div>
+        )}
+
+        {/* Limpar filtros de coluna */}
+        {hasColFilter && (
+          <button
+            onClick={() => { setColFilters({}); setPage(0) }}
+            style={{
+              padding: '6px 12px', fontSize: 12, border: '1px solid #c8960c',
+              borderRadius: 4, background: '#fdf6e3', cursor: 'pointer',
+              fontFamily: 'inherit', color: '#7a5c00',
+            }}
+          >
+            Limpar filtros ({Object.values(colFilters).filter(Boolean).length})
+          </button>
         )}
 
         {/* Status */}
