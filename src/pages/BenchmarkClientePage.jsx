@@ -693,6 +693,75 @@ function MetricasTable({ metricas, zoneThresholds, activeConfig, onReorder }) {
   )
 }
 
+// ─── COMPARAÇÃO ENTRE SAFRAS ─────────────────────────────────────────────────
+
+function SafraCompareTable({ activeConfig, dataA, dataB, safraA, safraB }) {
+  const thStyle = {
+    background: '#2d4a2d', color: '#fff',
+    fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em',
+    padding: '6px 10px', fontWeight: 600, textAlign: 'left',
+  }
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={thStyle}>Métrica</th>
+            <th style={{ ...thStyle, textAlign: 'center', minWidth: 110 }}>{safraA}</th>
+            <th style={{ ...thStyle, textAlign: 'center', minWidth: 110 }}>{safraB}</th>
+            <th style={{ ...thStyle, textAlign: 'center', width: 80 }}>Δ%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {activeConfig.map((cfg, i) => {
+            const valA = dataA?.[cfg.key]
+            const valB = dataB?.[cfg.key]
+            const hasA = valA != null && valA > 0
+            const hasB = valB != null && valB > 0
+            const delta = (hasA && hasB) ? (valB / valA - 1) * 100 : null
+            const favorable = delta != null ? (cfg.higherIsBetter ? delta >= 0 : delta <= 0) : null
+            const deltaStr = delta != null
+              ? `${delta >= 0 ? '+' : '−'}${Math.abs(delta).toFixed(1)}%`
+              : '—'
+            return (
+              <tr key={cfg.key} style={{ background: i % 2 === 0 ? '#ffffff' : '#fafaf8' }}>
+                <td style={{ padding: '9px 10px' }}>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: '#4a3728' }}>{cfg.label}</div>
+                  <div style={{ fontSize: 8, color: '#6b6560', marginTop: 2 }}>{cfg.sub}</div>
+                </td>
+                <td style={{ padding: '9px 10px', textAlign: 'center' }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#4a3728' }}>
+                    {hasA ? cfg.fmt(valA) : '—'}
+                  </span>
+                </td>
+                <td style={{ padding: '9px 10px', textAlign: 'center' }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#4a3728' }}>
+                    {hasB ? cfg.fmt(valB) : '—'}
+                  </span>
+                </td>
+                <td style={{ padding: '9px 10px', textAlign: 'center' }}>
+                  {delta != null ? (
+                    <span style={{
+                      fontSize: 11, fontWeight: 600,
+                      color: favorable ? '#1e4d1e' : '#8b2020',
+                      background: favorable ? '#edf5ed' : '#fdf0f0',
+                      padding: '2px 6px', borderRadius: 3, whiteSpace: 'nowrap',
+                    }}>
+                      {deltaStr}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 11, color: '#6b6560' }}>—</span>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 // ─── PÁGINA ───────────────────────────────────────────────────────────────────
 
 export default function BenchmarkClientePage({ onTabChange }) {
@@ -722,6 +791,8 @@ export default function BenchmarkClientePage({ onTabChange }) {
   const cliente        = filters.clientes?.[0]    || ''
   const tipoSafra      = filters.tipos_safra?.[0] || ''
   const tipoSafraLabel = filters.tipos_safra.length > 1 ? `${filters.tipos_safra.length} culturas` : tipoSafra
+  const compareSafra     = filters.compareSafra || ''
+  const isComparisonMode = !!compareSafra
   // Colheita/Plantio são fixos por aba; Geral usa o processo do filtro global
   const processo = activeTab === 'geral' ? (filters.processos?.[0] || null) : TAB_PROCESSO[activeTab]
   // Aba "Geral" exclui Colheita e Plantio — cada um tem aba própria
@@ -745,14 +816,26 @@ export default function BenchmarkClientePage({ onTabChange }) {
     ...geralExclusion,
   }
 
+  const grupoBFilters = {
+    processo,
+    ...(tipoSafra && { tipo_safra: tipoSafra }),
+    safra: compareSafra,
+    ...geralExclusion,
+  }
+
   // Dados do cliente — desnecessário quando nenhum cliente está selecionado
   const { metricas: clienteMetricas, loading: loadingCliente, error: errorCliente } =
-    useClienteBenchmark(cliente ? benchFilters : {})
+    useClienteBenchmark(cliente && !isComparisonMode ? benchFilters : {})
 
   // Busca médias de todos os clientes — fonte única para grupo, bad e good.
   // Usar a mesma fonte garante que grupoVal sempre caia entre bad e good,
   // evitando inconsistências com o benchmark pré-computado (media_grupo_porteira).
   const { data: allClientesData, loading: loadingAllClientes } = useAllClientesBenchmark(grupoFilters)
+
+  // Safra B — apenas usado no modo de comparação
+  const { data: allClientsB, loading: loadingGB } = useAllClientesBenchmark(
+    isComparisonMode ? grupoBFilters : grupoFilters
+  )
 
   // Deriva grupo (média simples dos clientes), bad (pior) e good (melhor) da mesma fonte.
   // Itera sobre ALL_METRICAS_CONFIG para cobrir todas as métricas, mesmo as não selecionadas.
@@ -770,6 +853,17 @@ export default function BenchmarkClientePage({ onTabChange }) {
     return { grupoMetricas: grupoM, zoneThresholds: zones }
   }, [allClientesData])
 
+  // Médias do grupo para safra B (modo comparação)
+  const grupoMetricasB = useMemo(() => {
+    if (!isComparisonMode || !allClientsB || allClientsB.length === 0) return null
+    const m = {}
+    for (const cfg of ALL_METRICAS_CONFIG) {
+      const vals = allClientsB.map(r => r[cfg.key]).filter(v => v != null && v > 0)
+      if (vals.length > 0) m[cfg.key] = vals.reduce((s, v) => s + v, 0) / vals.length
+    }
+    return m
+  }, [isComparisonMode, allClientsB])
+
   // Mapa key → { clienteVal, grupoVal } para todas as métricas
   const metricas = useMemo(() => {
     const m = {}
@@ -784,8 +878,10 @@ export default function BenchmarkClientePage({ onTabChange }) {
 
   const activeConfig = selectedMetrics.map(key => ALL_METRICAS_CONFIG.find(m => m.key === key)).filter(Boolean)
 
-  const loading  = cliente ? (loadingCliente || loadingAllClientes) : loadingAllClientes
-  const semDados = !loading && cliente && !clienteMetricas
+  const loading  = isComparisonMode
+    ? (loadingAllClientes || loadingGB)
+    : (cliente ? (loadingCliente || loadingAllClientes) : loadingAllClientes)
+  const semDados = !loading && !isComparisonMode && cliente && !clienteMetricas
 
   const exportRef = useRef({})
   exportRef.current = {
@@ -817,7 +913,14 @@ export default function BenchmarkClientePage({ onTabChange }) {
           </div>
         )}
 
-        {queryFilters.dataInicio && (
+        {isComparisonMode && (
+          <div style={{ background: '#edf5ed', border: '1px solid #4a6741', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 11, color: '#1e4d1e' }}>
+            Comparação safra completa · {benchmarkSafra} vs {compareSafra}
+            {cliente ? ` · Cliente: ${cliente}` : ' · Média do grupo Porteira'}
+          </div>
+        )}
+
+        {!isComparisonMode && queryFilters.dataInicio && (
           <div style={{ background: '#f7f5f2', border: '1px solid #d4cfc9', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 11, color: '#6b6560' }}>
             Cliente: período selecionado no filtro · Grupo: safra {benchmarkSafra} completa
           </div>
@@ -829,8 +932,30 @@ export default function BenchmarkClientePage({ onTabChange }) {
           </div>
         )}
 
+        {/* Modo comparação entre safras */}
+        {!loading && isComparisonMode && (
+          <SectionCard
+            title="COMPARAÇÃO ENTRE SAFRAS"
+            subtitle={cliente ? `Cliente: ${cliente}` : 'Média do grupo Porteira'}
+          >
+            <SafraCompareTable
+              activeConfig={activeConfig}
+              dataA={cliente
+                ? (allClientesData?.find(r => r.cliente === cliente) ?? null)
+                : grupoMetricas
+              }
+              dataB={cliente
+                ? (allClientsB?.find(r => r.cliente === cliente) ?? null)
+                : grupoMetricasB
+              }
+              safraA={benchmarkSafra}
+              safraB={compareSafra}
+            />
+          </SectionCard>
+        )}
+
         {/* Nenhum cliente selecionado: exibe médias do grupo sem comparação */}
-        {!loading && !cliente && (
+        {!loading && !isComparisonMode && !cliente && (
           <SectionCard title="MÉDIAS DO GRUPO PORTEIRA">
             {grupoMetricas
               ? <GrupoOnlyTable grupoMetricas={grupoMetricas} activeConfig={activeConfig} />
@@ -849,7 +974,7 @@ export default function BenchmarkClientePage({ onTabChange }) {
         )}
 
         {/* Comparação cliente vs. grupo */}
-        {!loading && cliente && clienteMetricas && (
+        {!loading && !isComparisonMode && cliente && clienteMetricas && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <SectionCard
               title="MÉTRICAS COMPARÁVEIS — CLIENTE VS. GRUPO PORTEIRA"

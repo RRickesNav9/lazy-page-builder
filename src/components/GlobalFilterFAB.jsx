@@ -228,6 +228,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
     if (show('metricFilter') && filters.modelos?.length)     c++
     if (show('metricFilter') && filters.implementos?.length) c++
     if (solinftecOnly && filters.referenciaSafra)            c++
+    if (solinftecOnly && filters.compareSafra)               c++
     return c
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, visibleFilters, solinftecOnly])
@@ -697,11 +698,26 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                       <div style={{ flexBasis: 200, flexGrow: 1, minWidth: 180 }}>
                         <Label>Safra de referência</Label>
                         <p style={{ fontSize: 11, color: '#6b6560', margin: '4px 0 8px' }}>
-                          Padrão: safra do período ativo.
+                          Padrão: safra completa mais recente (jun–jul usa safra anterior).
                         </p>
                         <select value={pending.referenciaSafra ?? ''} onChange={e => set('referenciaSafra', e.target.value)}
                           style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, color: '#1a1a1a', background: '#fff', fontFamily: 'inherit' }}>
                           <option value="">Automático (safra do período)</option>
+                          {safras.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Safra para comparar */}
+                    {solinftecOnly && safras.length > 0 && (
+                      <div style={{ flexBasis: 200, flexGrow: 1, minWidth: 180 }}>
+                        <Label>Safra para comparar</Label>
+                        <p style={{ fontSize: 11, color: '#6b6560', margin: '4px 0 8px' }}>
+                          Ativa a comparação safra a safra no Benchmark Cliente.
+                        </p>
+                        <select value={pending.compareSafra ?? ''} onChange={e => set('compareSafra', e.target.value)}
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #d4cfc9', borderRadius: 6, fontSize: 13, color: '#1a1a1a', background: '#fff', fontFamily: 'inherit' }}>
+                          <option value="">Desativado</option>
                           {safras.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </div>
