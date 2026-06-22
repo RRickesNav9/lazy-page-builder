@@ -612,7 +612,7 @@ function ModeloMetricBar({ cfg, valA, valB, labelA, labelB, statsA, statsB }) {
   const maxVal = Math.max(...allVals, 0.001)
 
   return (
-    <div style={{ marginBottom: 18 }}>
+    <div style={{ marginBottom: 18, breakInside: 'avoid', pageBreakInside: 'avoid' }}>
       <div style={{ fontSize: 10, fontWeight: 600, color: '#4a3728', marginBottom: 5 }}>
         {cfg.label}
         <span style={{ fontWeight: 400, color: '#6b6560' }}> · {cfg.unit}</span>
