@@ -101,8 +101,9 @@ body {
   }
 
   /* ── Evitar quebra de página dentro de blocos ────────────────────────────── */
-  table, tr, td, th,
-  .rounded-xl, [style*="border-radius"] {
+  /* Apenas tabelas — seletor [style*="border-radius"] é amplo demais e causa
+     página em branco ao forçar SectionCards altos para a próxima página. */
+  table, tr, td, th {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }

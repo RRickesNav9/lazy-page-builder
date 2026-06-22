@@ -503,6 +503,7 @@ function DynamicHeader({ processo, tipoSafra, safra, extraFields = [] }) {
       background: '#2d4a2d', borderRadius: 8,
       padding: '14px 20px', marginBottom: 20,
       display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
+      breakAfter: 'avoid', pageBreakAfter: 'avoid',
     }}>
       <div style={fieldStyle}>
         <span style={labelStyle}>Processo</span>
