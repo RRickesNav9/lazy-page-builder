@@ -612,7 +612,7 @@ function ModeloMetricBar({ cfg, valA, valB, labelA, labelB, statsA, statsB }) {
   const maxVal = Math.max(...allVals, 0.001)
 
   return (
-    <div style={{ marginBottom: 18, breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+    <div style={{ marginBottom: 12, breakInside: 'avoid', pageBreakInside: 'avoid' }}>
       <div style={{ fontSize: 10, fontWeight: 600, color: '#4a3728', marginBottom: 5 }}>
         {cfg.label}
         <span style={{ fontWeight: 400, color: '#6b6560' }}> · {cfg.unit}</span>
@@ -624,7 +624,7 @@ function ModeloMetricBar({ cfg, valA, valB, labelA, labelB, statsA, statsB }) {
         const minPct = stats?.min ? (stats.min / maxVal) * 100 : null
         const maxPct = stats?.max ? (stats.max / maxVal) * 100 : null
         return (
-          <div key={label} style={{ marginBottom: 6 }}>
+          <div key={label} style={{ marginBottom: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{
                 width: 110, fontSize: 8, color: '#6b6560', textAlign: 'right',
