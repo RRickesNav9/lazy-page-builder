@@ -51,7 +51,7 @@ const PAGE_VISIBLE_FILTERS = {
   },
   'bench-equip': {
     cliente: false, propriedade: false, processo: true, cultura: true,
-    showGroupAvg: false, metricFilter: false, excludedMotivos: false,
+    showGroupAvg: false, metricFilter: false, excludedMotivos: false, periodo: false,
   },
   'bench-jd': {
     cliente: true, propriedade: false, processo: false, cultura: true,

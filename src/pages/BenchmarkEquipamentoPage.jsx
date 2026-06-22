@@ -514,11 +514,13 @@ function DynamicHeader({ processo, tipoSafra, safra, extraFields = [] }) {
         <span style={labelStyle}>Cultura</span>
         <span style={valueStyle}>{tipoSafra || 'Todas'}</span>
       </div>
-      <div style={divStyle} />
-      <div style={fieldStyle}>
-        <span style={labelStyle}>Safra</span>
-        <span style={valueStyle}>{safra || '—'}</span>
-      </div>
+      {safra !== undefined && <>
+        <div style={divStyle} />
+        <div style={fieldStyle}>
+          <span style={labelStyle}>Safra</span>
+          <span style={valueStyle}>{safra || '—'}</span>
+        </div>
+      </>}
       {extraFields.flatMap(f => [
         <div key={`div-${f.label}`} style={divStyle} />,
         <div key={f.label} style={fieldStyle}>
@@ -1064,16 +1066,21 @@ export default function BenchmarkEquipamentoPage() {
           {(() => {
             const labelA = m3A.modelo ? `${m3A.modelo}${m3A.cliente !== 'grupo' ? ` — ${m3A.cliente}` : ' — Grupo'}` : '—'
             const labelB = m3B.modelo ? `${m3B.modelo}${m3B.cliente !== 'grupo' ? ` — ${m3B.cliente}` : ' — Grupo'}` : '—'
+            const safraLabelA = m3A.periodoMode === 'safra'
+              ? (m3A.safra || benchmarkSafra)
+              : (m3A.dataInicio || m3A.dataFim ? `${m3A.dataInicio} → ${m3A.dataFim}` : benchmarkSafra)
+            const safraLabelB = m3B.periodoMode === 'safra'
+              ? (m3B.safra || benchmarkSafra)
+              : (m3B.dataInicio || m3B.dataFim ? `${m3B.dataInicio} → ${m3B.dataFim}` : benchmarkSafra)
             const loadingTab3 = loadingModelos || loadingClienteA || loadingClienteB
             return (
               <>
                 <DynamicHeader
                   processo={processoFiltro}
                   tipoSafra={tipoSafraLabel}
-                  safra={benchmarkSafra}
                   extraFields={[
-                    { label: 'Modelo A', value: labelA },
-                    { label: 'Modelo B', value: labelB },
+                    { label: 'Modelo A', value: m3A.modelo ? `${labelA} · ${safraLabelA}` : '—' },
+                    { label: 'Modelo B', value: m3B.modelo ? `${labelB} · ${safraLabelB}` : '—' },
                   ]}
                 />
 

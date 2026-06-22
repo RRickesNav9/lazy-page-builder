@@ -216,7 +216,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
 
   const pageActiveCount = useMemo(() => {
     let c = 0
-    if (filters.periodo !== '7dias') c++
+    if (show('periodo') && filters.periodo !== '7dias') c++
     if (show('cliente')         && filters.clientes.length)        c++
     if (show('propriedade')     && filters.propriedades.length)    c++
     if (show('processo')        && filters.processos.length)       c++
@@ -427,6 +427,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
             }}>
 
               {/* Período — 2 colunas */}
+              {show('periodo') && (
               <div style={{ gridColumn: 'span 2' }}>
                 <Label>Período</Label>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -454,6 +455,7 @@ export default function GlobalFilterFAB({ allowedProcessos = null, excludedProce
                   </div>
                 )}
               </div>
+              )}
 
               {/* ── Dimensões cascateadas ─────────────────────────────────── */}
               {show('cliente') && (
