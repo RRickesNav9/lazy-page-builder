@@ -717,25 +717,26 @@ const MC_SELECT = [
   'tempo_motor_ligado_h', 'tempo_parada_h',
 ].join(',')
 
-export function useModeloMetricasCliente({ modelo_equipamento, cliente, safra, processo, tipo_safra } = {}) {
+export function useModeloMetricasCliente({ modelo_equipamento, cliente, safra, dataInicio, dataFim, processo, tipo_safra } = {}) {
   const [metricas, setMetricas] = useState(null)
   const [loading, setLoading]   = useState(false)
 
   useEffect(() => {
-    if (!modelo_equipamento || !cliente || !safra) { setMetricas(null); return }
+    const hasRange = !!(safra || (dataInicio && dataFim))
+    if (!modelo_equipamento || !hasRange) { setMetricas(null); return }
     setLoading(true)
     async function run() {
       try {
-        const { dataInicio, dataFim } = safraToDateRange(safra)
+        const range = safra ? safraToDateRange(safra) : { dataInicio, dataFim }
         let query = supabase
           .from('dashboard_operational_view')
           .select(MC_SELECT)
           .eq('modelo_equipamento', modelo_equipamento)
-          .eq('cliente', cliente)
           .neq('data_provider_id', JD_ID)
           .gt('consumo_medio_lh', 0)
-          .gte('data', dataInicio)
-          .lte('data', dataFim)
+          .gte('data', range.dataInicio)
+          .lte('data', range.dataFim)
+        if (cliente)    query = query.eq('cliente',    cliente)
         if (processo)   query = query.eq('processo',   processo)
         if (tipo_safra) query = query.eq('tipo_safra', tipo_safra)
 
@@ -748,7 +749,8 @@ export function useModeloMetricasCliente({ modelo_equipamento, cliente, safra, p
       }
     }
     run()
-  }, [modelo_equipamento, cliente, safra, processo, tipo_safra])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelo_equipamento, cliente, safra, dataInicio, dataFim, processo, tipo_safra])
 
   return { metricas, loading }
 }

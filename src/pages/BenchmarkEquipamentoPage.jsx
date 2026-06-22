@@ -7,7 +7,7 @@ import { useFilters } from '../lib/FilterContext'
 import {
   useEquipamentoInterativo, useEquipamentoComparativo,
   useMaquinaMetricas, computeWeightedAvg,
-  useAllEquipamentos, useModeloStats, useModeloMetricasCliente,
+  useAllEquipamentos, useModeloStats, useModeloMetricasCliente, useFilterOptions,
 } from '../hooks/useData'
 import MetricSelectorFAB from '../components/MetricSelectorFAB'
 import { exportBenchmarkEquip } from '../lib/export'
@@ -550,6 +550,56 @@ function ClienteSelect({ label, value, onChange, clientes }) {
   )
 }
 
+// Seletor de período por lado no Tab 3 — modo "Safra" ou "Período personalizado"
+function PeriodoModeloSelect({ value, onChange, safraOptions, defaultSafraLabel }) {
+  const { periodoMode, safra, dataInicio, dataFim } = value
+  const modeBtn = (m, text) => (
+    <button
+      key={m}
+      onClick={() => onChange({ ...value, periodoMode: m })}
+      style={{
+        padding: '3px 10px', fontSize: 11, borderRadius: 3, cursor: 'pointer',
+        border: '1px solid #e0dbd4',
+        background: periodoMode === m ? '#2d4a2d' : '#f7f5f2',
+        color: periodoMode === m ? '#fff' : '#6b6560',
+        fontWeight: periodoMode === m ? 600 : 400,
+      }}
+    >
+      {text}
+    </button>
+  )
+  return (
+    <div>
+      <FieldLabel>Período</FieldLabel>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+        {modeBtn('safra', 'Safra')}
+        {modeBtn('periodo', 'Personalizado')}
+      </div>
+      {periodoMode === 'safra' ? (
+        <select
+          value={safra}
+          onChange={e => onChange({ ...value, safra: e.target.value })}
+          style={{
+            width: '100%', padding: '6px 8px', boxSizing: 'border-box',
+            fontSize: 12, color: '#1a1a1a', background: '#fff',
+            border: '1px solid #e0dbd4', borderRadius: 4, outline: 'none', cursor: 'pointer',
+          }}
+        >
+          <option value="">Padrão ({defaultSafraLabel})</option>
+          {safraOptions.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      ) : (
+        <DateRangeInputs
+          inicio={dataInicio}
+          fim={dataFim}
+          onInicio={v => onChange({ ...value, dataInicio: v })}
+          onFim={v => onChange({ ...value, dataFim: v })}
+        />
+      )}
+    </div>
+  )
+}
+
 // ─── TAB 3: SELETOR DE MÉTRICAS + BARRAS MODELO VS MODELO ────────────────────
 
 
@@ -618,10 +668,8 @@ export default function BenchmarkEquipamentoPage() {
   const [tab1Cod, setTab1Cod]     = useState('')
   const [sideA, setSideA]         = useState({ cod: '', dataInicio: '', dataFim: '' })
   const [sideB, setSideB]         = useState({ cod: '', dataInicio: '', dataFim: '' })
-  const [modeloA, setModeloA]     = useState('')
-  const [modeloB, setModeloB]     = useState('')
-  const [clienteA, setClienteA]   = useState('grupo')
-  const [clienteB, setClienteB]   = useState('grupo')
+  const [m3A, setM3A] = useState({ modelo: '', cliente: 'grupo', periodoMode: 'safra', safra: '', dataInicio: '', dataFim: '' })
+  const [m3B, setM3B] = useState({ modelo: '', cliente: 'grupo', periodoMode: 'safra', safra: '', dataInicio: '', dataFim: '' })
   const [selectedMetrics, setSelectedMetrics] = useState([...DEFAULT_SELECTED_METRICS])
 
   // O filtro global já garante que processo é Colheita ou Plantio nesta página (via App.jsx + cascade do FAB).
@@ -724,6 +772,8 @@ export default function BenchmarkEquipamentoPage() {
 
   // ── Tab 3: Modelo vs. Modelo ───────────────────────────────────────────────
 
+  const { safras: safraOptions } = useFilterOptions()
+
   const modeloOptions = useMemo(
     () => [...new Set(allModelosData.map(r => r.modelo_equipamento).filter(Boolean))].sort(),
     [allModelosData]
@@ -735,48 +785,49 @@ export default function BenchmarkEquipamentoPage() {
     [equipamentos]
   )
 
-  const tab3Params = {
-    safra: benchmarkSafra,
-    ...(processoFiltro           && { processo:    processoFiltro }),
-    ...(filters.tipos_safra?.[0] && { tipo_safra:  filters.tipos_safra?.[0] }),
+  // Monta os parâmetros de filtro por lado — safra ou intervalo customizado
+  const m3ParamsA = {
+    modelo_equipamento: m3A.modelo || undefined,
+    cliente: m3A.cliente !== 'grupo' ? m3A.cliente : undefined,
+    ...(m3A.periodoMode === 'safra'
+      ? { safra: m3A.safra || benchmarkSafra }
+      : { dataInicio: m3A.dataInicio, dataFim: m3A.dataFim }
+    ),
+    ...(processoFiltro           && { processo:   processoFiltro }),
+    ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
+  }
+  const m3ParamsB = {
+    modelo_equipamento: m3B.modelo || undefined,
+    cliente: m3B.cliente !== 'grupo' ? m3B.cliente : undefined,
+    ...(m3B.periodoMode === 'safra'
+      ? { safra: m3B.safra || benchmarkSafra }
+      : { dataInicio: m3B.dataInicio, dataFim: m3B.dataFim }
+    ),
+    ...(processoFiltro           && { processo:   processoFiltro }),
+    ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
   }
 
-  // Quando cliente específico selecionado, busca média ponderada do modelo filtrada por cliente
-  const { metricas: metricasClienteA, loading: loadingClienteA } = useModeloMetricasCliente({
-    modelo_equipamento: modeloA || undefined,
-    cliente: clienteA !== 'grupo' ? clienteA : undefined,
-    ...tab3Params,
-  })
-  const { metricas: metricasClienteB, loading: loadingClienteB } = useModeloMetricasCliente({
-    modelo_equipamento: modeloB || undefined,
-    cliente: clienteB !== 'grupo' ? clienteB : undefined,
-    ...tab3Params,
-  })
+  const { metricas: metricasClienteA, loading: loadingClienteA } = useModeloMetricasCliente(m3ParamsA)
+  const { metricas: metricasClienteB, loading: loadingClienteB } = useModeloMetricasCliente(m3ParamsB)
 
-  const modeloNormA = useMemo(() => {
-    if (clienteA !== 'grupo') return normalizarModeloRow(metricasClienteA)
-    return normalizarModeloRow(allModelosData.find(r => r.modelo_equipamento === modeloA) ?? null)
-  }, [allModelosData, modeloA, clienteA, metricasClienteA])
-
-  const modeloNormB = useMemo(() => {
-    if (clienteB !== 'grupo') return normalizarModeloRow(metricasClienteB)
-    return normalizarModeloRow(allModelosData.find(r => r.modelo_equipamento === modeloB) ?? null)
-  }, [allModelosData, modeloB, clienteB, metricasClienteB])
+  const modeloNormA = useMemo(() => normalizarModeloRow(metricasClienteA), [metricasClienteA])
+  const modeloNormB = useMemo(() => normalizarModeloRow(metricasClienteB), [metricasClienteB])
 
   const modeloStatsFilters = {
     ...(processoFiltro && { processo: processoFiltro }),
     ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
-    safra: benchmarkSafra,
   }
   const { stats: statsA } = useModeloStats({
     ...modeloStatsFilters,
-    ...(modeloA && { modelo_equipamento: modeloA }),
-    ...(clienteA !== 'grupo' && { cliente: clienteA }),
+    safra: m3A.periodoMode === 'safra' ? (m3A.safra || benchmarkSafra) : benchmarkSafra,
+    ...(m3A.modelo && { modelo_equipamento: m3A.modelo }),
+    ...(m3A.cliente !== 'grupo' && { cliente: m3A.cliente }),
   })
   const { stats: statsB } = useModeloStats({
     ...modeloStatsFilters,
-    ...(modeloB && { modelo_equipamento: modeloB }),
-    ...(clienteB !== 'grupo' && { cliente: clienteB }),
+    safra: m3B.periodoMode === 'safra' ? (m3B.safra || benchmarkSafra) : benchmarkSafra,
+    ...(m3B.modelo && { modelo_equipamento: m3B.modelo }),
+    ...(m3B.cliente !== 'grupo' && { cliente: m3B.cliente }),
   })
 
   const exportRef = useRef({})
@@ -966,27 +1017,26 @@ export default function BenchmarkEquipamentoPage() {
       {/* ── TAB 3: MODELO VS. MODELO ────────────────────────────────────────── */}
       {activeTab === 'modelo-modelo' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div data-pdf-exclude="true">
-            <SectionCard>
+          <div data-pdf-exclude="true" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <SectionCard title="Modelo A">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', gap: 16 }}>
-                  <ModeloSelect label="Modelo A" value={modeloA} onChange={setModeloA} modelos={modeloOptions} />
-                  <ModeloSelect label="Modelo B" value={modeloB} onChange={setModeloB} modelos={modeloOptions} />
-                </div>
-                <div style={{ display: 'flex', gap: 16 }}>
-                  <ClienteSelect label="Cliente A" value={clienteA} onChange={setClienteA} clientes={clienteOptions} />
-                  <ClienteSelect label="Cliente B" value={clienteB} onChange={setClienteB} clientes={clienteOptions} />
-                </div>
+                <ModeloSelect label="Modelo" value={m3A.modelo} onChange={modelo => setM3A(p => ({ ...p, modelo }))} modelos={modeloOptions} />
+                <ClienteSelect label="Cliente" value={m3A.cliente} onChange={cliente => setM3A(p => ({ ...p, cliente }))} clientes={clienteOptions} />
+                <PeriodoModeloSelect value={m3A} onChange={setM3A} safraOptions={safraOptions} defaultSafraLabel={benchmarkSafra} />
               </div>
-              {loadingModelos && (
-                <div style={{ marginTop: 10, fontSize: 12, color: '#6b6560' }}>Carregando modelos...</div>
-              )}
+            </SectionCard>
+            <SectionCard title="Modelo B">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <ModeloSelect label="Modelo" value={m3B.modelo} onChange={modelo => setM3B(p => ({ ...p, modelo }))} modelos={modeloOptions} />
+                <ClienteSelect label="Cliente" value={m3B.cliente} onChange={cliente => setM3B(p => ({ ...p, cliente }))} clientes={clienteOptions} />
+                <PeriodoModeloSelect value={m3B} onChange={setM3B} safraOptions={safraOptions} defaultSafraLabel={benchmarkSafra} />
+              </div>
             </SectionCard>
           </div>
 
           {(() => {
-            const labelA = modeloA ? `${modeloA}${clienteA !== 'grupo' ? ` — ${clienteA}` : ' — Grupo'}` : '—'
-            const labelB = modeloB ? `${modeloB}${clienteB !== 'grupo' ? ` — ${clienteB}` : ' — Grupo'}` : '—'
+            const labelA = m3A.modelo ? `${m3A.modelo}${m3A.cliente !== 'grupo' ? ` — ${m3A.cliente}` : ' — Grupo'}` : '—'
+            const labelB = m3B.modelo ? `${m3B.modelo}${m3B.cliente !== 'grupo' ? ` — ${m3B.cliente}` : ' — Grupo'}` : '—'
             const loadingTab3 = loadingModelos || loadingClienteA || loadingClienteB
             return (
               <>
@@ -1000,7 +1050,7 @@ export default function BenchmarkEquipamentoPage() {
                   ]}
                 />
 
-                {(modeloA || modeloB) && (
+                {(m3A.modelo || m3B.modelo) && (
                   <SectionCard
                     title="Comparativo de Modelos"
                     subtitle={`${labelA} vs. ${labelB}`}
