@@ -727,13 +727,13 @@ export default function BenchmarkEquipamentoPage() {
   // ── Tab 1: Máquina vs. Modelo ──────────────────────────────────────────────
 
   const maqInfo1 = equipamentos.find(e => e.equipamento_cod === tab1Cod)
+  // Tab 1 é sempre safra-scoped — dataInicio/dataFim do período global conflitam quando referenciaSafra é uma safra passada.
+  // Quando 'historico' sem referenciaSafra explícita, remove safra para mostrar dados históricos completos.
   const { metricas: maqMetricas, loading: loadingMaq } = useMaquinaMetricas({
     ...(tab1Cod && { equipamento_cod: tab1Cod }),
     ...(processoFiltro && { processo: processoFiltro }),
     ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
-    safra: benchmarkSafra,
-    ...(queryFilters.dataInicio && { dataInicio: queryFilters.dataInicio }),
-    ...(queryFilters.dataFim    && { dataFim:    queryFilters.dataFim    }),
+    ...((filters.referenciaSafra || filters.periodo !== 'historico') && { safra: benchmarkSafra }),
   })
   const modeloNorm1 = useMemo(
     () => normalizarModeloRow(allModelosData.find(r => r.modelo_equipamento === maqInfo1?.modelo) ?? null),

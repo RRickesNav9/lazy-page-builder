@@ -564,19 +564,23 @@ export default function BenchmarkJohnDeerePage() {
   const tipoSafra      = filters.tipos_safra?.[0] || ''
   const tipoSafraLabel = filters.tipos_safra.length > 1 ? `${filters.tipos_safra.length} culturas` : tipoSafra
 
+  // Quando 'historico' ou referenciaSafra vazou de outra aba, evita conflito entre safra e datas do período.
+  const hasExplicitSafra = !!filters.referenciaSafra
+  const useSafraJD = hasExplicitSafra || filters.periodo !== 'historico'
+
   const benchFilters = {
     ...(cliente   && { cliente }),
     processo,
     ...(tipoSafra && { tipo_safra: tipoSafra }),
-    safra: benchmarkSafra,
-    ...(queryFilters.dataInicio && { dataInicio: queryFilters.dataInicio }),
-    ...(queryFilters.dataFim    && { dataFim:    queryFilters.dataFim    }),
+    ...(useSafraJD && { safra: benchmarkSafra }),
+    ...(!hasExplicitSafra && useSafraJD && queryFilters.dataInicio && { dataInicio: queryFilters.dataInicio }),
+    ...(!hasExplicitSafra && useSafraJD && queryFilters.dataFim    && { dataFim:    queryFilters.dataFim    }),
   }
 
   const grupoFilters = {
     processo,
     ...(tipoSafra && { tipo_safra: tipoSafra }),
-    safra: benchmarkSafra,
+    ...(useSafraJD && { safra: benchmarkSafra }),
   }
 
   const { metricas: clienteMetricas, loading: loadingCliente, error: errorCliente } =
@@ -627,7 +631,7 @@ export default function BenchmarkJohnDeerePage() {
           <TabControl tabs={JD_TABS} active={activeTab} onChange={setActiveTab} />
         </div>
 
-        {queryFilters.dataInicio && (
+        {queryFilters.dataInicio && !hasExplicitSafra && useSafraJD && (
           <div style={{ background: '#f7f5f2', border: '1px solid #d4cfc9', borderRadius: 6, padding: '8px 14px', marginBottom: 18, fontSize: 11, color: '#6b6560' }}>
             Cliente: período selecionado no filtro · Grupo JD: safra {benchmarkSafra} completa
           </div>
