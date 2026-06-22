@@ -83,22 +83,24 @@ body {
   .no-print,
   [data-pdf-exclude="true"] { display: none !important; }
 
-  /* ── Remover deslocamento da sidebar + eliminar inflação de altura por flex ── */
-  .content-wrapper {
-    margin-left: 0 !important;
-    padding-right: 0 !important;
-    min-height: 0 !important;
-    display: block !important;
-  }
-  /* flex:1 no #pdf-content infla altura até 100vh — desativa em print */
+  /* ── Eliminar min-height em TODOS os divs ────────────────────────────────── */
+  /* O div raiz do AppInner e o .content-wrapper têm min-height:100vh que infla
+     a altura da página além do A4, forçando uma segunda página em branco. */
+  div { min-height: 0 !important; }
+
+  /* ── Remover deslocamento da sidebar ─────────────────────────────────────── */
+  .content-wrapper { margin-left: 0 !important; padding-right: 0 !important; }
+
+  /* ── flex:1 não deve inflar #pdf-content além do conteúdo real ───────────── */
   #pdf-content { flex: none !important; }
-  /* Reduz padding lateral da página para ganhar espaço vertical */
+
+  /* ── Reduz padding vertical da página ───────────────────────────────────── */
   #pdf-content > div { padding-top: 14px !important; padding-bottom: 8px !important; }
 
   /* ── Corpo ────────────────────────────────────────────────────────────────── */
   body {
     margin: 0;
-    padding: 0 0 4mm 0;
+    padding: 0;
     background: #fff !important;
     font-family: 'Inter', system-ui, sans-serif;
   }
@@ -110,8 +112,6 @@ body {
   }
 
   /* ── Evitar quebra de página dentro de blocos ────────────────────────────── */
-  /* Apenas tabelas — seletor [style*="border-radius"] é amplo demais e causa
-     página em branco ao forçar SectionCards altos para a próxima página. */
   table, tr, td, th {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
