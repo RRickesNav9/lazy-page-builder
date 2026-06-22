@@ -724,22 +724,37 @@ export default function BenchmarkEquipamentoPage() {
     filters.tipos_safra?.[0] || undefined,
   )
 
+  // Safra anterior para fallback de Tab 1: no início de uma safra nova, modelos ainda não têm
+  // registros com consumo_medio_lh > 0 suficientes — usa a safra passada como referência.
+  const prevSafra = useMemo(() => {
+    if (!benchmarkSafra) return null
+    const year = parseInt(benchmarkSafra.split('/')[0], 10)
+    return `${year - 1}/${year}`
+  }, [benchmarkSafra])
+
+  const { data: prevModelosData, loading: loadingPrevModelos } = useEquipamentoInterativo(
+    prevSafra,
+    processoFiltro || undefined,
+    filters.tipos_safra?.[0] || undefined,
+  )
+
   // ── Tab 1: Máquina vs. Modelo ──────────────────────────────────────────────
 
   const maqInfo1 = equipamentos.find(e => e.equipamento_cod === tab1Cod)
-  // Tab 1 é sempre safra-scoped — dataInicio/dataFim do período global conflitam quando referenciaSafra é uma safra passada.
-  // Quando 'historico' sem referenciaSafra explícita, remove safra para mostrar dados históricos completos.
+  // Tab 1 é sempre safra-scoped — o período global (inclusive 'historico') não se aplica aqui porque
+  // o benchmarkde modelo é intrinsecamente por safra. dataInicio/dataFim conflitariam com referenciaSafra passada.
   const { metricas: maqMetricas, loading: loadingMaq } = useMaquinaMetricas({
     ...(tab1Cod && { equipamento_cod: tab1Cod }),
     ...(processoFiltro && { processo: processoFiltro }),
     ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
-    ...((filters.referenciaSafra || filters.periodo !== 'historico') && { safra: benchmarkSafra }),
+    safra: benchmarkSafra,
   })
-  const modeloNorm1 = useMemo(
-    () => normalizarModeloRow(allModelosData.find(r => r.modelo_equipamento === maqInfo1?.modelo) ?? null),
-    [allModelosData, maqInfo1]
-  )
-  const loadingModelo1 = loadingModelos
+  const modeloNorm1 = useMemo(() => {
+    const fromCurrent = allModelosData.find(r => r.modelo_equipamento === maqInfo1?.modelo)
+    const fromPrev    = prevModelosData.find(r => r.modelo_equipamento === maqInfo1?.modelo)
+    return normalizarModeloRow(fromCurrent ?? fromPrev ?? null)
+  }, [allModelosData, prevModelosData, maqInfo1])
+  const loadingModelo1 = loadingModelos || loadingPrevModelos
 
   // ── Tab 2: Equipamento vs. Equipamento ────────────────────────────────────
 
