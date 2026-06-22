@@ -612,8 +612,8 @@ function ModeloMetricBar({ cfg, valA, valB, labelA, labelB, statsA, statsB }) {
   const maxVal = Math.max(...allVals, 0.001)
 
   return (
-    <div style={{ marginBottom: 12, breakInside: 'avoid', pageBreakInside: 'avoid' }}>
-      <div style={{ fontSize: 10, fontWeight: 600, color: '#4a3728', marginBottom: 5 }}>
+    <div style={{ marginBottom: 8, breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+      <div style={{ fontSize: 10, fontWeight: 600, color: '#4a3728', marginBottom: 4 }}>
         {cfg.label}
         <span style={{ fontWeight: 400, color: '#6b6560' }}> · {cfg.unit}</span>
       </div>
@@ -624,7 +624,7 @@ function ModeloMetricBar({ cfg, valA, valB, labelA, labelB, statsA, statsB }) {
         const minPct = stats?.min ? (stats.min / maxVal) * 100 : null
         const maxPct = stats?.max ? (stats.max / maxVal) * 100 : null
         return (
-          <div key={label} style={{ marginBottom: 4 }}>
+          <div key={label} style={{ marginBottom: 2 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{
                 width: 110, fontSize: 8, color: '#6b6560', textAlign: 'right',
@@ -633,7 +633,7 @@ function ModeloMetricBar({ cfg, valA, valB, labelA, labelB, statsA, statsB }) {
                 {label || '—'}
               </div>
               {/* Barra: range min-max em cinza claro + avg como barra sólida */}
-              <div style={{ flex: 1, height: 11, background: '#f0ede8', borderRadius: 2, position: 'relative', overflow: 'hidden' }}>
+              <div style={{ flex: 1, height: 9, background: '#f0ede8', borderRadius: 2, position: 'relative', overflow: 'hidden' }}>
                 {/* Range min→max */}
                 {minPct != null && maxPct != null && (
                   <div style={{
@@ -651,7 +651,7 @@ function ModeloMetricBar({ cfg, valA, valB, labelA, labelB, statsA, statsB }) {
             </div>
             {/* Linha min/max */}
             {stats && stats.n > 1 && (
-              <div style={{ marginLeft: 118, fontSize: 8, color: '#9a9490', marginTop: 1 }}>
+              <div style={{ marginLeft: 118, fontSize: 8, color: '#9a9490', marginTop: 0 }}>
                 {stats.n} máq. · mín {fmt(stats.min, cfg.d)} · máx {fmt(stats.max, cfg.d)}
               </div>
             )}

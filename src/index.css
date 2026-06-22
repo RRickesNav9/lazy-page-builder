@@ -83,8 +83,17 @@ body {
   .no-print,
   [data-pdf-exclude="true"] { display: none !important; }
 
-  /* ── Remover deslocamento da sidebar ─────────────────────────────────────── */
-  .content-wrapper { margin-left: 0 !important; padding-right: 0 !important; }
+  /* ── Remover deslocamento da sidebar + eliminar inflação de altura por flex ── */
+  .content-wrapper {
+    margin-left: 0 !important;
+    padding-right: 0 !important;
+    min-height: 0 !important;
+    display: block !important;
+  }
+  /* flex:1 no #pdf-content infla altura até 100vh — desativa em print */
+  #pdf-content { flex: none !important; }
+  /* Reduz padding lateral da página para ganhar espaço vertical */
+  #pdf-content > div { padding-top: 14px !important; padding-bottom: 8px !important; }
 
   /* ── Corpo ────────────────────────────────────────────────────────────────── */
   body {
