@@ -16,7 +16,6 @@ export const DEFAULT_FILTERS = {
   modelos: [],
   implementos: [],
   referenciaSafra: '',
-  compareSafra: '',
 }
 
 // Formata Date para YYYY-MM-DD usando data local — evita deslize de dia em BRT tarde da noite
@@ -49,6 +48,9 @@ export function dateRangeForPeriodo(periodo) {
     const month = end.getMonth() + 1
     const safraStart = month >= 6 ? `${year}-06-01` : `${year - 1}-06-01`
     return { dataInicio: safraStart, dataFim: localDateStr(end) }
+  }
+  if (periodo === 'historico') {
+    return { dataInicio: null, dataFim: null }
   }
   return { dataInicio: null, dataFim: null }
 }
@@ -108,17 +110,10 @@ export function FilterProvider({ children }) {
 
   // Safra usada como janela de referência para benchmarks e baseline de quebra.
   // Quando o usuário seleciona explicitamente uma safra, usa ela; caso contrário usa a safra do período ativo.
-  // Em junho e julho (primeiros 2 meses da nova safra), usa a safra anterior como padrão,
-  // pois a nova safra ainda tem poucos dados para benchmark significativo.
-  const benchmarkSafra = useMemo(() => {
-    if (filters.referenciaSafra) return filters.referenciaSafra
-    const dateStr = queryFilters.dataFim || new Date().toISOString().split('T')[0]
-    const d = new Date(dateStr + 'T12:00:00')
-    const month = d.getMonth() + 1
-    const year  = d.getFullYear()
-    if (month === 6 || month === 7) return `${year - 1}/${year}`
-    return currentSafra
-  }, [filters.referenciaSafra, currentSafra, queryFilters.dataFim])
+  const benchmarkSafra = useMemo(
+    () => filters.referenciaSafra || currentSafra,
+    [filters.referenciaSafra, currentSafra]
+  )
 
   const activeCount = useMemo(() => {
     let count = 0
@@ -135,7 +130,6 @@ export function FilterProvider({ children }) {
     if (filters.modelos?.length)     count++
     if (filters.implementos?.length) count++
     if (filters.referenciaSafra)     count++
-    if (filters.compareSafra)        count++
     return count
   }, [filters])
 
