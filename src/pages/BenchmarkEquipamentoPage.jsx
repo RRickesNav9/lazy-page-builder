@@ -160,7 +160,9 @@ function MaquinaSelect({ label, value, onChange, equipamentos }) {
   const [search, setSearch] = useState('')
   const inputRef = useRef(null)
 
-  const selected = equipamentos.find(e => e.equipamento_cod === value)
+  // valor é chave composta "equipamento_cod|||cliente" para evitar colisão entre clientes
+  const [selCod, selCliente] = (value || '').split('|||')
+  const selected = equipamentos.find(e => e.equipamento_cod === selCod && e.cliente === selCliente)
   const displayLabel = selected
     ? `${selected.equipamento_cod} · ${selected.equipamento}${selected.modelo ? ` — ${selected.modelo}` : ''}`
     : ''
@@ -240,9 +242,9 @@ function MaquinaSelect({ label, value, onChange, equipamentos }) {
               </div>
               {lista.map(e => (
                 <div
-                  key={e.equipamento_cod || e.equipamento}
+                  key={`${e.equipamento_cod}|||${e.cliente}`}
                   onMouseDown={ev => ev.preventDefault()}
-                  onClick={() => { onChange(e.equipamento_cod); setSearch(''); setOpen(false) }}
+                  onClick={() => { onChange(`${e.equipamento_cod}|||${e.cliente}`); setSearch(''); setOpen(false) }}
                   style={{
                     padding: '5px 10px 5px 16px', fontSize: 12, cursor: 'pointer',
                     color: e.equipamento_cod === value ? '#1e4d1e' : '#1a1a1a',
@@ -740,11 +742,14 @@ export default function BenchmarkEquipamentoPage() {
 
   // ── Tab 1: Máquina vs. Modelo ──────────────────────────────────────────────
 
-  const maqInfo1 = equipamentos.find(e => e.equipamento_cod === tab1Cod)
+  // tab1Cod é chave composta "equipamento_cod|||cliente" — separa máquinas de clientes diferentes com mesmo código
+  const [tab1EquipCod, tab1Cliente] = tab1Cod ? tab1Cod.split('|||') : [null, null]
+  const maqInfo1 = equipamentos.find(e => e.equipamento_cod === tab1EquipCod && e.cliente === tab1Cliente)
   // Tab 1 é sempre safra-scoped — o período global (inclusive 'historico') não se aplica aqui porque
-  // o benchmarkde modelo é intrinsecamente por safra. dataInicio/dataFim conflitariam com referenciaSafra passada.
+  // o benchmark de modelo é intrinsecamente por safra. dataInicio/dataFim conflitariam com referenciaSafra passada.
   const { metricas: maqMetricas, loading: loadingMaq } = useMaquinaMetricas({
-    ...(tab1Cod && { equipamento_cod: tab1Cod }),
+    ...(tab1EquipCod && { equipamento_cod: tab1EquipCod }),
+    ...(tab1Cliente  && { cliente: tab1Cliente }),
     ...(processoFiltro && { processo: processoFiltro }),
     ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
     safra: benchmarkSafra,
@@ -758,15 +763,21 @@ export default function BenchmarkEquipamentoPage() {
 
   // ── Tab 2: Equipamento vs. Equipamento ────────────────────────────────────
 
-  const tab2FiltersA = sideA.cod ? {
-    equipamento_cod: sideA.cod,
+  // sideA.cod e sideB.cod são chaves compostas "equipamento_cod|||cliente"
+  const [tab2CodA, tab2ClienteA] = sideA.cod ? sideA.cod.split('|||') : [null, null]
+  const [tab2CodB, tab2ClienteB] = sideB.cod ? sideB.cod.split('|||') : [null, null]
+
+  const tab2FiltersA = tab2CodA ? {
+    equipamento_cod: tab2CodA,
+    ...(tab2ClienteA  && { cliente: tab2ClienteA }),
     ...(processoFiltro && { processo: processoFiltro }),
     ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
     ...(sideA.dataInicio   && { dataInicio: sideA.dataInicio }),
     ...(sideA.dataFim      && { dataFim:    sideA.dataFim    }),
   } : {}
-  const tab2FiltersB = sideB.cod ? {
-    equipamento_cod: sideB.cod,
+  const tab2FiltersB = tab2CodB ? {
+    equipamento_cod: tab2CodB,
+    ...(tab2ClienteB  && { cliente: tab2ClienteB }),
     ...(processoFiltro && { processo: processoFiltro }),
     ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
     ...(sideB.dataInicio   && { dataInicio: sideB.dataInicio }),
@@ -776,8 +787,8 @@ export default function BenchmarkEquipamentoPage() {
   const metricasEquipA = useMemo(() => computeWeightedAvg(dataA), [dataA])
   const metricasEquipB = useMemo(() => computeWeightedAvg(dataB), [dataB])
 
-  const maqInfoA = equipamentos.find(e => e.equipamento_cod === sideA.cod)
-  const maqInfoB = equipamentos.find(e => e.equipamento_cod === sideB.cod)
+  const maqInfoA = equipamentos.find(e => e.equipamento_cod === tab2CodA && e.cliente === tab2ClienteA)
+  const maqInfoB = equipamentos.find(e => e.equipamento_cod === tab2CodB && e.cliente === tab2ClienteB)
   const labelEquipA = maqInfoA
     ? `${maqInfoA.equipamento_cod} — ${maqInfoA.equipamento}${sideA.dataInicio ? ' (' + sideA.dataInicio + ')' : ''}`
     : 'Equipamento A'
