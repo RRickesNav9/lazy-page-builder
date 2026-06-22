@@ -148,7 +148,7 @@ function TabControl({ tabs, active, onChange }) {
   )
 }
 
-function DynamicHeader({ cliente, processo, tipoSafra }) {
+function DynamicHeader({ cliente, processo, tipoSafra, safra }) {
   const fieldStyle  = { display: 'flex', flexDirection: 'column', gap: 2 }
   const labelStyle  = { fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.6)' }
   const valueStyle  = { fontSize: 14, fontWeight: 700, color: '#ffffff' }
@@ -180,6 +180,15 @@ function DynamicHeader({ cliente, processo, tipoSafra }) {
           <div style={fieldStyle}>
             <span style={labelStyle}>Tipo de cultura</span>
             <span style={valueStyle}>{tipoSafra}</span>
+          </div>
+        </>
+      )}
+      {safra && (
+        <>
+          <div style={dividerStyle} />
+          <div style={fieldStyle}>
+            <span style={labelStyle}>Safra</span>
+            <span style={valueStyle}>{safra}</span>
           </div>
         </>
       )}
@@ -625,7 +634,7 @@ export default function BenchmarkJohnDeerePage() {
   return (
     <>
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: '20px 24px' }}>
-        <DynamicHeader cliente={cliente} processo={processo} tipoSafra={tipoSafraLabel} />
+        <DynamicHeader cliente={cliente} processo={processo} tipoSafra={tipoSafraLabel} safra={benchmarkSafra} />
 
         <div data-pdf-exclude="true">
           <TabControl tabs={JD_TABS} active={activeTab} onChange={setActiveTab} />

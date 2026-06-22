@@ -757,10 +757,13 @@ export default function BenchmarkEquipamentoPage() {
     ...(filters.tipos_safra?.[0] && { tipo_safra: filters.tipos_safra?.[0] }),
     safra: benchmarkSafra,
   })
-  const modeloNorm1 = useMemo(() => {
+  const { modeloNorm1, modeloUsingPrevSafra } = useMemo(() => {
     const fromCurrent = allModelosData.find(r => r.modelo_equipamento === maqInfo1?.modelo)
     const fromPrev    = prevModelosData.find(r => r.modelo_equipamento === maqInfo1?.modelo)
-    return normalizarModeloRow(fromCurrent ?? fromPrev ?? null)
+    return {
+      modeloNorm1: normalizarModeloRow(fromCurrent ?? fromPrev ?? null),
+      modeloUsingPrevSafra: !fromCurrent && !!fromPrev,
+    }
   }, [allModelosData, prevModelosData, maqInfo1])
   const loadingModelo1 = loadingModelos || loadingPrevModelos
 
@@ -941,14 +944,21 @@ export default function BenchmarkEquipamentoPage() {
                   : 'Sem dados operacionais para os filtros selecionados.'}
               />
               {!loadingMaq && !loadingModelo1 && maqMetricas && modeloNorm1 && (
-                <CompareTable
-                  metricasA={maqMetricas}
-                  metricasB={modeloNorm1}
-                  labelA={maqInfo1 ? `${maqInfo1.equipamento_cod} — ${maqInfo1.equipamento}` : tab1Cod}
-                  labelB={maqInfo1?.modelo ? `${maqInfo1.modelo} — Porteira` : 'Média modelo'}
-                  config={orderedConfig}
-                  onReorder={handleReorder}
-                />
+                <>
+                  {modeloUsingPrevSafra && (
+                    <div style={{ background: '#fdf6e3', border: '1px solid #e8d48b', borderRadius: 6, padding: '8px 14px', marginBottom: 12, fontSize: 11, color: '#7a5c00' }}>
+                      Média do modelo baseada na safra anterior ({prevSafra}) — sem dados suficientes na safra atual.
+                    </div>
+                  )}
+                  <CompareTable
+                    metricasA={maqMetricas}
+                    metricasB={modeloNorm1}
+                    labelA={maqInfo1 ? `${maqInfo1.equipamento_cod} — ${maqInfo1.equipamento}` : tab1Cod}
+                    labelB={maqInfo1?.modelo ? `${maqInfo1.modelo} — Porteira` : 'Média modelo'}
+                    config={orderedConfig}
+                    onReorder={handleReorder}
+                  />
+                </>
               )}
             </SectionCard>
           )}
@@ -1003,10 +1013,9 @@ export default function BenchmarkEquipamentoPage() {
           <DynamicHeader
             processo={processoFiltro}
             tipoSafra={tipoSafraLabel}
-            safra={benchmarkSafra}
             extraFields={[
-              { label: 'Equip. A', value: maqInfoA ? `${maqInfoA.equipamento_cod} — ${maqInfoA.equipamento}` : '—' },
-              { label: 'Equip. B', value: maqInfoB ? `${maqInfoB.equipamento_cod} — ${maqInfoB.equipamento}` : '—' },
+              { label: 'Equip. A', value: maqInfoA ? `${maqInfoA.equipamento_cod} — ${maqInfoA.equipamento}${sideA.dataInicio || sideA.dataFim ? ` · ${sideA.dataInicio || '?'} → ${sideA.dataFim || '?'}` : ''}` : '—' },
+              { label: 'Equip. B', value: maqInfoB ? `${maqInfoB.equipamento_cod} — ${maqInfoB.equipamento}${sideB.dataInicio || sideB.dataFim ? ` · ${sideB.dataInicio || '?'} → ${sideB.dataFim || '?'}` : ''}` : '—' },
             ]}
           />
 

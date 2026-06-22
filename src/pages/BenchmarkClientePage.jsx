@@ -264,7 +264,7 @@ function TabControl({ tabs, active, onChange }) {
 }
 
 // Cabeçalho dinâmico com cliente, processo e tipo de cultura
-function DynamicHeader({ cliente, processo, tipoSafra }) {
+function DynamicHeader({ cliente, processo, tipoSafra, safra }) {
   const fieldStyle = {
     display: 'flex', flexDirection: 'column', gap: 2,
   }
@@ -299,6 +299,15 @@ function DynamicHeader({ cliente, processo, tipoSafra }) {
         <span style={labelStyle}>Tipo de cultura</span>
         <span style={valueStyle}>{tipoSafra || 'Todas'}</span>
       </div>
+      {safra && (
+        <>
+          <div style={dividerStyle} />
+          <div style={fieldStyle}>
+            <span style={labelStyle}>Safra</span>
+            <span style={valueStyle}>{safra}</span>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -810,6 +819,7 @@ export default function BenchmarkClientePage({ onTabChange }) {
           cliente={cliente}
           processo={processo}
           tipoSafra={tipoSafraLabel}
+          safra={benchmarkSafra}
         />
 
         <div data-pdf-exclude="true">
