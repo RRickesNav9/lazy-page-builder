@@ -267,6 +267,28 @@ function ColsDropdown({ visibleCols, setVisibleCols, onClose }) {
 
 // ─── FILTER WIDGETS ──────────────────────────────────────────────────────────
 
+const NUM_HINTS = {
+  '=':     '= igual\nex: =10',
+  '!=':    '≠ diferente de\nex: !=0',
+  '>':     '> maior que\nex: >5',
+  '>=':    '≥ maior ou igual a\nex: >=5',
+  '<':     '< menor que\nex: <100',
+  '<=':    '≤ menor ou igual a\nex: <=100',
+  'entre': '↔ entre dois valores\nPreencha De e Até',
+  'null':  '∅ apenas vazios (sem valor)',
+  '!null': '● apenas preenchidos',
+}
+
+const STR_HINTS = {
+  '~':     '~ contém (padrão)\nex: fazenda',
+  '!~':    '≁ não contém\nex: ltda',
+  '^':     '^ começa com\nex: Grupo',
+  '$':     '$ termina com\nex: SA',
+  '=':     '= igual exato\n(ignora maiúsculas)',
+  'null':  '∅ apenas vazios (sem texto)',
+  '!null': '● apenas preenchidos',
+}
+
 const NUM_OPS = [
   { v: '=',     l: '= igual' },
   { v: '!=',    l: '≠ diferente' },
@@ -361,14 +383,21 @@ function OpDropdown({ ops, selectedOp, rect, onSelect, onClose, ignoreRef }) {
 function FilterCell({ col, value, onChange }) {
   const isNum = col.type === 'num'
   const ops   = isNum ? NUM_OPS : STR_OPS
+  const hints = isNum ? NUM_HINTS : STR_HINTS
   const [dropOpen, setDropOpen] = useState(false)
   const [dropRect, setDropRect] = useState(null)
+  const [tipPos,   setTipPos]   = useState(null)
   const btnRef = useRef(null)
 
   const { op, val, val2 } = parseForEdit(value, isNum)
   const hasFilter = !!value
   const isNullOp  = op === 'null' || op === '!null'
   const opLabel   = ops.find(o => o.v === op)?.l.split(' ')[0] ?? (isNum ? '=' : '~')
+
+  function showHint() {
+    const r = btnRef.current?.getBoundingClientRect()
+    if (r) setTipPos({ left: r.left, top: r.top - 6 })
+  }
 
   function openDrop(e) {
     e.stopPropagation()
@@ -398,15 +427,31 @@ function FilterCell({ col, value, onChange }) {
   return (
     <div onClick={e => e.stopPropagation()}
       style={{ display: 'flex', alignItems: 'center', gap: 2, minHeight: 24 }}>
-      <button ref={btnRef} onClick={openDrop} style={{
-        padding: '1px 4px', fontSize: 9, cursor: 'pointer',
-        background: hasFilter ? '#edf5ed' : '#f7f5f2',
-        border: `1px solid ${hasFilter ? '#4a6741' : '#d4cfc9'}`,
-        borderRadius: 3, color: hasFilter ? '#2d4a2d' : '#9e998f',
-        fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0, lineHeight: '1.4',
-      }}>
+      <button ref={btnRef} onClick={openDrop}
+        onMouseEnter={showHint} onMouseLeave={() => setTipPos(null)}
+        style={{
+          padding: '1px 4px', fontSize: 9, cursor: 'pointer',
+          background: hasFilter ? '#edf5ed' : '#f7f5f2',
+          border: `1px solid ${hasFilter ? '#4a6741' : '#d4cfc9'}`,
+          borderRadius: 3, color: hasFilter ? '#2d4a2d' : '#9e998f',
+          fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0, lineHeight: '1.4',
+        }}>
         {opLabel} ▾
       </button>
+
+      {tipPos && hints[op] && (
+        <div style={{
+          position: 'fixed', left: tipPos.left, top: tipPos.top,
+          transform: 'translateY(-100%)',
+          zIndex: 9998, pointerEvents: 'none',
+          background: '#1a1a1a', color: '#fff',
+          fontSize: 10, lineHeight: 1.6,
+          borderRadius: 4, padding: '5px 9px',
+          whiteSpace: 'pre', boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+        }}>
+          {hints[op]}
+        </div>
+      )}
 
       {isNullOp ? (
         <span style={{ fontSize: 9, color: '#2d4a2d', fontWeight: 600, flex: 1, whiteSpace: 'nowrap' }}>
