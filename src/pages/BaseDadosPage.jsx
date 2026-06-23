@@ -185,7 +185,19 @@ function applyColFilters(rows, colTypeMap, filters) {
     if (s === 'null' || s === 'vazio')   { out = out.filter(r => r[key] == null || r[key] === ''); continue }
     if (s === '!null' || s === '!vazio') { out = out.filter(r => r[key] != null && r[key] !== ''); continue }
 
-    // fallback: substring match
+    // text operators with prefix encoding: "!~|X", "^|X", "$|X", "=|X", "~|X"
+    const prefM = s.match(/^(!~|\^|\$|=|~)\|(.*)$/)
+    if (prefM) {
+      const tOp = prefM[1], needle = prefM[2].toLowerCase()
+      if (tOp === '!~') out = out.filter(r => !String(r[key] ?? '').toLowerCase().includes(needle))
+      else if (tOp === '^') out = out.filter(r => String(r[key] ?? '').toLowerCase().startsWith(needle))
+      else if (tOp === '$') out = out.filter(r => String(r[key] ?? '').toLowerCase().endsWith(needle))
+      else if (tOp === '=') out = out.filter(r => String(r[key] ?? '').toLowerCase() === needle)
+      else out = out.filter(r => String(r[key] ?? '').toLowerCase().includes(needle))
+      continue
+    }
+
+    // default: contains (plain text or "~" prefix stripped)
     const lc = s.toLowerCase()
     out = out.filter(r => String(r[key] ?? '').toLowerCase().includes(lc))
   }
@@ -253,35 +265,7 @@ function ColsDropdown({ visibleCols, setVisibleCols, onClose }) {
   )
 }
 
-// ─── FILTER POPOVERS ─────────────────────────────────────────────────────────
-
-function parseForEdit(value) {
-  if (!value) return { op: '=', val: '', val2: '' }
-  const s = value.trim()
-  if (s === 'null'  || s === 'vazio')  return { op: 'null',  val: '', val2: '' }
-  if (s === '!null' || s === '!vazio') return { op: '!null', val: '', val2: '' }
-  const rangeM = s.match(/^(-?\d*\.?\d+)\.\.(-?\d*\.?\d+)$/)
-  if (rangeM) return { op: 'entre', val: rangeM[1], val2: rangeM[2] }
-  const m = s.match(/^(>=|<=|!=|>|<|=)\s*(-?\d*\.?\d+)$/)
-  if (m) return { op: m[1], val: m[2], val2: '' }
-  return { op: '=', val: s, val2: '' }
-}
-
-const OP_LABEL = { '>=': '≥', '<=': '≤', '!=': '≠', '>': '>', '<': '<', '=': '=' }
-
-function describeFilter(col, value) {
-  if (!value) return ''
-  const s = value.trim()
-  if (s === 'null'  || s === 'vazio')  return 'vazio'
-  if (s === '!null' || s === '!vazio') return 'não vazio'
-  if (col.type === 'num') {
-    const rangeM = s.match(/^(-?\d*\.?\d+)\.\.(-?\d*\.?\d+)$/)
-    if (rangeM) return `${rangeM[1]} – ${rangeM[2]}`
-    const m = s.match(/^(>=|<=|!=|>|<|=)\s*(-?\d*\.?\d+)$/)
-    if (m) return `${OP_LABEL[m[1]] || m[1]} ${m[2]}`
-  }
-  return s.length > 12 ? s.slice(0, 11) + '…' : s
-}
+// ─── FILTER WIDGETS ──────────────────────────────────────────────────────────
 
 const NUM_OPS = [
   { v: '=',     l: '= igual' },
@@ -290,135 +274,173 @@ const NUM_OPS = [
   { v: '>=',    l: '≥ maior/igual' },
   { v: '<',     l: '< menor' },
   { v: '<=',    l: '≤ menor/igual' },
-  { v: 'entre', l: '↔ entre', span: true },
-  { v: 'null',  l: '○ vazio' },
+  { v: 'entre', l: '↔ entre' },
+  { v: 'null',  l: '∅ vazio' },
   { v: '!null', l: '● não vazio' },
 ]
 
-function FilterPopoverNum({ value, rect, onApply, onClear, onClose }) {
-  const init = parseForEdit(value)
-  const [op,   setOp]   = useState(init.op)
-  const [val,  setVal]  = useState(init.val)
-  const [val2, setVal2] = useState(init.val2)
-  const ref = useRef(null)
+const STR_OPS = [
+  { v: '~',     l: '~ contém' },
+  { v: '!~',    l: '≁ não contém' },
+  { v: '^',     l: '^ começa com' },
+  { v: '$',     l: '$ termina com' },
+  { v: '=',     l: '= igual exato' },
+  { v: 'null',  l: '∅ vazio' },
+  { v: '!null', l: '● não vazio' },
+]
 
+function parseForEdit(value, isNum) {
+  if (!value) return { op: isNum ? '=' : '~', val: '', val2: '' }
+  const s = value.trim()
+  if (s === 'null' || s === 'vazio')   return { op: 'null',  val: '', val2: '' }
+  if (s === '!null' || s === '!vazio') return { op: '!null', val: '', val2: '' }
+  if (isNum) {
+    const rangeM = s.match(/^(-?\d*\.?\d+)\.\.(-?\d*\.?\d+)$/)
+    if (rangeM) return { op: 'entre', val: rangeM[1], val2: rangeM[2] }
+    const m = s.match(/^(>=|<=|!=|>|<|=)\s*(-?\d*\.?\d+)$/)
+    if (m) return { op: m[1], val: m[2], val2: '' }
+    return { op: '=', val: s, val2: '' }
+  }
+  const prefM = s.match(/^(!~|\^|\$|=|~)\|(.*)$/)
+  if (prefM) return { op: prefM[1], val: prefM[2], val2: '' }
+  return { op: '~', val: s, val2: '' }
+}
+
+function buildFilterStr(op, val, val2, isNum) {
+  if (op === 'null')  return 'null'
+  if (op === '!null') return '!null'
+  if (isNum) {
+    if (op === 'entre') {
+      if (val !== '' && val2 !== '') return `${val}..${val2}`
+      if (val !== '') return `>=${val}`
+      return ''
+    }
+    return val !== '' ? `${op}${val}` : ''
+  }
+  if (val === '') return ''
+  if (op === '~') return val  // default contains — no prefix needed
+  return `${op}|${val}`
+}
+
+function OpDropdown({ ops, selectedOp, rect, onSelect, onClose, ignoreRef }) {
+  const ref = useRef(null)
   useEffect(() => {
-    function h(e) { if (ref.current && !ref.current.contains(e.target)) onClose() }
+    function h(e) {
+      if (ref.current && !ref.current.contains(e.target) &&
+          !(ignoreRef?.current && ignoreRef.current.contains(e.target))) {
+        onClose()
+      }
+    }
     document.addEventListener('mousedown', h, true)
     return () => document.removeEventListener('mousedown', h, true)
-  }, [onClose])
+  }, [onClose, ignoreRef])
 
-  function apply() {
-    if (op === 'null')  { onApply('null');  return }
-    if (op === '!null') { onApply('!null'); return }
-    if (op === 'entre') {
-      if (val !== '' && val2 !== '') { onApply(`${val}..${val2}`); return }
-      if (val !== '') { onApply(`>=${val}`); return }
-      return
-    }
-    if (val !== '') onApply(`${op}${val}`)
-  }
-
-  const showInputs = op !== 'null' && op !== '!null'
-  const left = Math.min(rect.left, window.innerWidth - 224)
-  const top  = rect.bottom + 4
-
+  const left = Math.min(rect.left, window.innerWidth - 168)
+  const top  = rect.bottom + 2
   return (
     <div ref={ref} style={{
       position: 'fixed', top, left, zIndex: 9999,
-      background: '#fff', border: '1px solid #d4cfc9', borderRadius: 8,
-      boxShadow: '0 8px 24px rgba(0,0,0,0.18)', padding: 12, width: 210,
+      background: '#fff', border: '1px solid #d4cfc9',
+      borderRadius: 6, boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
+      padding: 4, minWidth: 148,
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: showInputs ? 10 : 12 }}>
-        {NUM_OPS.map(o => (
-          <button key={o.v} onClick={() => setOp(o.v)} style={{
-            padding: '5px 6px', fontSize: 11, textAlign: 'left',
-            border: `1px solid ${op === o.v ? '#2d4a2d' : '#e0dbd4'}`,
-            borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit',
-            background: op === o.v ? '#edf5ed' : '#fff',
-            color: op === o.v ? '#2d4a2d' : '#4a3728',
-            fontWeight: op === o.v ? 600 : 400,
-            gridColumn: o.span ? 'span 2' : undefined,
-          }}>{o.l}</button>
-        ))}
-      </div>
-      {showInputs && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
-          <input autoFocus type="number" value={val} onChange={e => setVal(e.target.value)}
-            placeholder={op === 'entre' ? 'De' : 'Valor'}
-            onKeyDown={e => e.key === 'Enter' && apply()}
-            style={{ padding: '5px 8px', fontSize: 12, border: '1px solid #d4cfc9', borderRadius: 4, fontFamily: 'inherit', outline: 'none' }}
-          />
-          {op === 'entre' && (
-            <input type="number" value={val2} onChange={e => setVal2(e.target.value)}
-              placeholder="Até"
-              onKeyDown={e => e.key === 'Enter' && apply()}
-              style={{ padding: '5px 8px', fontSize: 12, border: '1px solid #d4cfc9', borderRadius: 4, fontFamily: 'inherit', outline: 'none' }}
-            />
-          )}
-        </div>
-      )}
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button onClick={apply} style={{ flex: 1, padding: '5px 0', fontSize: 12, fontWeight: 600, background: '#2d4a2d', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit' }}>
-          Aplicar
-        </button>
-        <button onClick={onClear} style={{ padding: '5px 10px', fontSize: 12, background: '#fff', color: '#6b6560', border: '1px solid #e0dbd4', borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit' }}>
-          Limpar
-        </button>
-      </div>
+      {ops.map(o => (
+        <button key={o.v} onClick={() => onSelect(o.v)} style={{
+          display: 'block', width: '100%', textAlign: 'left',
+          padding: '5px 10px', fontSize: 11, cursor: 'pointer',
+          background: selectedOp === o.v ? '#edf5ed' : 'transparent',
+          color: selectedOp === o.v ? '#2d4a2d' : '#1a1a1a',
+          fontWeight: selectedOp === o.v ? 600 : 400,
+          border: 'none', borderRadius: 3, fontFamily: 'inherit',
+        }}>{o.l}</button>
+      ))}
     </div>
   )
 }
 
-function FilterPopoverStr({ value, rect, onApply, onClear, onClose }) {
-  const isSpecial = ['null', 'vazio', '!null', '!vazio'].includes(value)
-  const [val, setVal] = useState(isSpecial ? '' : (value || ''))
-  const ref = useRef(null)
+function FilterCell({ col, value, onChange }) {
+  const isNum = col.type === 'num'
+  const ops   = isNum ? NUM_OPS : STR_OPS
+  const [dropOpen, setDropOpen] = useState(false)
+  const [dropRect, setDropRect] = useState(null)
+  const btnRef = useRef(null)
 
-  useEffect(() => {
-    function h(e) { if (ref.current && !ref.current.contains(e.target)) onClose() }
-    document.addEventListener('mousedown', h, true)
-    return () => document.removeEventListener('mousedown', h, true)
-  }, [onClose])
+  const { op, val, val2 } = parseForEdit(value, isNum)
+  const hasFilter = !!value
+  const isNullOp  = op === 'null' || op === '!null'
+  const opLabel   = ops.find(o => o.v === op)?.l.split(' ')[0] ?? (isNum ? '=' : '~')
 
-  function apply() { if (val.trim()) onApply(val.trim()) }
+  function openDrop(e) {
+    e.stopPropagation()
+    if (dropOpen) { setDropOpen(false); return }
+    setDropRect(btnRef.current.getBoundingClientRect())
+    setDropOpen(true)
+  }
 
-  const left = Math.min(rect.left, window.innerWidth - 204)
-  const top  = rect.bottom + 4
+  function selectOp(newOp) {
+    setDropOpen(false)
+    if (newOp === 'null' || newOp === '!null') { onChange(newOp); return }
+    if (isNullOp) { onChange(''); return }
+    const str = buildFilterStr(newOp, val, val2, isNum)
+    onChange(str)
+  }
+
+  function handleVal(e)  { onChange(buildFilterStr(op, e.target.value, val2, isNum)) }
+  function handleVal2(e) { onChange(buildFilterStr(op, val, e.target.value, isNum)) }
+
+  const inputStyle = {
+    flex: 1, minWidth: 0, width: 0, padding: '2px 4px', fontSize: 10,
+    border: `1px solid ${hasFilter ? '#4a6741' : '#d4cfc9'}`,
+    borderRadius: 3, fontFamily: 'inherit', outline: 'none',
+    background: hasFilter ? '#f4faf4' : '#fff',
+  }
 
   return (
-    <div ref={ref} style={{
-      position: 'fixed', top, left, zIndex: 9999,
-      background: '#fff', border: '1px solid #d4cfc9', borderRadius: 8,
-      boxShadow: '0 8px 24px rgba(0,0,0,0.18)', padding: 12, width: 190,
-    }}>
-      <input autoFocus type="text" value={val} onChange={e => setVal(e.target.value)}
-        placeholder="Texto parcial…"
-        onKeyDown={e => e.key === 'Enter' && apply()}
-        style={{ width: '100%', boxSizing: 'border-box', padding: '5px 8px', fontSize: 12, border: '1px solid #d4cfc9', borderRadius: 4, fontFamily: 'inherit', outline: 'none', marginBottom: 8 }}
-      />
-      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-        {[
-          { v: 'null',  l: 'Vazio' },
-          { v: '!null', l: 'Não vazio' },
-        ].map(o => (
-          <button key={o.v} onClick={() => onApply(o.v)} style={{
-            flex: 1, padding: '4px 0', fontSize: 11, borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit',
-            background: value === o.v ? '#edf5ed' : '#f7f5f2',
-            border: `1px solid ${value === o.v ? '#2d4a2d' : '#e0dbd4'}`,
-            color: value === o.v ? '#2d4a2d' : '#6b6560',
-            fontWeight: value === o.v ? 600 : 400,
-          }}>{o.l}</button>
-        ))}
-      </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button onClick={apply} style={{ flex: 1, padding: '5px 0', fontSize: 12, fontWeight: 600, background: '#2d4a2d', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit' }}>
-          Aplicar
-        </button>
-        <button onClick={onClear} style={{ padding: '5px 10px', fontSize: 12, background: '#fff', color: '#6b6560', border: '1px solid #e0dbd4', borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit' }}>
-          Limpar
-        </button>
-      </div>
+    <div onClick={e => e.stopPropagation()}
+      style={{ display: 'flex', alignItems: 'center', gap: 2, minHeight: 24 }}>
+      <button ref={btnRef} onClick={openDrop} style={{
+        padding: '1px 4px', fontSize: 9, cursor: 'pointer',
+        background: hasFilter ? '#edf5ed' : '#f7f5f2',
+        border: `1px solid ${hasFilter ? '#4a6741' : '#d4cfc9'}`,
+        borderRadius: 3, color: hasFilter ? '#2d4a2d' : '#9e998f',
+        fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0, lineHeight: '1.4',
+      }}>
+        {opLabel} ▾
+      </button>
+
+      {isNullOp ? (
+        <span style={{ fontSize: 9, color: '#2d4a2d', fontWeight: 600, flex: 1, whiteSpace: 'nowrap' }}>
+          {op === 'null' ? 'vazio' : 'não vazio'}
+        </span>
+      ) : (
+        <>
+          <input type={isNum ? 'number' : 'text'} value={val} onChange={handleVal}
+            placeholder={op === 'entre' ? 'De' : ''}
+            style={inputStyle}
+          />
+          {op === 'entre' && (
+            <input type="number" value={val2} onChange={handleVal2}
+              placeholder="Até"
+              style={inputStyle}
+            />
+          )}
+        </>
+      )}
+
+      {hasFilter && (
+        <button onClick={(e) => { e.stopPropagation(); onChange('') }} style={{
+          padding: '0 2px', fontSize: 12, cursor: 'pointer',
+          background: 'none', border: 'none', color: '#9e998f',
+          lineHeight: 1, flexShrink: 0,
+        }}>×</button>
+      )}
+
+      {dropOpen && dropRect && (
+        <OpDropdown
+          ops={ops} selectedOp={op} rect={dropRect}
+          onSelect={selectOp} onClose={() => setDropOpen(false)} ignoreRef={btnRef}
+        />
+      )}
     </div>
   )
 }
@@ -428,22 +450,6 @@ function FilterPopoverStr({ value, rect, onApply, onClear, onClose }) {
 function DataTable({ cols, rows, sortKey, sortDir, onSort, colFilters, onColFilter, page, setPage, totalRows }) {
   const totalPages = Math.ceil(totalRows / PAGE_SIZE)
   const pageRows = rows
-  const [openFilter, setOpenFilter] = useState(null) // { key, type, rect }
-
-  // Fecha popup ao scrollar (posição fixed ficaria desalinhada)
-  useEffect(() => {
-    if (!openFilter) return
-    function h() { setOpenFilter(null) }
-    document.addEventListener('scroll', h, true)
-    return () => document.removeEventListener('scroll', h, true)
-  }, [openFilter])
-
-  function handleCellClick(col, e) {
-    e.stopPropagation()
-    const rect = e.currentTarget.getBoundingClientRect()
-    if (openFilter?.key === col.key) { setOpenFilter(null); return }
-    setOpenFilter({ key: col.key, type: col.type, rect })
-  }
 
   return (
     <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, overflow: 'hidden' }}>
@@ -473,32 +479,13 @@ function DataTable({ cols, rows, sortKey, sortDir, onSort, colFilters, onColFilt
             <tr>
               {cols.map(col => {
                 const raw = colFilters[col.key] || ''
-                const isOpen = openFilter?.key === col.key
                 return (
-                  <th key={col.key} onClick={(e) => handleCellClick(col, e)}
-                    style={{
-                      background: raw ? '#e4ede4' : (isOpen ? '#e8e4df' : '#f0ede8'),
-                      padding: '3px 6px', borderRight: '1px solid #e0dbd4',
-                      borderBottom: '2px solid #e0dbd4', cursor: 'pointer', userSelect: 'none',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, minHeight: 22, minWidth: 0 }}>
-                      {raw ? (
-                        <>
-                          <span style={{ fontSize: 10, color: '#2d4a2d', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {describeFilter(col, raw)}
-                          </span>
-                          <span onClick={(e) => { e.stopPropagation(); onColFilter(col.key, '') }}
-                            title="Limpar"
-                            style={{ fontSize: 12, color: '#9e998f', cursor: 'pointer', lineHeight: 1, flexShrink: 0 }}
-                          >×</span>
-                        </>
-                      ) : (
-                        <span style={{ fontSize: 10, color: '#c0b8ae', width: '100%', textAlign: 'center' }}>
-                          {isOpen ? '▲' : '▼'}
-                        </span>
-                      )}
-                    </div>
+                  <th key={col.key} style={{
+                    background: raw ? '#e4ede4' : '#f0ede8',
+                    padding: '3px 6px', borderRight: '1px solid #e0dbd4',
+                    borderBottom: '2px solid #e0dbd4',
+                  }}>
+                    <FilterCell col={col} value={raw} onChange={(v) => onColFilter(col.key, v)} />
                   </th>
                 )
               })}
@@ -546,23 +533,6 @@ function DataTable({ cols, rows, sortKey, sortDir, onSort, colFilters, onColFilt
         </div>
       )}
 
-      {openFilter && (
-        openFilter.type === 'num'
-          ? <FilterPopoverNum
-              value={colFilters[openFilter.key] || ''}
-              rect={openFilter.rect}
-              onApply={(v) => { onColFilter(openFilter.key, v); setOpenFilter(null) }}
-              onClear={() => { onColFilter(openFilter.key, ''); setOpenFilter(null) }}
-              onClose={() => setOpenFilter(null)}
-            />
-          : <FilterPopoverStr
-              value={colFilters[openFilter.key] || ''}
-              rect={openFilter.rect}
-              onApply={(v) => { onColFilter(openFilter.key, v); setOpenFilter(null) }}
-              onClear={() => { onColFilter(openFilter.key, ''); setOpenFilter(null) }}
-              onClose={() => setOpenFilter(null)}
-            />
-      )}
     </div>
   )
 }
