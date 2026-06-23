@@ -459,12 +459,12 @@ function FilterCell({ col, value, onChange }) {
         </span>
       ) : (
         <>
-          <input type={isNum ? 'number' : 'text'} value={val} onChange={handleVal}
+          <input type="text" value={val} onChange={handleVal}
             placeholder={op === 'entre' ? 'De' : ''}
             style={inputStyle}
           />
           {op === 'entre' && (
-            <input type="number" value={val2} onChange={handleVal2}
+            <input type="text" value={val2} onChange={handleVal2}
               placeholder="Até"
               style={inputStyle}
             />
