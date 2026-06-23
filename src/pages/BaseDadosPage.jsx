@@ -253,9 +253,197 @@ function ColsDropdown({ visibleCols, setVisibleCols, onClose }) {
   )
 }
 
+// ─── FILTER POPOVERS ─────────────────────────────────────────────────────────
+
+function parseForEdit(value) {
+  if (!value) return { op: '=', val: '', val2: '' }
+  const s = value.trim()
+  if (s === 'null'  || s === 'vazio')  return { op: 'null',  val: '', val2: '' }
+  if (s === '!null' || s === '!vazio') return { op: '!null', val: '', val2: '' }
+  const rangeM = s.match(/^(-?\d*\.?\d+)\.\.(-?\d*\.?\d+)$/)
+  if (rangeM) return { op: 'entre', val: rangeM[1], val2: rangeM[2] }
+  const m = s.match(/^(>=|<=|!=|>|<|=)\s*(-?\d*\.?\d+)$/)
+  if (m) return { op: m[1], val: m[2], val2: '' }
+  return { op: '=', val: s, val2: '' }
+}
+
+const OP_LABEL = { '>=': '≥', '<=': '≤', '!=': '≠', '>': '>', '<': '<', '=': '=' }
+
+function describeFilter(col, value) {
+  if (!value) return ''
+  const s = value.trim()
+  if (s === 'null'  || s === 'vazio')  return 'vazio'
+  if (s === '!null' || s === '!vazio') return 'não vazio'
+  if (col.type === 'num') {
+    const rangeM = s.match(/^(-?\d*\.?\d+)\.\.(-?\d*\.?\d+)$/)
+    if (rangeM) return `${rangeM[1]} – ${rangeM[2]}`
+    const m = s.match(/^(>=|<=|!=|>|<|=)\s*(-?\d*\.?\d+)$/)
+    if (m) return `${OP_LABEL[m[1]] || m[1]} ${m[2]}`
+  }
+  return s.length > 12 ? s.slice(0, 11) + '…' : s
+}
+
+const NUM_OPS = [
+  { v: '=',     l: '= igual' },
+  { v: '!=',    l: '≠ diferente' },
+  { v: '>',     l: '> maior' },
+  { v: '>=',    l: '≥ maior/igual' },
+  { v: '<',     l: '< menor' },
+  { v: '<=',    l: '≤ menor/igual' },
+  { v: 'entre', l: '↔ entre', span: true },
+  { v: 'null',  l: '○ vazio' },
+  { v: '!null', l: '● não vazio' },
+]
+
+function FilterPopoverNum({ value, rect, onApply, onClear, onClose }) {
+  const init = parseForEdit(value)
+  const [op,   setOp]   = useState(init.op)
+  const [val,  setVal]  = useState(init.val)
+  const [val2, setVal2] = useState(init.val2)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    function h(e) { if (ref.current && !ref.current.contains(e.target)) onClose() }
+    document.addEventListener('mousedown', h, true)
+    return () => document.removeEventListener('mousedown', h, true)
+  }, [onClose])
+
+  function apply() {
+    if (op === 'null')  { onApply('null');  return }
+    if (op === '!null') { onApply('!null'); return }
+    if (op === 'entre') {
+      if (val !== '' && val2 !== '') { onApply(`${val}..${val2}`); return }
+      if (val !== '') { onApply(`>=${val}`); return }
+      return
+    }
+    if (val !== '') onApply(`${op}${val}`)
+  }
+
+  const showInputs = op !== 'null' && op !== '!null'
+  const left = Math.min(rect.left, window.innerWidth - 224)
+  const top  = rect.bottom + 4
+
+  return (
+    <div ref={ref} style={{
+      position: 'fixed', top, left, zIndex: 9999,
+      background: '#fff', border: '1px solid #d4cfc9', borderRadius: 8,
+      boxShadow: '0 8px 24px rgba(0,0,0,0.18)', padding: 12, width: 210,
+    }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: showInputs ? 10 : 12 }}>
+        {NUM_OPS.map(o => (
+          <button key={o.v} onClick={() => setOp(o.v)} style={{
+            padding: '5px 6px', fontSize: 11, textAlign: 'left',
+            border: `1px solid ${op === o.v ? '#2d4a2d' : '#e0dbd4'}`,
+            borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit',
+            background: op === o.v ? '#edf5ed' : '#fff',
+            color: op === o.v ? '#2d4a2d' : '#4a3728',
+            fontWeight: op === o.v ? 600 : 400,
+            gridColumn: o.span ? 'span 2' : undefined,
+          }}>{o.l}</button>
+        ))}
+      </div>
+      {showInputs && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+          <input autoFocus type="number" value={val} onChange={e => setVal(e.target.value)}
+            placeholder={op === 'entre' ? 'De' : 'Valor'}
+            onKeyDown={e => e.key === 'Enter' && apply()}
+            style={{ padding: '5px 8px', fontSize: 12, border: '1px solid #d4cfc9', borderRadius: 4, fontFamily: 'inherit', outline: 'none' }}
+          />
+          {op === 'entre' && (
+            <input type="number" value={val2} onChange={e => setVal2(e.target.value)}
+              placeholder="Até"
+              onKeyDown={e => e.key === 'Enter' && apply()}
+              style={{ padding: '5px 8px', fontSize: 12, border: '1px solid #d4cfc9', borderRadius: 4, fontFamily: 'inherit', outline: 'none' }}
+            />
+          )}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button onClick={apply} style={{ flex: 1, padding: '5px 0', fontSize: 12, fontWeight: 600, background: '#2d4a2d', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit' }}>
+          Aplicar
+        </button>
+        <button onClick={onClear} style={{ padding: '5px 10px', fontSize: 12, background: '#fff', color: '#6b6560', border: '1px solid #e0dbd4', borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit' }}>
+          Limpar
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function FilterPopoverStr({ value, rect, onApply, onClear, onClose }) {
+  const isSpecial = ['null', 'vazio', '!null', '!vazio'].includes(value)
+  const [val, setVal] = useState(isSpecial ? '' : (value || ''))
+  const ref = useRef(null)
+
+  useEffect(() => {
+    function h(e) { if (ref.current && !ref.current.contains(e.target)) onClose() }
+    document.addEventListener('mousedown', h, true)
+    return () => document.removeEventListener('mousedown', h, true)
+  }, [onClose])
+
+  function apply() { if (val.trim()) onApply(val.trim()) }
+
+  const left = Math.min(rect.left, window.innerWidth - 204)
+  const top  = rect.bottom + 4
+
+  return (
+    <div ref={ref} style={{
+      position: 'fixed', top, left, zIndex: 9999,
+      background: '#fff', border: '1px solid #d4cfc9', borderRadius: 8,
+      boxShadow: '0 8px 24px rgba(0,0,0,0.18)', padding: 12, width: 190,
+    }}>
+      <input autoFocus type="text" value={val} onChange={e => setVal(e.target.value)}
+        placeholder="Texto parcial…"
+        onKeyDown={e => e.key === 'Enter' && apply()}
+        style={{ width: '100%', boxSizing: 'border-box', padding: '5px 8px', fontSize: 12, border: '1px solid #d4cfc9', borderRadius: 4, fontFamily: 'inherit', outline: 'none', marginBottom: 8 }}
+      />
+      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+        {[
+          { v: 'null',  l: 'Vazio' },
+          { v: '!null', l: 'Não vazio' },
+        ].map(o => (
+          <button key={o.v} onClick={() => onApply(o.v)} style={{
+            flex: 1, padding: '4px 0', fontSize: 11, borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit',
+            background: value === o.v ? '#edf5ed' : '#f7f5f2',
+            border: `1px solid ${value === o.v ? '#2d4a2d' : '#e0dbd4'}`,
+            color: value === o.v ? '#2d4a2d' : '#6b6560',
+            fontWeight: value === o.v ? 600 : 400,
+          }}>{o.l}</button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button onClick={apply} style={{ flex: 1, padding: '5px 0', fontSize: 12, fontWeight: 600, background: '#2d4a2d', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit' }}>
+          Aplicar
+        </button>
+        <button onClick={onClear} style={{ padding: '5px 10px', fontSize: 12, background: '#fff', color: '#6b6560', border: '1px solid #e0dbd4', borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit' }}>
+          Limpar
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── TABELA ───────────────────────────────────────────────────────────────────
+
 function DataTable({ cols, rows, sortKey, sortDir, onSort, colFilters, onColFilter, page, setPage, totalRows }) {
   const totalPages = Math.ceil(totalRows / PAGE_SIZE)
   const pageRows = rows
+  const [openFilter, setOpenFilter] = useState(null) // { key, type, rect }
+
+  // Fecha popup ao scrollar (posição fixed ficaria desalinhada)
+  useEffect(() => {
+    if (!openFilter) return
+    function h() { setOpenFilter(null) }
+    document.addEventListener('scroll', h, true)
+    return () => document.removeEventListener('scroll', h, true)
+  }, [openFilter])
+
+  function handleCellClick(col, e) {
+    e.stopPropagation()
+    const rect = e.currentTarget.getBoundingClientRect()
+    if (openFilter?.key === col.key) { setOpenFilter(null); return }
+    setOpenFilter({ key: col.key, type: col.type, rect })
+  }
 
   return (
     <div style={{ background: '#fff', border: '1px solid #e0dbd4', borderRadius: 6, overflow: 'hidden' }}>
@@ -285,41 +473,30 @@ function DataTable({ cols, rows, sortKey, sortDir, onSort, colFilters, onColFilt
             <tr>
               {cols.map(col => {
                 const raw = colFilters[col.key] || ''
-                const isNum = col.type === 'num'
-                const numParsed = isNum && raw ? parseNumFilter(raw) : null
-                const borderColor = raw
-                  ? (isNum && !numParsed ? '#c8960c' : '#4a6741')
-                  : '#d0cbc4'
-                const placeholder = isNum ? '>5  5..10  null' : 'filtrar…  null'
-                const titleTip = isNum
-                  ? 'Operadores: > >= < <= = !=  |  Intervalo: 5..10  |  Múltiplos: >5 <10  |  Nulo: null / !null'
-                  : 'Texto parcial — null / !null para vazio'
+                const isOpen = openFilter?.key === col.key
                 return (
-                  <th key={col.key} style={{ background: '#f0ede8', padding: '4px 6px', borderRight: '1px solid #e0dbd4', borderBottom: '2px solid #e0dbd4' }}>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type="text"
-                        value={raw}
-                        onChange={e => onColFilter(col.key, e.target.value)}
-                        placeholder={placeholder}
-                        title={titleTip}
-                        style={{
-                          width: '100%', boxSizing: 'border-box',
-                          padding: raw ? '3px 16px 3px 6px' : '3px 6px', fontSize: 11,
-                          border: `1px solid ${borderColor}`, borderRadius: 3,
-                          background: '#fff', outline: 'none', fontFamily: 'inherit',
-                        }}
-                      />
-                      {raw && (
-                        <button
-                          onClick={() => onColFilter(col.key, '')}
-                          title="Limpar"
-                          style={{
-                            position: 'absolute', right: 3, top: '50%', transform: 'translateY(-50%)',
-                            border: 'none', background: 'none', cursor: 'pointer',
-                            color: '#9e998f', padding: 0, fontSize: 12, lineHeight: 1,
-                          }}
-                        >×</button>
+                  <th key={col.key} onClick={(e) => handleCellClick(col, e)}
+                    style={{
+                      background: raw ? '#e4ede4' : (isOpen ? '#e8e4df' : '#f0ede8'),
+                      padding: '3px 6px', borderRight: '1px solid #e0dbd4',
+                      borderBottom: '2px solid #e0dbd4', cursor: 'pointer', userSelect: 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, minHeight: 22, minWidth: 0 }}>
+                      {raw ? (
+                        <>
+                          <span style={{ fontSize: 10, color: '#2d4a2d', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {describeFilter(col, raw)}
+                          </span>
+                          <span onClick={(e) => { e.stopPropagation(); onColFilter(col.key, '') }}
+                            title="Limpar"
+                            style={{ fontSize: 12, color: '#9e998f', cursor: 'pointer', lineHeight: 1, flexShrink: 0 }}
+                          >×</span>
+                        </>
+                      ) : (
+                        <span style={{ fontSize: 10, color: '#c0b8ae', width: '100%', textAlign: 'center' }}>
+                          {isOpen ? '▲' : '▼'}
+                        </span>
                       )}
                     </div>
                   </th>
@@ -367,6 +544,24 @@ function DataTable({ cols, rows, sortKey, sortDir, onSort, colFilters, onColFilt
           <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}
             style={{ padding: '3px 10px', fontSize: 12, border: '1px solid #e0dbd4', borderRadius: 3, cursor: page === totalPages - 1 ? 'not-allowed' : 'pointer', background: '#fff', fontFamily: 'inherit' }}>▶</button>
         </div>
+      )}
+
+      {openFilter && (
+        openFilter.type === 'num'
+          ? <FilterPopoverNum
+              value={colFilters[openFilter.key] || ''}
+              rect={openFilter.rect}
+              onApply={(v) => { onColFilter(openFilter.key, v); setOpenFilter(null) }}
+              onClear={() => { onColFilter(openFilter.key, ''); setOpenFilter(null) }}
+              onClose={() => setOpenFilter(null)}
+            />
+          : <FilterPopoverStr
+              value={colFilters[openFilter.key] || ''}
+              rect={openFilter.rect}
+              onApply={(v) => { onColFilter(openFilter.key, v); setOpenFilter(null) }}
+              onClear={() => { onColFilter(openFilter.key, ''); setOpenFilter(null) }}
+              onClose={() => setOpenFilter(null)}
+            />
       )}
     </div>
   )
